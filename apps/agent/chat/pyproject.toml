@@ -1,0 +1,19 @@
+[project]
+name = "chat"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Sayan De", email = "sayandeten@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]>=0.128.0",
+]
+
+[project.scripts]
+chat = "chat:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
