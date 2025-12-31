@@ -1,5 +1,6 @@
 {
   "tailwindCSS.experimental.configFile": "packages/ui/src/styles/globals.css",
+  "python.defaultInterpreterPath": "../apps/agent/venv/bin/python",
   "prisma-smart-formatter.typescriptreact.defaultFormatter": "esbenp.prettier-vscode",
   "prisma-smart-formatter.prisma.defaultFormatter": "Prisma.prisma"
 }
