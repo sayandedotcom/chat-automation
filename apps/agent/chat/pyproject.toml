@@ -1,7 +1,7 @@
 [project]
 name = "chat"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI Chat Agent with LangGraph and MCP Tools"
 readme = "README.md"
 authors = [
     { name = "Sayan De", email = "sayandeten@gmail.com" }
@@ -10,8 +10,12 @@ requires-python = ">=3.10"
 dependencies = [
     "fastapi[standard]>=0.128.0",
     "langchain>=1.2.0",
+    "langchain-mcp-adapters>=0.2.1",
     "langgraph>=1.0.5",
+    "langgraph-checkpoint-postgres>=2.0.0",
     "python-dotenv>=1.2.1",
+    "langchain-google-genai>=2.0.0",
+    "psycopg[binary]>=3.0.0",
 ]
 
 [project.scripts]

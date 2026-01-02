@@ -78,4 +78,10 @@ export const integrations: Integration[] = [
     description: "Manage Google Docs documents",
     icon: "/integrations/google_docs.svg",
   },
+  {
+    id: "web-search",
+    name: "Web Search",
+    description: "Search the web for information",
+    icon: "/integrations/web_search.svg",
+  },
 ];
