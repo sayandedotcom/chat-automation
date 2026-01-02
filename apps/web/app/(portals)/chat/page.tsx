@@ -1,21 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { PlanetaryBackground } from "@/components/planetary-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { StarsBackground } from "@workspace/ui/components/stars-background";
 import { ChatGreeting } from "@/components/chat-greeting";
 import { ChatMessages, ChatMessage } from "@/components/chat-messages";
 import { ChatInputWithMentions } from "@/components/chat-input";
-
-// Simple mock responses for demonstration
-const mockResponses = [
-  "Hello! I'm your AI assistant. How can I help you today?",
-  "That's a great question! Let me think about that...",
-  "I'd be happy to help you with that. Here's what I found:",
-  "Interesting! Could you tell me more about what you're looking for?",
-  "I understand. Let me provide you with some information on that topic.",
-];
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -24,6 +15,7 @@ function generateId(): string {
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const threadIdRef = useRef<string | null>(null);
 
   const handleSubmit = useCallback(async (content: string) => {
     // Add user message
@@ -37,22 +29,55 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulate AI response delay
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 1000)
-    );
+    try {
+      // Call the chat API
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: content,
+          thread_id: threadIdRef.current,
+        }),
+      });
 
-    // Add mock AI response
-    const aiMessage: ChatMessage = {
-      id: generateId(),
-      role: "assistant",
-      content:
-        mockResponses[Math.floor(Math.random() * mockResponses.length)] || "",
-      timestamp: new Date(),
-    };
+      if (!response.ok) {
+        throw new Error("Failed to get response");
+      }
 
-    setMessages((prev) => [...prev, aiMessage]);
-    setIsLoading(false);
+      const data = await response.json();
+
+      // Store thread_id for conversation continuity
+      if (data.thread_id) {
+        threadIdRef.current = data.thread_id;
+      }
+
+      // Add AI response
+      const aiMessage: ChatMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: data.response || "Sorry, I could not process your request.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Chat error:", error);
+
+      // Add error message
+      const errorMessage: ChatMessage = {
+        id: generateId(),
+        role: "assistant",
+        content:
+          "Sorry, there was an error processing your request. Please make sure the agent server is running.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const hasMessages = messages.length > 0;
