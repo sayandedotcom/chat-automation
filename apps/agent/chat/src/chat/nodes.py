@@ -48,7 +48,15 @@ class ChatNodes:
         Returns:
             Updated state with assistant's response
         """
+        from langchain_core.messages import SystemMessage
+        from chat.prompts import SYSTEM_PROMPT_CHAT
+        
         messages = state["messages"]
+        
+        # Add system prompt at the beginning if not already present
+        if not messages or not isinstance(messages[0], SystemMessage):
+            messages = [SystemMessage(content=SYSTEM_PROMPT_CHAT)] + list(messages)
+        
         response = await self.llm_with_tools.ainvoke(messages)
         return {"messages": [response]}
     

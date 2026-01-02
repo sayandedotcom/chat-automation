@@ -25,6 +25,10 @@ class ChatRequestSchema(BaseModel):
     """Request schema for chat endpoint."""
     message: str = Field(..., description="User's chat message")
     thread_id: Optional[str] = Field(default=None, description="Thread ID for conversation continuity")
+    # Optional OAuth tokens for MCP integrations
+    gmail_token: Optional[str] = Field(default=None, description="Gmail OAuth access token")
+    vercel_token: Optional[str] = Field(default=None, description="Vercel access token")
+    notion_token: Optional[str] = Field(default=None, description="Notion OAuth access token")
 
 
 class ChatResponseSchema(BaseModel):

@@ -52,6 +52,9 @@ async def chat(data: ChatRequestSchema) -> ChatResponseSchemaSerializable:
     """Process a chat message and return the response."""
     try:
         service = await get_or_create_service(
+            gmail_token=data.gmail_token,
+            vercel_token=data.vercel_token,
+            notion_token=data.notion_token,
             tavily_api_key=TAVILY_API_KEY,
         )
         return await service.chat(data)

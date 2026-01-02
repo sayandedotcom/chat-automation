@@ -21,25 +21,19 @@ export async function POST(request: NextRequest) {
     const vercelToken = cookieStore.get("vercel_access_token")?.value;
     const notionToken = cookieStore.get("notion_access_token")?.value;
 
-    // Build cookie header for the agent API
-    const cookieHeader = [
-      gmailToken ? `gmail_access_token=${gmailToken}` : "",
-      vercelToken ? `vercel_access_token=${vercelToken}` : "",
-      notionToken ? `notion_access_token=${notionToken}` : "",
-    ]
-      .filter(Boolean)
-      .join("; ");
-
-    // Call the FastAPI chat endpoint
+    // Call the FastAPI chat endpoint with tokens in the body
     const response = await fetch(`${AGENT_API_URL}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       },
       body: JSON.stringify({
         message,
         thread_id: thread_id || null,
+        // Pass OAuth tokens for MCP integrations
+        gmail_token: gmailToken || null,
+        vercel_token: vercelToken || null,
+        notion_token: notionToken || null,
       }),
     });
 
