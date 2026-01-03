@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
 
-// Gmail-only OAuth scopes
-const GMAIL_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.send",
-  "https://www.googleapis.com/auth/gmail.compose",
-  "https://www.googleapis.com/auth/gmail.modify",
-  "https://www.googleapis.com/auth/gmail.labels",
+// Google Docs OAuth scopes (includes Drive for file access)
+const GOOGLE_DOCS_SCOPES = [
+  "https://www.googleapis.com/auth/documents",
+  "https://www.googleapis.com/auth/documents.readonly",
+  "https://www.googleapis.com/auth/drive.file",
+  "https://www.googleapis.com/auth/drive.readonly",
 ].join(" ");
 
 export async function GET() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI ||
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/gmail/callback`;
+    process.env.GOOGLE_DOCS_REDIRECT_URI ||
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google-docs/callback`;
 
   if (!clientId) {
     return NextResponse.json(
@@ -27,9 +26,9 @@ export async function GET() {
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", GMAIL_SCOPES);
-  authUrl.searchParams.set("access_type", "offline"); // Get refresh token
-  authUrl.searchParams.set("prompt", "consent"); // Force consent to get refresh token
+  authUrl.searchParams.set("scope", GOOGLE_DOCS_SCOPES);
+  authUrl.searchParams.set("access_type", "offline");
+  authUrl.searchParams.set("prompt", "consent");
 
   return NextResponse.redirect(authUrl.toString());
 }

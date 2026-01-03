@@ -7,12 +7,14 @@ export async function POST(request: NextRequest) {
 
   const cookieNames: Record<string, string> = {
     gmail: "gmail_access_token",
+    "google-docs": "google_docs_access_token",
     vercel: "vercel_access_token",
     notion: "notion_access_token",
   };
 
   const refreshCookieNames: Record<string, string> = {
     gmail: "gmail_refresh_token",
+    "google-docs": "google_docs_refresh_token",
   };
 
   const cookieName = cookieNames[provider];

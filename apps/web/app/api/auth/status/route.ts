@@ -6,6 +6,7 @@ export async function GET() {
 
   const status = {
     gmail: !!cookieStore.get("gmail_access_token"),
+    "google-docs": !!cookieStore.get("google_docs_access_token"),
     vercel: !!cookieStore.get("vercel_access_token"),
     notion: !!cookieStore.get("notion_access_token"),
   };
