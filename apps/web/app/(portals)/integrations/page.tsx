@@ -10,7 +10,13 @@ import { integrations, type Integration } from "@/config/integrations";
 type ConnectionStatus = Record<string, boolean>;
 
 // OAuth-supported integrations
-const OAUTH_INTEGRATIONS = ["gmail", "google-docs", "vercel", "notion"];
+const OAUTH_INTEGRATIONS = [
+  "gmail",
+  "google-docs",
+  "google-drive",
+  "vercel",
+  "notion",
+];
 
 function IntegrationCard({
   integration,
