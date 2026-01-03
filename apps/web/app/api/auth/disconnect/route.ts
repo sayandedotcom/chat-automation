@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
     gmail: "gmail_access_token",
     "google-docs": "google_docs_access_token",
     "google-drive": "google_drive_access_token",
+    "google-calendar": "google_calendar_access_token",
     vercel: "vercel_access_token",
     notion: "notion_access_token",
   };
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest) {
     gmail: "gmail_refresh_token",
     "google-docs": "google_docs_refresh_token",
     "google-drive": "google_drive_refresh_token",
+    "google-calendar": "google_calendar_refresh_token",
   };
 
   const cookieName = cookieNames[provider];

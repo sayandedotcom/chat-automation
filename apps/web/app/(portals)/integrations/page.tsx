@@ -14,6 +14,7 @@ const OAUTH_INTEGRATIONS = [
   "gmail",
   "google-docs",
   "google-drive",
+  "google-calendar",
   "vercel",
   "notion",
 ];
