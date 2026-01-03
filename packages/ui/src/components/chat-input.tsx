@@ -22,7 +22,13 @@ import {
   useRef,
   useState,
 } from "react";
-import tippy, { type Instance } from "tippy.js";
+import tippyDefault, { type Instance } from "tippy.js";
+
+// Handle tippy.js ESM/CJS interop
+const tippy =
+  typeof tippyDefault === "function"
+    ? tippyDefault
+    : (tippyDefault as unknown as { default: typeof tippyDefault }).default;
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
@@ -60,9 +66,9 @@ export function createMentionConfig<
 }
 
 type ChatInputContextType = {
-  // biome-ignore lint/suspicious/noExplicitAny: Needs to accept configs with different item types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Needs to accept configs with different item types
   mentionConfigs: MentionConfig<any>[];
-  // biome-ignore lint/suspicious/noExplicitAny: Needs to accept configs with different item types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Needs to accept configs with different item types
   addMentionConfig: (config: MentionConfig<any>) => void;
   onSubmit: () => void;
   onStop?: () => void;
@@ -105,7 +111,7 @@ export function ChatInput({
   value?: ChatInputValue;
   onChange?: (value: ChatInputValue) => void;
 }) {
-  // biome-ignore lint/suspicious/noExplicitAny: Needs to accept configs with different item types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Needs to accept configs with different item types
   const [mentionConfigs, setMentionConfigs] = useState<MentionConfig<any>[]>(
     []
   );
@@ -113,7 +119,7 @@ export function ChatInput({
 
   const registeredTypesRef = useRef(new Set<string>());
 
-  // biome-ignore lint/suspicious/noExplicitAny: Needs to accept configs with different item types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Needs to accept configs with different item types
   const addMentionConfig = useCallback((config: MentionConfig<any>) => {
     if (registeredTypesRef.current.has(config.type)) {
       setMentionConfigs((prev) => {
@@ -428,7 +434,11 @@ const GenericMentionList = forwardRef(
       [upHandler, downHandler, enterHandler]
     );
 
-    useImperativeHandle(ref, () => ({ handleKeyDown }), [handleKeyDown]);
+    useImperativeHandle(
+      ref as React.ForwardedRef<GenericMentionListRef>,
+      () => ({ handleKeyDown }),
+      [handleKeyDown]
+    );
 
     return (
       <div className="min-w-48 max-w-64 max-h-48 bg-popover text-popover-foreground border border-border rounded-lg shadow-md flex flex-col gap-1 overflow-y-auto p-1">
@@ -466,6 +476,8 @@ const GenericMentionList = forwardRef(
   }
 );
 
+GenericMentionList.displayName = "GenericMentionList";
+
 function getMentionSuggestion<T extends BaseMentionItem>(
   config: MentionConfig<T>
 ) {
@@ -476,7 +488,7 @@ function getMentionSuggestion<T extends BaseMentionItem>(
       );
     },
     render: () => {
-      // biome-ignore lint/suspicious/noExplicitAny: Ok
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Ok
       let component: ReactRenderer<any>;
       let popup: Instance;
 
@@ -692,7 +704,7 @@ export function ChatInputGroupText({
   return <InputGroupText className={cn(className)} {...props} />;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: Required for type inference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
 type MentionConfigsObject = Record<string, MentionConfig<any>>;
 
 type ParsedFromObject<T extends MentionConfigsObject> = {
@@ -738,7 +750,7 @@ export function useChatInput<
 }: {
   mentions?: Mentions;
   initialValue?: JSONContent;
-  // biome-ignore lint/suspicious/noExplicitAny: Required for generic config handling
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for generic config handling
   onSubmit?: (parsed: any) => void;
 }): UseChatInputReturn<Mentions> {
   const [value, setValue] = useState<JSONContent>(
@@ -778,25 +790,25 @@ export function useChatInput<
     clear,
     handleSubmit,
     ...(mentions ? { mentionConfigs: mentions } : {}),
-    // biome-ignore lint/suspicious/noExplicitAny: Type inference complexity
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Type inference complexity
   } as any;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: Required for type inference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
   k: infer I
 ) => void
   ? I
   : never;
 
-// biome-ignore lint/suspicious/noExplicitAny: Required for type inference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
 type ConfigToField<Config extends MentionConfig<any>> =
   Config extends MentionConfig<infer T>
     ? { [K in Config["type"]]: T[] }
     : never;
 
 export type ParsedChatInputValue<
-  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
   Configs extends readonly MentionConfig<any>[],
 > = { content: string } & Partial<
   UnionToIntersection<
@@ -804,13 +816,13 @@ export type ParsedChatInputValue<
   >
 >;
 
-// biome-ignore lint/suspicious/noExplicitAny: Required for generic config handling
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for generic config handling
 export function parseContent<Configs extends readonly MentionConfig<any>[]>(
   json: JSONContent,
   configs: Configs
 ): ParsedChatInputValue<Configs> {
   let content = "";
-  // biome-ignore lint/suspicious/noExplicitAny: Dynamic mention types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic mention types
   const mentions: Record<string, any[]> = {};
 
   function recurse(node: JSONContent) {
