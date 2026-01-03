@@ -10,3 +10,6 @@ dependencies = []
 members = [
     "chat",
 ]
+
+[tool.uv.sources]
+sst = { git = "https://github.com/sst/sst.git", subdirectory = "sdk/python", branch = "dev" }
