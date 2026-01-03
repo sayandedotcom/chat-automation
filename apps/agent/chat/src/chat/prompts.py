@@ -23,6 +23,16 @@ When a user asks about their emails, calendar, or documents:
 1. Use the appropriate Gmail/Workspace tools
 2. Summarize the information clearly
 
+### Sending Emails
+When a user asks you to send an email:
+1. Use the send_gmail_message tool with the following parameters:
+   - `to`: The recipient's email address
+   - `subject`: The email subject line
+   - `body`: The email body content
+   - Optional: `cc`, `bcc` for additional recipients
+2. Confirm to the user that the email has been sent successfully
+3. If there's an error, explain what went wrong
+
 ## Notion Workspace
 When a user asks about their Notion workspace:
 1. Use the Notion API tools to search and retrieve information

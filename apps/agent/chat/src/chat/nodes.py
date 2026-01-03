@@ -36,7 +36,9 @@ class ChatNodes:
         self.llm_with_tools = self.llm.bind_tools(self.tools) if self.tools else self.llm
         
         # Create tool node if tools are available
-        self.tool_node = ToolNode(self.tools) if self.tools else None
+        # handle_tool_errors=True ensures tool errors (like auth prompts) are returned
+        # to the LLM instead of crashing the workflow
+        self.tool_node = ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
     
     async def chat_node(self, state: ChatState) -> dict:
         """

@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+from pathlib import Path
+import json
+import os
 
 from chat.service import ChatService
-from chat.schemas import ChatRequestSchema, ChatResponseSchemaSerializable, ThreadMessagesResponseSchema
+from chat.schemas import ChatRequestSchema, ChatResponseSchemaSerializable, ThreadMessagesResponseSchema, GmailCredentialsSyncSchema
 from chat.utils.mcp_client import TAVILY_API_KEY
 
 app = FastAPI(title="Chat Agent API")
@@ -92,4 +95,49 @@ async def list_threads():
         return {"threads": threads}
     except Exception as e:
         print(f"Error listing threads: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# MCP credentials directory (where workspace-mcp stores OAuth credentials)
+MCP_CREDENTIALS_DIR = Path.home() / ".google_workspace_mcp" / "credentials"
+
+
+@app.post("/sync-gmail-credentials")
+async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
+    """
+    Sync Gmail OAuth credentials from frontend to MCP's credential store.
+    This allows the MCP server to use frontend-obtained tokens without prompting again.
+    """
+    try:
+        # Ensure credentials directory exists
+        MCP_CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Create credentials in the format MCP expects
+        # MCP creates files like: user_<email_hash>.json
+        # For simplicity, we'll use a standard filename that single-user mode will find
+        credentials = {
+            "token": data.access_token,
+            "refresh_token": data.refresh_token,
+            "token_uri": data.token_uri,
+            "client_id": data.client_id,
+            "client_secret": data.client_secret,
+            "scopes": data.scopes,
+        }
+        
+        if data.expiry:
+            credentials["expiry"] = data.expiry
+        
+        # Write to a user credentials file
+        # MCP looks for files matching user_*.json pattern
+        cred_file = MCP_CREDENTIALS_DIR / "user_frontend_oauth.json"
+        with open(cred_file, "w") as f:
+            json.dump(credentials, f, indent=2)
+        
+        print(f"✅ Gmail credentials synced to {cred_file}")
+        return {"status": "success", "message": "Gmail credentials synced to MCP"}
+        
+    except Exception as e:
+        print(f"Error syncing Gmail credentials: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

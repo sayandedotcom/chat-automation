@@ -49,3 +49,20 @@ class ThreadMessagesResponseSchema(BaseModel):
     """Response schema for getting thread messages."""
     messages: List[dict] = Field(default_factory=list, description="List of message dictionaries")
     thread_id: str = Field(..., description="Thread ID")
+
+
+class GmailCredentialsSyncSchema(BaseModel):
+    """Schema for syncing Gmail OAuth credentials to MCP."""
+    access_token: str = Field(..., description="Google OAuth access token")
+    refresh_token: str = Field(..., description="Google OAuth refresh token")
+    token_uri: str = Field(default="https://oauth2.googleapis.com/token", description="OAuth token URI")
+    client_id: str = Field(..., description="Google OAuth client ID")
+    client_secret: str = Field(..., description="Google OAuth client secret")
+    scopes: List[str] = Field(default_factory=lambda: [
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.modify",
+        "https://www.googleapis.com/auth/gmail.labels",
+    ], description="OAuth scopes")
+    expiry: Optional[str] = Field(default=None, description="Token expiry timestamp")

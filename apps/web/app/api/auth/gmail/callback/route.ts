@@ -82,6 +82,39 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Sync credentials to MCP's credential store for single-user mode
+    const agentApiUrl = process.env.AGENT_API_URL || "http://localhost:8001";
+    try {
+      const syncResponse = await fetch(
+        `${agentApiUrl}/sync-gmail-credentials`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token || "",
+            client_id: clientId,
+            client_secret: clientSecret,
+            scopes: tokens.scope.split(" "),
+          }),
+        }
+      );
+
+      if (syncResponse.ok) {
+        console.log("✅ Gmail credentials synced to MCP");
+      } else {
+        console.error(
+          "⚠️ Failed to sync credentials to MCP:",
+          await syncResponse.text()
+        );
+      }
+    } catch (syncError) {
+      console.error("⚠️ Error syncing credentials to MCP:", syncError);
+      // Don't fail the OAuth flow if sync fails
+    }
+
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/integrations?success=gmail`
     );

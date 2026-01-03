@@ -27,20 +27,26 @@ class ChatService:
         vercel_token: Optional[str] = None,
         notion_token: Optional[str] = None,
         tavily_api_key: Optional[str] = None,
+        google_client_id: Optional[str] = None,
+        google_client_secret: Optional[str] = None,
     ):
         """
         Initialize the chat service.
         
         Args:
-            gmail_token: Google OAuth access token
+            gmail_token: Google OAuth access token (triggers Google Workspace MCP)
             vercel_token: Vercel access token
             notion_token: Notion OAuth access token
             tavily_api_key: Tavily API key
+            google_client_id: Google OAuth Client ID (fallback: GOOGLE_OAUTH_CLIENT_ID env var)
+            google_client_secret: Google OAuth Client Secret (fallback: GOOGLE_OAUTH_CLIENT_SECRET env var)
         """
         self.gmail_token = gmail_token
         self.vercel_token = vercel_token
         self.notion_token = notion_token
         self.tavily_api_key = tavily_api_key
+        self.google_client_id = google_client_id
+        self.google_client_secret = google_client_secret
         
         self._client = None
         self._tools = []
@@ -58,6 +64,8 @@ class ChatService:
             vercel_token=self.vercel_token,
             notion_token=self.notion_token,
             tavily_api_key=self.tavily_api_key,
+            google_client_id=self.google_client_id,
+            google_client_secret=self.google_client_secret,
         )
         
         # Load MCP tools

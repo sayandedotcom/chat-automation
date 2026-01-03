@@ -20,29 +20,49 @@ def create_mcp_client(
     vercel_token: Optional[str] = None,
     notion_token: Optional[str] = None,
     tavily_api_key: Optional[str] = None,
+    google_client_id: Optional[str] = None,
+    google_client_secret: Optional[str] = None,
 ) -> MultiServerMCPClient:
     """
     Create MCP client with connected integrations.
     Only includes servers for which we have tokens.
     
     Args:
-        gmail_token: Google OAuth access token for Gmail/Workspace
+        gmail_token: Google OAuth access token for Gmail/Workspace (used as user identifier)
         vercel_token: Vercel access token
         notion_token: Notion OAuth access token
         tavily_api_key: Tavily API key for web search
+        google_client_id: Google OAuth Client ID (for workspace-mcp)
+        google_client_secret: Google OAuth Client Secret (for workspace-mcp)
     
     Returns:
         Configured MultiServerMCPClient instance
     """
     servers = {}
 
-    if gmail_token:
-        servers["gmail"] = {
-            "transport": "stdio",
-            "command": "npx",
-            "args": ["-y", "@google/mcp-server-workspace"],
-            "env": {"GOOGLE_ACCESS_TOKEN": gmail_token},
+    # Google Workspace MCP Server (https://github.com/taylorwilsdon/google_workspace_mcp)
+    # Uses single-user mode with credentials synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
+    # The sync happens when user connects Gmail on frontend, tokens are written to MCP credentials dir
+    client_id = google_client_id or os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+    client_secret = google_client_secret or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    
+    if client_id and client_secret:
+        workspace_env = {
+            "GOOGLE_OAUTH_CLIENT_ID": client_id,
+            "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
+            "OAUTHLIB_INSECURE_TRANSPORT": "1",  # Allow HTTP for localhost (dev only)
         }
+        
+        servers["google_workspace"] = {
+            "transport": "stdio",
+            "command": "uvx",
+            # Use --single-user for simplified authentication flow
+            # Credentials are pre-synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
+            "args": ["workspace-mcp", "--single-user", "--tools", "gmail", "drive", "calendar", "docs"],
+            "env": workspace_env,
+        }
+        print(f"🔐 Google Workspace MCP configured (single-user mode, stdio)")
+
 
     if vercel_token:
         servers["vercel"] = {
