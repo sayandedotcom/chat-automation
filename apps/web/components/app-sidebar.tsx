@@ -26,7 +26,9 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Navigation items for the top section
 const navItems = [
@@ -84,28 +86,29 @@ const user = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const isMobile = useIsMobile();
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              asChild
-            >
-              <a href="/chat">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
-                  <Sparkles className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Chat AI</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    Assistant
-                  </span>
-                </div>
-              </a>
-            </SidebarMenuButton>
+            <div className="flex w-full items-center gap-2">
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden"
+                asChild
+              >
+                <a href="/chat">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                    <Sparkles className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">Chat AI</span>
+                  </div>
+                </a>
+              </SidebarMenuButton>
+              <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:translate-x-0" />
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
