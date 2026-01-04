@@ -16,6 +16,7 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "langchain-google-genai>=2.0.0",
     "psycopg[binary]>=3.0.0",
+    "mangum>=0.20.0",
 ]
 
 [project.scripts]

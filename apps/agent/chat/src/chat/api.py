@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from pathlib import Path
 import json
-import os
+from mangum import Mangum
 
 from chat.service import ChatService
 from chat.schemas import ChatRequestSchema, ChatResponseSchemaSerializable, ThreadMessagesResponseSchema, GmailCredentialsSyncSchema
@@ -141,3 +141,6 @@ async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+# Create handler for AWS Lambda with specific configuration
+handler = Mangum(app, api_gateway_base_path=None, lifespan="off")
