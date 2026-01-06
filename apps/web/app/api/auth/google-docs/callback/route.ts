@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sync credentials to MCP's credential store
-    const agentApiUrl = process.env.AGENT_API_URL || "http://localhost:8001";
+    const agentApiUrl = process.env.AGENT_API_URL || "http://localhost:8000";
     try {
       const syncResponse = await fetch(
         `${agentApiUrl}/sync-gmail-credentials`,

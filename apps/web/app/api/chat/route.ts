@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8001";
+const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8000";
 
 // Refresh Gmail access token using refresh token
 async function refreshGmailToken(refreshToken: string): Promise<string | null> {
