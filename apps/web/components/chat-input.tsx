@@ -49,8 +49,10 @@ const files: FileItem[] = [
 
 export function ChatInputWithMentions({
   onSubmit,
+  placeholder = "Type and press enter to start chatting...",
 }: {
   onSubmit?: (value: string) => void;
+  placeholder?: string;
 }) {
   const [highlightedOutput, setHighlightedOutput] = useState<string>("");
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -141,7 +143,7 @@ export function ChatInputWithMentions({
 
           {/* Top: Text input */}
           <ChatInputEditor
-            placeholder="Type and press enter to start chatting..."
+            placeholder={placeholder}
             className="text-neutral-200 placeholder:text-neutral-500 min-h-[28px] text-sm"
           />
 

@@ -58,9 +58,13 @@ function formatDate(date: Date): string {
 
 interface ChatGreetingProps {
   userName?: string;
+  subtitle?: string;
 }
 
-export function ChatGreeting({ userName = "Sayan" }: ChatGreetingProps) {
+export function ChatGreeting({
+  userName = "Sayan",
+  subtitle,
+}: ChatGreetingProps) {
   const [mounted, setMounted] = useState(false);
   const [dateStr, setDateStr] = useState("");
   const [greeting, setGreeting] = useState("");
@@ -87,6 +91,9 @@ export function ChatGreeting({ userName = "Sayan" }: ChatGreetingProps) {
       <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
         {greeting}, {userName}
       </h1>
+      {subtitle && (
+        <p className="text-sm text-muted-foreground mt-2">{subtitle}</p>
+      )}
     </div>
   );
 }
