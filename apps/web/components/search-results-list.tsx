@@ -33,12 +33,13 @@ export function parseSearchResults(text: string): SearchResult[] {
   while ((match = markdownPattern.exec(text)) !== null) {
     const title = match[1];
     const url = match[2];
+    if (!url) continue;
     const domain = new URL(url).hostname.replace("www.", "");
 
     if (!seenUrls.has(domain)) {
       seenUrls.add(domain);
       results.push({
-        title,
+        title: title || domain,
         url,
         domain,
         favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
@@ -64,7 +65,7 @@ export function parseSearchResults(text: string): SearchResult[] {
             // Try to extract title from line
             let title = domain;
             const boldMatch = line.match(/\*\*([^*]+)\*\*/);
-            if (boldMatch) {
+            if (boldMatch && boldMatch[1]) {
               title = boldMatch[1].replace(/:\s*$/, "");
             } else {
               // Use the text before the URL as title

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
 import {
@@ -11,6 +11,12 @@ import {
   ChevronUp,
   Globe,
   Shield,
+  Mail,
+  Calendar,
+  FileText,
+  Clock,
+  Search,
+  Check,
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
@@ -91,6 +97,74 @@ const toolNameMap: Record<string, string> = {
   general: "General",
 };
 
+// Tools that should show rich result cards (not simple status lines)
+const richResultTools = new Set([
+  "web-search",
+  "notion",
+  "slack",
+  "github",
+  "linear",
+  "vercel",
+  "supabase",
+]);
+
+// Get icon component for simple status messages
+function getStatusIcon(tool: string, description: string) {
+  // Check description for context
+  const lowerDesc = description.toLowerCase();
+
+  if (lowerDesc.includes("email") || tool === "gmail") {
+    return <Mail className="w-4 h-4 text-white/50" />;
+  }
+  if (lowerDesc.includes("calendar") || tool === "google-calendar") {
+    return <Calendar className="w-4 h-4 text-white/50" />;
+  }
+  if (
+    lowerDesc.includes("document") ||
+    lowerDesc.includes("notion") ||
+    tool === "notion" ||
+    tool === "google-docs"
+  ) {
+    return <FileText className="w-4 h-4 text-white/50" />;
+  }
+  if (lowerDesc.includes("time") || lowerDesc.includes("schedule")) {
+    return <Clock className="w-4 h-4 text-white/50" />;
+  }
+  if (lowerDesc.includes("search") || tool === "web-search") {
+    return <Search className="w-4 h-4 text-white/50" />;
+  }
+  if (lowerDesc.includes("vercel") || tool === "vercel") {
+    return <Globe className="w-4 h-4 text-white/50" />;
+  }
+
+  // Default: simple dot
+  return <div className="w-1.5 h-1.5 rounded-full bg-white/40" />;
+}
+
+// Check if a step should show a rich result card (with expandable content)
+function shouldShowRichCard(step: WorkflowStep): boolean {
+  const primaryTool = step.tools_used?.[0] || "general";
+
+  // Always show card for web-search with results
+  if (
+    primaryTool === "web-search" &&
+    (step.search_results?.length || step.result)
+  ) {
+    return true;
+  }
+
+  // Show card for rich result tools with substantial results
+  if (
+    richResultTools.has(primaryTool) &&
+    step.result &&
+    step.result.length > 100
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function WorkflowTimeline({
   steps,
   currentStep,
@@ -100,20 +174,56 @@ export function WorkflowTimeline({
   className,
 }: WorkflowTimelineProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
+  const [animatedSteps, setAnimatedSteps] = useState<Set<number>>(new Set());
+  const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Filter steps to only show visible ones (not pending) - memoized to prevent infinite loops
+  const visibleSteps = useMemo(
+    () => steps.filter((step) => step.status !== "pending"),
+    [steps]
+  );
+
+  // Get stable identifiers for dependency tracking
+  const visibleStepNumbers = visibleSteps.map((s) => s.step_number).join(",");
+  const activeStepNumbers = visibleSteps
+    .filter(
+      (s) => s.status === "in_progress" || s.status === "awaiting_approval"
+    )
+    .map((s) => s.step_number)
+    .join(",");
+
+  // Track which steps have been animated (for entrance animation)
+  useEffect(() => {
+    setAnimatedSteps((prev) => {
+      const newSet = new Set(prev);
+      let hasNew = false;
+      visibleSteps.forEach((step) => {
+        if (!prev.has(step.step_number)) {
+          newSet.add(step.step_number);
+          hasNew = true;
+        }
+      });
+      return hasNew ? newSet : prev;
+    });
+  }, [visibleStepNumbers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-expand steps that are in_progress or awaiting_approval
   useEffect(() => {
-    const activeSteps = steps.filter(
-      (s) => s.status === "in_progress" || s.status === "awaiting_approval"
-    );
-    if (activeSteps.length > 0) {
-      setExpandedSteps((prev) => {
-        const next = new Set(prev);
-        activeSteps.forEach((s) => next.add(s.step_number));
-        return next;
+    if (!activeStepNumbers) return;
+
+    const activeIds = activeStepNumbers.split(",").map(Number);
+    setExpandedSteps((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      activeIds.forEach((id) => {
+        if (!prev.has(id)) {
+          next.add(id);
+          changed = true;
+        }
       });
-    }
-  }, [steps]);
+      return changed ? next : prev;
+    });
+  }, [activeStepNumbers]);
 
   const toggleStep = (stepNumber: number) => {
     setExpandedSteps((prev) => {
@@ -131,25 +241,40 @@ export function WorkflowTimeline({
     return null;
   }
 
+  // Calculate timeline line height based on visible steps
+  const lineHeight = visibleSteps.length > 0 ? `calc(100% - 12px)` : "0px";
+
   return (
     <div className={cn("w-full max-w-3xl mx-auto py-4", className)}>
       {/* Timeline with vertical line */}
-      <div className="relative">
-        {/* Vertical timeline line */}
-        <div className="absolute left-[9px] top-3 bottom-3 w-[2px] bg-white/10" />
+      <div className="relative" ref={timelineRef}>
+        {/* Animated vertical timeline line */}
+        <div
+          className="absolute left-[9px] top-3 w-[2px] bg-white/10 transition-all duration-500 ease-out"
+          style={{ height: lineHeight }}
+        />
 
-        {/* Steps */}
+        {/* Steps - only visible ones */}
         <div className="space-y-3">
-          {steps.map((step, index) => {
+          {visibleSteps.map((step, index) => {
             const isExpanded = expandedSteps.has(step.step_number);
-            const hasContent = step.result || step.error;
             const primaryTool = step.tools_used?.[0] || "general";
             const toolIcon = toolIconMap[primaryTool];
-            const isResultCard = hasContent && step.status === "completed";
-            const isLast = index === steps.length - 1;
+            const isRichCard = shouldShowRichCard(step);
+            const isNewStep = !animatedSteps.has(step.step_number);
 
             return (
-              <div key={step.step_number} className="relative">
+              <div
+                key={step.step_number}
+                className={cn(
+                  "relative",
+                  // Entrance animation for new steps
+                  "animate-in fade-in slide-in-from-top-2 duration-400"
+                )}
+                style={{
+                  animationDelay: isNewStep ? `${index * 100}ms` : "0ms",
+                }}
+              >
                 {/* Step row with circle and content */}
                 <div className="flex items-start gap-4">
                   {/* Left side - circle indicator on the timeline */}
@@ -166,15 +291,19 @@ export function WorkflowTimeline({
                       <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-red-500/50 flex items-center justify-center">
                         <X className="w-3 h-3 text-red-400" />
                       </div>
-                    ) : toolIcon && step.status === "completed" ? (
+                    ) : step.status === "completed" ? (
                       <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
-                        <Image
-                          src={toolIcon}
-                          alt={primaryTool}
-                          width={12}
-                          height={12}
-                          className="object-contain opacity-70"
-                        />
+                        {toolIcon ? (
+                          <Image
+                            src={toolIcon}
+                            alt={primaryTool}
+                            width={12}
+                            height={12}
+                            className="object-contain opacity-70"
+                          />
+                        ) : (
+                          <Check className="w-3 h-3 text-white/50" />
+                        )}
                       </div>
                     ) : (
                       <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
@@ -185,9 +314,103 @@ export function WorkflowTimeline({
 
                   {/* Right side - content */}
                   <div className="flex-1 min-w-0">
-                    {/* Check if this is just a process indicator or has result content */}
-                    {isResultCard ? (
-                      // Result card - solid black with border like "Web Search" card in image 2
+                    {/* APPROVAL CARD */}
+                    {step.status === "awaiting_approval" ? (
+                      <div className="rounded-2xl bg-[#1a1a1a] border border-amber-500/30 overflow-hidden">
+                        <div className="px-4 py-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Shield className="w-4 h-4 text-amber-400" />
+                              <span className="text-sm font-medium text-amber-300">
+                                Awaiting Approval
+                              </span>
+                            </div>
+                            {onApprove && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    onApprove(step.step_number, "approve")
+                                  }
+                                  className="h-7 px-3 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 bg-transparent"
+                                >
+                                  ✓ Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    onApprove(step.step_number, "skip")
+                                  }
+                                  className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
+                                >
+                                  Skip
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-white/60">
+                            {step.description}
+                          </p>
+                          {step.approval_reason && (
+                            <p className="text-xs text-amber-400/70 mt-1">
+                              {step.approval_reason}
+                            </p>
+                          )}
+
+                          {/* Content preview */}
+                          {step.preview && (
+                            <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                              {"title" in step.preview && step.preview.title ? (
+                                <div className="text-sm">
+                                  <span className="text-white/40">Title: </span>
+                                  <span className="text-white/80">
+                                    {String(step.preview.title)}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {"content" in step.preview &&
+                              step.preview.content ? (
+                                <div className="text-sm text-white/60 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                                  {typeof step.preview.content === "string"
+                                    ? step.preview.content
+                                    : JSON.stringify(step.preview.content)}
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : step.status === "failed" ? (
+                      /* FAILED STEP CARD */
+                      <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 overflow-hidden">
+                        <div className="px-4 py-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-red-300">
+                              {step.description}
+                            </p>
+                            {onRetry && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onRetry(step.step_number)}
+                                className="h-7 px-2 text-xs border-red-500/50 text-red-400 hover:bg-red-500/20 bg-transparent"
+                              >
+                                <RotateCcw className="w-3 h-3 mr-1" />
+                                Retry
+                              </Button>
+                            )}
+                          </div>
+                          {step.error && (
+                            <p className="text-xs text-red-400/70 mt-2">
+                              {step.error}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : isRichCard && step.status === "completed" ? (
+                      /* RICH RESULT CARD (Web Search, etc.) */
                       <div
                         className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden cursor-pointer"
                         onClick={() => toggleStep(step.step_number)}
@@ -261,118 +484,30 @@ export function WorkflowTimeline({
                           </div>
                         )}
                       </div>
-                    ) : step.status === "awaiting_approval" ? (
-                      // Approval card - similar styling
-                      <div className="rounded-2xl bg-[#1a1a1a] border border-amber-500/30 overflow-hidden">
-                        <div className="px-4 py-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Shield className="w-4 h-4 text-amber-400" />
-                              <span className="text-sm font-medium text-amber-300">
-                                Awaiting Approval
-                              </span>
-                            </div>
-                            {onApprove && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    onApprove(step.step_number, "approve")
-                                  }
-                                  className="h-7 px-3 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 bg-transparent"
-                                >
-                                  ✓ Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    onApprove(step.step_number, "skip")
-                                  }
-                                  className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
-                                >
-                                  Skip
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-sm text-white/60">
-                            {step.description}
-                          </p>
-                          {step.approval_reason && (
-                            <p className="text-xs text-amber-400/70 mt-1">
-                              {step.approval_reason}
-                            </p>
-                          )}
-
-                          {/* Content preview */}
-                          {step.preview && (
-                            <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-                              {"title" in step.preview &&
-                                step.preview.title && (
-                                  <div className="text-sm">
-                                    <span className="text-white/40">
-                                      Title:{" "}
-                                    </span>
-                                    <span className="text-white/80">
-                                      {String(step.preview.title)}
-                                    </span>
-                                  </div>
-                                )}
-                              {"content" in step.preview &&
-                                step.preview.content && (
-                                  <div className="text-sm text-white/60 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                                    {typeof step.preview.content === "string"
-                                      ? step.preview.content
-                                      : JSON.stringify(step.preview.content)}
-                                  </div>
-                                )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : step.status === "failed" ? (
-                      // Error card
-                      <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 overflow-hidden">
-                        <div className="px-4 py-3">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-red-300">
-                              {step.description}
-                            </p>
-                            {onRetry && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => onRetry(step.step_number)}
-                                className="h-7 px-2 text-xs border-red-500/50 text-red-400 hover:bg-red-500/20 bg-transparent"
-                              >
-                                <RotateCcw className="w-3 h-3 mr-1" />
-                                Retry
-                              </Button>
-                            )}
-                          </div>
-                          {step.error && (
-                            <p className="text-xs text-red-400/70 mt-2">
-                              {step.error}
-                            </p>
-                          )}
-                        </div>
-                      </div>
                     ) : (
-                      // Simple text for pending/in-progress steps - no card, just text
-                      <p
-                        className={cn(
-                          "text-sm py-0.5",
-                          step.status === "pending" && "text-white/40",
-                          step.status === "in_progress" && "text-white/60",
-                          step.status === "completed" &&
-                            !hasContent &&
-                            "text-white/60"
-                        )}
-                      >
-                        {step.description}
-                      </p>
+                      /* SIMPLE STATUS LINE (General messages - like image 3) */
+                      <div className="flex items-center gap-3 py-0.5">
+                        {getStatusIcon(primaryTool, step.description)}
+                        <p
+                          className={cn(
+                            "text-sm",
+                            step.status === "in_progress" && "text-white/60",
+                            step.status === "completed" && "text-white/50",
+                            step.status === "skipped" && "text-white/40"
+                          )}
+                        >
+                          {step.description}
+                          {step.status === "completed" &&
+                            step.result &&
+                            !isRichCard && (
+                              <span className="text-white/30 ml-1">
+                                {step.result.length > 50
+                                  ? ` - ${step.result.substring(0, 50)}...`
+                                  : ` - ${step.result}`}
+                              </span>
+                            )}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -381,6 +516,20 @@ export function WorkflowTimeline({
           })}
         </div>
       </div>
+
+      {/* CSS for animations */}
+      <style jsx>{`
+        @keyframes fadeSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
