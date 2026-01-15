@@ -12,6 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.80.7",
+    "@trpc/client": "^11.8.1",
+    "@trpc/tanstack-react-query": "^11.8.1",
+    "@workspace/trpc": "workspace:*",
     "@workspace/ui": "workspace:*",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.475.0",

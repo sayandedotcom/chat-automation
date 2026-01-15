@@ -1,0 +1,21 @@
+/**
+ * Root router combining all sub-routers.
+ * This is the main entry point for the tRPC API.
+ */
+
+import { router } from "../server/trpc.js";
+import { greetingRouter } from "./greeting.js";
+
+/**
+ * Main application router.
+ * Add new routers here as the API grows.
+ */
+export const appRouter = router({
+  greeting: greetingRouter,
+});
+
+/**
+ * Export the router type for client-side type inference.
+ * This is the key to end-to-end type safety.
+ */
+export type AppRouter = typeof appRouter;
