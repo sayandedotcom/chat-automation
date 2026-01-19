@@ -216,6 +216,7 @@ class WorkflowNodes:
         
         plan = WorkflowPlan(
             original_request=user_request,
+            thinking=plan_output.thinking,  # Store the LLM's reasoning
             steps=workflow_steps,
         )
         

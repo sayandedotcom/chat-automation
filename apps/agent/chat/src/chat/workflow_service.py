@@ -225,12 +225,23 @@ class WorkflowService:
                 # Always yield progress events with plan updates
                 if plan:
                     print(f"   📋 Plan found, steps: {[s.status for s in plan.steps]}")
+                    
+                    # Yield thinking event if this is the first time we see thinking content
+                    if plan.thinking and node_name == "planner":
+                        yield {
+                            "type": "thinking",
+                            "thread_id": thread_id,
+                            "content": plan.thinking,
+                            "duration_hint": 2,  # Approximate duration in seconds
+                        }
+                    
                     yield {
                         "type": "progress",
                         "thread_id": thread_id,
                         "current_step": current_step,
                         "total_steps": len(plan.steps),
                         "plan": {
+                            "thinking": plan.thinking,  # Include thinking in plan
                             "steps": [
                                 {
                                     "step_number": s.step_number,

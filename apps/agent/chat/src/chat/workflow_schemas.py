@@ -71,6 +71,7 @@ class WorkflowStep(BaseModel):
 class WorkflowPlan(BaseModel):
     """The complete workflow plan."""
     original_request: str = Field(..., description="Original user request")
+    thinking: Optional[str] = Field(default=None, description="LLM's reasoning/thinking about the plan")
     steps: List[WorkflowStep] = Field(default_factory=list, description="List of workflow steps")
     is_complete: bool = Field(default=False, description="Whether workflow is complete")
     final_summary: Optional[str] = Field(default=None, description="Final summary after completion")

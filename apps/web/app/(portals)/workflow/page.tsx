@@ -20,6 +20,10 @@ export default function WorkflowPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [originalRequest, setOriginalRequest] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [planThinking, setPlanThinking] = useState<string | null>(null);
+  const [statusMessages, setStatusMessages] = useState<
+    Array<{ text: string; icon?: string }>
+  >([]);
   const threadIdRef = useRef<string | null>(null);
 
   const executeWorkflow = useCallback(async (request: string) => {
@@ -28,6 +32,8 @@ export default function WorkflowPage() {
     setSteps([]);
     setCurrentStep(0);
     setError(null);
+    setPlanThinking(null);
+    setStatusMessages([]);
 
     try {
       // Use streaming endpoint for real-time updates
@@ -91,7 +97,10 @@ export default function WorkflowPage() {
     thread_id?: string;
     current_step?: number;
     total_steps?: number;
+    content?: string; // For thinking event
+    duration_hint?: number; // For thinking event
     plan?: {
+      thinking?: string; // AI reasoning from planner
       steps: Array<{
         step_number: number;
         description: string;
@@ -103,7 +112,6 @@ export default function WorkflowPage() {
       }>;
       is_complete?: boolean;
     };
-    content?: string;
     message?: string;
     interrupt?: {
       type: string;
@@ -115,9 +123,21 @@ export default function WorkflowPage() {
     };
   }) => {
     switch (event.type) {
+      case "thinking":
+        // Store the AI's thinking content to display in the timeline
+        if (event.content) {
+          setPlanThinking(event.content);
+        }
+        break;
+
       case "progress":
         if (event.thread_id) {
           threadIdRef.current = event.thread_id;
+        }
+
+        // Extract thinking from plan if available
+        if (event.plan?.thinking && !planThinking) {
+          setPlanThinking(event.plan.thinking);
         }
 
         if (event.plan?.steps) {
@@ -125,7 +145,7 @@ export default function WorkflowPage() {
             // Merge step data, preserving pending_approval status that was set locally
             return event.plan!.steps.map((s) => {
               const existingStep = prev.find(
-                (p) => p.step_number === s.step_number
+                (p) => p.step_number === s.step_number,
               );
               // If we locally marked a step as awaiting_approval, keep that
               const preserveApproval =
@@ -168,8 +188,8 @@ export default function WorkflowPage() {
           prev.map((step, idx) =>
             idx === currentStep
               ? { ...step, status: "failed", error: event.message }
-              : step
-          )
+              : step,
+          ),
         );
         break;
 
@@ -188,7 +208,7 @@ export default function WorkflowPage() {
           console.log(
             "📝 Updating step",
             event.interrupt.step_number,
-            "to pending_approval"
+            "to pending_approval",
           );
           setSteps((prev) =>
             prev.map((step) =>
@@ -199,8 +219,8 @@ export default function WorkflowPage() {
                     approval_reason: event.interrupt!.reason,
                     preview: event.interrupt!.preview,
                   }
-                : step
-            )
+                : step,
+            ),
           );
           setCurrentStep(event.interrupt.step_number - 1);
         }
@@ -216,8 +236,8 @@ export default function WorkflowPage() {
       prev.map((step) =>
         step.step_number >= stepNumber
           ? { ...step, status: "pending", error: undefined }
-          : step
-      )
+          : step,
+      ),
     );
     setCurrentStep(stepNumber - 1);
     setWorkflowStatus("executing");
@@ -255,8 +275,8 @@ export default function WorkflowPage() {
               description: s.description,
               status: s.status as WorkflowStep["status"],
               result: s.result,
-            })
-          )
+            }),
+          ),
         );
       }
 
@@ -274,7 +294,7 @@ export default function WorkflowPage() {
     async (
       stepNumber: number,
       action: "approve" | "edit" | "skip",
-      content?: Record<string, unknown>
+      content?: Record<string, unknown>,
     ) => {
       try {
         // First update UI optimistically
@@ -285,8 +305,8 @@ export default function WorkflowPage() {
                   ...step,
                   status: action === "skip" ? "completed" : "in_progress",
                 }
-              : step
-          )
+              : step,
+          ),
         );
 
         // Call the resume endpoint
@@ -328,8 +348,8 @@ export default function WorkflowPage() {
                 tools_used: s.tools_used,
                 requires_human_approval: s.requires_human_approval,
                 approval_reason: s.approval_reason,
-              })
-            )
+              }),
+            ),
           );
         }
 
@@ -344,12 +364,12 @@ export default function WorkflowPage() {
           prev.map((step) =>
             step.step_number === stepNumber
               ? { ...step, status: "awaiting_approval" as const }
-              : step
-          )
+              : step,
+          ),
         );
       }
     },
-    []
+    [],
   );
 
   const handleNewWorkflow = useCallback(() => {
@@ -423,6 +443,8 @@ export default function WorkflowPage() {
                 <WorkflowTimeline
                   steps={steps}
                   currentStep={currentStep}
+                  planThinking={planThinking || undefined}
+                  statusMessages={statusMessages}
                   onRetry={handleRetry}
                   onApprove={handleApprove}
                   isComplete={workflowStatus === "complete"}

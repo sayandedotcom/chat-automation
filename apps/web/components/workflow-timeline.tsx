@@ -17,10 +17,20 @@ import {
   Clock,
   Search,
   Check,
+  Plus,
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
 import { SearchResultsList, parseSearchResults } from "./search-results-list";
+import { ThinkingIndicator } from "./thinking-indicator";
+import { DocumentPreviewCard } from "./document-preview-card";
+
+// Thinking event from the backend
+export interface ThinkingEvent {
+  content: string;
+  duration: number;
+  timestamp?: number;
+}
 
 // Search result item (matches backend SearchResultItem)
 export interface SearchResultData {
@@ -54,11 +64,14 @@ export interface WorkflowStep {
 interface WorkflowTimelineProps {
   steps: WorkflowStep[];
   currentStep: number;
+  thinkingEvents?: ThinkingEvent[];
+  statusMessages?: Array<{ text: string; icon?: string; timestamp?: number }>;
+  planThinking?: string; // Initial thinking from the planner
   onRetry?: (stepNumber: number) => void;
   onApprove?: (
     stepNumber: number,
     action: "approve" | "edit" | "skip",
-    content?: Record<string, unknown>
+    content?: Record<string, unknown>,
   ) => void;
   isComplete?: boolean;
   className?: string;
@@ -168,6 +181,9 @@ function shouldShowRichCard(step: WorkflowStep): boolean {
 export function WorkflowTimeline({
   steps,
   currentStep,
+  thinkingEvents,
+  statusMessages,
+  planThinking,
   onRetry,
   onApprove,
   isComplete,
@@ -180,14 +196,14 @@ export function WorkflowTimeline({
   // Filter steps to only show visible ones (not pending) - memoized to prevent infinite loops
   const visibleSteps = useMemo(
     () => steps.filter((step) => step.status !== "pending"),
-    [steps]
+    [steps],
   );
 
   // Get stable identifiers for dependency tracking
   const visibleStepNumbers = visibleSteps.map((s) => s.step_number).join(",");
   const activeStepNumbers = visibleSteps
     .filter(
-      (s) => s.status === "in_progress" || s.status === "awaiting_approval"
+      (s) => s.status === "in_progress" || s.status === "awaiting_approval",
     )
     .map((s) => s.step_number)
     .join(",");
@@ -254,8 +270,41 @@ export function WorkflowTimeline({
           style={{ height: lineHeight }}
         />
 
-        {/* Steps - only visible ones */}
+        {/* Timeline items: thinking blocks, status messages, and steps */}
         <div className="space-y-3">
+          {/* Initial thinking from planner */}
+          {planThinking && (
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 relative z-10">
+                <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#9b7fdb]" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 pt-0.5">
+                <ThinkingIndicator
+                  content={planThinking}
+                  duration={2}
+                  defaultExpanded={false}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Status messages (e.g., "Added 2 integrations successfully") */}
+          {statusMessages?.map((msg, idx) => (
+            <div key={`status-${idx}`} className="flex items-start gap-4">
+              <div className="flex-shrink-0 relative z-10">
+                <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
+                  <Plus className="w-3 h-3 text-white/50" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 pt-0.5">
+                <p className="text-sm text-white/50">{msg.text}</p>
+              </div>
+            </div>
+          ))}
+
+          {/* Workflow steps */}
           {visibleSteps.map((step, index) => {
             const isExpanded = expandedSteps.has(step.step_number);
             const primaryTool = step.tools_used?.[0] || "general";
@@ -269,7 +318,7 @@ export function WorkflowTimeline({
                 className={cn(
                   "relative",
                   // Entrance animation for new steps
-                  "animate-in fade-in slide-in-from-top-2 duration-400"
+                  "animate-in fade-in slide-in-from-top-2 duration-400",
                 )}
                 style={{
                   animationDelay: isNewStep ? `${index * 100}ms` : "0ms",
@@ -462,7 +511,7 @@ export function WorkflowTimeline({
                                     ) : (
                                       (() => {
                                         const parsed = parseSearchResults(
-                                          step.result || ""
+                                          step.result || "",
                                         );
                                         return parsed.length > 0 ? (
                                           <SearchResultsList results={parsed} />
@@ -493,7 +542,7 @@ export function WorkflowTimeline({
                             "text-sm",
                             step.status === "in_progress" && "text-white/60",
                             step.status === "completed" && "text-white/50",
-                            step.status === "skipped" && "text-white/40"
+                            step.status === "skipped" && "text-white/40",
                           )}
                         >
                           {step.description}
