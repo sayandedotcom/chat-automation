@@ -34,6 +34,37 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+# -------------------
+# Shared LLM Instances (Module-level singletons for performance)
+# -------------------
+_planner_llm = None
+_executor_llm = None
+
+
+def get_planner_llm():
+    """Get shared planner LLM instance with structured output."""
+    global _planner_llm
+    if _planner_llm is None:
+        base = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+        )
+        _planner_llm = base.with_structured_output(WorkflowPlanOutput)
+        logger.info("Initialized shared planner LLM")
+    return _planner_llm
+
+
+def get_executor_llm():
+    """Get shared executor LLM instance (without tools - bind tools per request)."""
+    global _executor_llm
+    if _executor_llm is None:
+        _executor_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+        )
+        logger.info("Initialized shared executor LLM")
+    return _executor_llm
+
 
 def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optional[List[SearchResultItem]]:
     """
@@ -150,24 +181,15 @@ class WorkflowNodes:
     """Nodes for the dynamic workflow graph with LLM-driven HITL."""
 
     def __init__(self, tools: List[BaseTool] = None, registry: "IntegrationRegistry" = None):
-        """Initialize workflow nodes with LLM and optional integration registry."""
+        """Initialize workflow nodes with shared LLM instances and optional integration registry."""
         self.tools = tools or []
         self.registry = registry
 
-        # Base LLM for planning
-        base_planner = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-        )
+        # Use shared LLM instances (module-level singletons for performance)
+        self.planner_llm = get_planner_llm()
+        self.executor_llm = get_executor_llm()
 
-        # Planner with structured output - guaranteed type-safe response
-        self.planner_llm = base_planner.with_structured_output(WorkflowPlanOutput)
-
-        # Executor LLM (with tools for execution)
-        self.executor_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-        )
+        # Bind tools to executor (per-workflow, since tools may differ)
         self.executor_with_tools = (
             self.executor_llm.bind_tools(self.tools) if self.tools else self.executor_llm
         )
@@ -226,10 +248,6 @@ class WorkflowNodes:
         self.tool_node = ToolNode(tools, handle_tool_errors=True) if tools else None
 
         logger.info(f"Smart router: bound {len(tools)} tools from {len(integrations)} integrations")
-        print(f"\n🎯 SMART ROUTER")
-        print(f"   Request: {user_request[:80]}...")
-        print(f"   Integrations: {integrations}")
-        print(f"   Tools bound: {len(tools)}")
 
         return {
             "loaded_integrations": loaded_integrations,
@@ -259,13 +277,8 @@ class WorkflowNodes:
             HumanMessage(content=f"Create a plan for: {user_request}")
         ])
         
-        # Console log the planning
-        print("\n" + "="*60)
-        print("📋 WORKFLOW PLAN CREATED (LLM Structured Output)")
-        print("="*60)
-        print(f"Request: {user_request}")
-        print(f"LLM Thinking: {plan_output.thinking}\n")
-        
+        logger.debug(f"Plan created: {len(plan_output.steps)} steps, thinking: {plan_output.thinking[:100]}...")
+
         # Convert PlannedStep to WorkflowStep
         workflow_steps = []
         for i, step in enumerate(plan_output.steps):
@@ -278,16 +291,7 @@ class WorkflowNodes:
                     status="pending",
                 )
             )
-            
-            # Console log each step
-            approval_badge = "🔐 REQUIRES APPROVAL" if step.requires_human_approval else "✅ Auto-execute"
-            print(f"### Step {i + 1} [{approval_badge}]")
-            print(f"Description: {step.description}")
-            print(f"Reason: {step.approval_reason}")
-            print()
-        
-        print("="*60 + "\n")
-        
+
         plan = WorkflowPlan(
             original_request=user_request,
             thinking=plan_output.thinking,  # Store the LLM's reasoning
@@ -324,7 +328,7 @@ class WorkflowNodes:
         current_step = plan.steps[current_index]
         current_step.status = "in_progress"
 
-        print(f"\n🚀 AUTO-EXECUTING Step {current_step.step_number}: {current_step.description}")
+        logger.debug(f"Executing step {current_step.step_number}: {current_step.description}")
 
         # Build context from previous steps
         previous_results = self._get_previous_results(plan, current_index)
@@ -357,7 +361,6 @@ class WorkflowNodes:
                                 "missing_tool": missing_tool,
                             }
                         )
-                        print(f"⚠️ Incremental loading: adding {missing_integration} for tool {missing_tool}")
 
                         # Load additional tools
                         new_tools = self.registry.get_toolset([missing_integration])
@@ -441,7 +444,7 @@ class WorkflowNodes:
             action = approval_decision.get("action", "approve")
             
             if action == "skip":
-                print(f"⏭️ Step {current_step.step_number} SKIPPED by user")
+                logger.debug(f"Step {current_step.step_number} skipped by user")
                 current_step.status = "skipped"
                 current_step.result = "Skipped by user"
                 return {
@@ -452,15 +455,15 @@ class WorkflowNodes:
                     "approval_decision": None,  # Clear for next step
                 }
             
-            print(f"✅ Step {current_step.step_number} APPROVED by user")
+            logger.debug(f"Step {current_step.step_number} approved by user")
             current_step.status = "in_progress"
-            
+
             # Execute the step
             previous_results = self._get_previous_results(plan, current_index)
-            
+
             if action == "edit":
                 edited_content = approval_decision.get("content", {})
-                print(f"✏️ Step {current_step.step_number} content EDITED by user")
+                logger.debug(f"Step {current_step.step_number} content edited by user")
                 result = await self._execute_step_with_content(current_step, plan, previous_results, edited_content)
             else:
                 result = await self._execute_step(current_step, plan, previous_results)
@@ -473,9 +476,7 @@ class WorkflowNodes:
         
         # First time entering - request approval
         current_step.status = "awaiting_approval"
-        
-        print(f"\n🔐 APPROVAL REQUIRED for Step {current_step.step_number}: {current_step.description}")
-        print(f"   Reason: {current_step.approval_reason}")
+        logger.debug(f"Approval required for step {current_step.step_number}: {current_step.description}")
         
         # Set state to signal we need approval and return
         # The graph will END here, streaming code will detect awaiting_approval
@@ -560,14 +561,7 @@ Respond with JSON only.
             HumanMessage(content=f"Execute step {step.step_number}: {step.description}")
         ]
         
-        print(f"🔧 Executor has {len(self.tools)} tools bound")
-        if self.tools:
-            print(f"   Tools: {[t.name for t in self.tools[:5]]}...")
-        
         response = await self.executor_with_tools.ainvoke(executor_messages)
-        
-        has_tool_calls = hasattr(response, "tool_calls") and response.tool_calls
-        print(f"🤖 LLM Response has tool_calls: {has_tool_calls}")
         
         return {
             "messages": [response], 
@@ -641,7 +635,7 @@ Respond with JSON only.
             search_results = extract_search_results_from_messages(messages)
             if search_results:
                 current_step.search_results = search_results
-                print(f"📊 Extracted {len(search_results)} structured search results")
+                logger.debug(f"Extracted {len(search_results)} structured search results")
         
         # Move to next step
         next_index = current_index + 1
@@ -696,10 +690,8 @@ def route_to_executor(state: WorkflowState) -> Literal["executor", "executor_wit
     current_step = plan.steps[current_index]
     
     if current_step.requires_human_approval:
-        print(f"🔀 Routing to APPROVAL executor for step {current_step.step_number}")
         return "executor_with_approval"
-    
-    print(f"🔀 Routing to AUTO executor for step {current_step.step_number}")
+
     return "executor"
 
 
@@ -709,7 +701,6 @@ def should_continue(state: WorkflowState) -> Literal["tools", "step_complete", "
     """
     # If awaiting approval, end the graph (streaming code will detect and send approval event)
     if state.get("awaiting_approval"):
-        print("🛑 Awaiting approval - ending graph")
         return "end"
     
     messages = state["messages"]
@@ -724,7 +715,7 @@ def should_continue(state: WorkflowState) -> Literal["tools", "step_complete", "
         tool_message_count = sum(1 for m in messages if isinstance(m, ToolMessage))
         
         if tool_message_count >= 10:
-            print(f"⚠️ Tool call limit (10) reached, completing step")
+            logger.warning("Tool call limit (10) reached, completing step")
             return "step_complete"
         
         return "tools"
@@ -749,8 +740,6 @@ def should_execute_next_step(state: WorkflowState) -> Literal["executor", "execu
     # Route based on next step's requires_human_approval
     next_step = plan.steps[current_index]
     if next_step.requires_human_approval:
-        print(f"🔀 Routing to APPROVAL executor for step {next_step.step_number}")
         return "executor_with_approval"
-    
-    print(f"🔀 Routing to AUTO executor for step {next_step.step_number}")
+
     return "executor"

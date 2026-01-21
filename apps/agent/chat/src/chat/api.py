@@ -1,3 +1,6 @@
+from contextlib import asynccontextmanager
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -12,6 +15,7 @@ from chat.service import ChatService
 from chat.workflow_service import WorkflowService
 from chat.schemas import ChatRequestSchema, ChatResponseSchemaSerializable, ThreadMessagesResponseSchema, GmailCredentialsSyncSchema
 from chat.utils.mcp_client import TAVILY_API_KEY
+from chat.integration_registry import get_registry
 
 
 # -------------------
@@ -26,7 +30,39 @@ class WorkflowRequestSchema(BaseModel):
     notion_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
 
-app = FastAPI(title="Chat Agent API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Pre-warm MCP connections and registry at startup.
+
+    This eliminates the 5-15s cold start delay on first request
+    by loading all integrations and tools during app initialization.
+    """
+    print("🔥 Pre-warming MCP connections and registry...")
+
+    # Get tokens from environment
+    tokens = {
+        "gmail_token": os.getenv("GMAIL_TOKEN"),
+        "notion_token": os.getenv("NOTION_TOKEN"),
+        "vercel_token": os.getenv("VERCEL_TOKEN"),
+        "tavily_api_key": TAVILY_API_KEY,
+    }
+
+    try:
+        registry = await get_registry(tokens)
+        print(f"✅ Registry pre-warmed with {len(registry.get_all_tools())} tools")
+    except Exception as e:
+        print(f"⚠️ Failed to pre-warm registry: {e}")
+        import traceback
+        traceback.print_exc()
+
+    yield  # App runs here
+
+    print("👋 Shutting down...")
+
+
+app = FastAPI(title="Chat Agent API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

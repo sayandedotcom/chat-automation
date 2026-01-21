@@ -13,7 +13,7 @@ import logging
 from chat.workflow_graph import DynamicWorkflow
 from chat.workflow_schemas import WorkflowState, WorkflowPlan
 from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
-from chat.integration_registry import IntegrationRegistry
+from chat.integration_registry import IntegrationRegistry, get_registry, get_registry_sync
 
 logger = logging.getLogger(__name__)
 
@@ -62,16 +62,24 @@ class WorkflowService:
         if self._initialized:
             return
 
-        # Create integration registry and load all tools
-        self._registry = IntegrationRegistry()
-        await self._registry.load_all({
-            "gmail_token": self.gmail_token,
-            "vercel_token": self.vercel_token,
-            "notion_token": self.notion_token,
-            "tavily_api_key": self.tavily_api_key,
-            "google_client_id": self.google_client_id,
-            "google_client_secret": self.google_client_secret,
-        })
+        # Try to use global registry (pre-warmed at startup) for speed
+        # Falls back to creating new registry if not available
+        global_registry = get_registry_sync()
+
+        if global_registry and global_registry.is_initialized:
+            logger.info("Using pre-warmed global registry (fast path)")
+            self._registry = global_registry
+        else:
+            # Fallback: Create new registry (slow path - 5-15s)
+            logger.info("Global registry not available, creating new one (slow path)")
+            self._registry = await get_registry({
+                "gmail_token": self.gmail_token,
+                "vercel_token": self.vercel_token,
+                "notion_token": self.notion_token,
+                "tavily_api_key": self.tavily_api_key,
+                "google_client_id": self.google_client_id,
+                "google_client_secret": self.google_client_secret,
+            })
 
         # Get all tools (for fallback)
         self._tools = self._registry.get_all_tools()
@@ -81,7 +89,6 @@ class WorkflowService:
         self._initialized = True
 
         logger.info(f"Workflow service initialized with {len(self._tools)} tools")
-        print(f"✅ Workflow service initialized with {len(self._tools)} tools")
 
     async def execute(
         self,
@@ -205,19 +212,64 @@ class WorkflowService:
             "incremental_load_events": [],
         }
 
-        # Stream the workflow execution
-        print(f"\n🔄 Starting astream for workflow...")
+        # Stream the workflow execution with both updates and messages for token-level streaming
+        logger.debug("Starting astream for workflow...")
+
+        # Track current executing step for token attribution
+        current_executing_step = None
+
         async for chunk in self._workflow.get_app().astream(
             initial_state,
             config=config,
-            stream_mode="updates",
+            stream_mode=["updates", "messages"],  # Get both node updates and message tokens
         ):
-            # Log every chunk received
-            print(f"📥 ASTREAM CHUNK: {list(chunk.keys())}")
+            # Handle message-level chunks (token streaming)
+            if isinstance(chunk, tuple):
+                chunk_type, data = chunk
+
+                if chunk_type == "messages":
+                    # This is a message chunk (token) from LLM streaming
+                    if isinstance(data, list) and len(data) > 0:
+                        for msg_chunk in data:
+                            # Check if it's an AIMessage with content
+                            if hasattr(msg_chunk, 'content') and msg_chunk.content:
+                                content = msg_chunk.content
+                                # Extract text from various content formats
+                                if isinstance(content, list):
+                                    text_parts = []
+                                    for item in content:
+                                        if isinstance(item, dict) and "text" in item:
+                                            text_parts.append(item["text"])
+                                        elif isinstance(item, str):
+                                            text_parts.append(item)
+                                    text = "".join(text_parts)
+                                elif isinstance(content, str):
+                                    text = content
+                                else:
+                                    continue
+
+                                # Emit token event if we have text and know which step
+                                if text and current_executing_step is not None:
+                                    yield {
+                                        "type": "token",
+                                        "thread_id": thread_id,
+                                        "step_number": current_executing_step,
+                                        "content": text,
+                                    }
+                    continue  # Skip to next chunk
+
+                # If it's an updates chunk, unwrap it
+                if chunk_type == "updates":
+                    chunk = data
+                else:
+                    continue
+
+            # Handle node-level updates
+            if not isinstance(chunk, dict):
+                continue
 
             # Extract data from node outputs
             for node_name, output in chunk.items():
-                print(f"   📍 Node: {node_name}, Output type: {type(output)}")
                 if not isinstance(output, dict):
                     continue
 
@@ -227,7 +279,7 @@ class WorkflowService:
                     total_tool_count = output.get("total_tool_count", 0)
 
                     if loaded_integrations:
-                        print(f"   🎯 Smart router: {len(loaded_integrations)} integrations, {total_tool_count} tools")
+                        logger.debug(f"Smart router: {len(loaded_integrations)} integrations, {total_tool_count} tools")
                         yield {
                             "type": "integrations_ready",
                             "thread_id": thread_id,
@@ -242,7 +294,7 @@ class WorkflowService:
                 # Handle incremental load events
                 incremental_events = output.get("incremental_load_events", [])
                 for event in incremental_events:
-                    print(f"   ⚠️ Incremental load: {event.get('integration')}")
+                    logger.debug(f"Incremental load: {event.get('integration')}")
                     yield {
                         "type": "integration_added_incrementally",
                         "thread_id": thread_id,
@@ -254,12 +306,18 @@ class WorkflowService:
                     }
 
                 plan = output.get("plan")
-                current_step = output.get("current_step_index")
+                current_step_index = output.get("current_step_index")
+
+                # Track which step is currently executing for token attribution
+                if plan and current_step_index is not None and 0 <= current_step_index < len(plan.steps):
+                    step = plan.steps[current_step_index]
+                    if step.status == "in_progress":
+                        current_executing_step = step.step_number
 
                 # Check for STATE-BASED HITL approval request
                 if output.get("awaiting_approval") and output.get("approval_step_info"):
                     approval_info = output["approval_step_info"]
-                    print(f"   🔐 AWAITING APPROVAL: step {approval_info.get('step_number')}")
+                    logger.debug(f"Awaiting approval: step {approval_info.get('step_number')}")
                     yield {
                         "type": "approval_required",
                         "thread_id": thread_id,
@@ -269,7 +327,6 @@ class WorkflowService:
 
                 # Always yield progress events with plan updates
                 if plan:
-                    print(f"   📋 Plan found, steps: {[s.status for s in plan.steps]}")
 
                     # Yield thinking event if this is the first time we see thinking content
                     if plan.thinking and node_name == "planner":
@@ -282,8 +339,8 @@ class WorkflowService:
 
                     # Yield step thinking events for executor nodes
                     if node_name in ("executor", "executor_with_approval"):
-                        if current_step is not None and 0 <= current_step < len(plan.steps):
-                            step = plan.steps[current_step]
+                        if current_step_index is not None and 0 <= current_step_index < len(plan.steps):
+                            step = plan.steps[current_step_index]
                             if step.thinking_duration_ms:
                                 yield {
                                     "type": "step_thinking",
@@ -296,7 +353,7 @@ class WorkflowService:
                     yield {
                         "type": "progress",
                         "thread_id": thread_id,
-                        "current_step": current_step,
+                        "current_step": current_step_index,
                         "total_steps": len(plan.steps),
                         "plan": {
                             "thinking": plan.thinking,  # Include thinking in plan
@@ -331,8 +388,8 @@ class WorkflowService:
                         }
                     }
         
-        print(f"🏁 astream completed")
-        
+        logger.debug("astream completed")
+
         # After stream ends, check if there's a pending interrupt
         # LangGraph stores interrupt data in state.tasks
         try:
@@ -343,7 +400,7 @@ class WorkflowService:
                         for interrupt in task.interrupts:
                             if hasattr(interrupt, 'value'):
                                 value = interrupt.value
-                                print(f"🔐 Found pending interrupt: {value}")
+                                logger.debug(f"Found pending interrupt: {value}")
                                 yield {
                                     "type": "approval_required",
                                     "thread_id": thread_id,
@@ -351,7 +408,7 @@ class WorkflowService:
                                 }
                                 return  # Stop - waiting for approval
         except Exception as e:
-            print(f"⚠️ Error checking interrupt state: {e}")
+            logger.warning(f"Error checking interrupt state: {e}")
 
     async def get_workflow_state(self, thread_id: str) -> Optional[dict]:
         """Get the current state of a workflow."""
@@ -364,7 +421,7 @@ class WorkflowService:
             state = await self._workflow.get_app().aget_state(config)
             return state.values if state else None
         except Exception as e:
-            print(f"Error getting workflow state: {e}")
+            logger.error(f"Error getting workflow state: {e}")
             return None
 
     async def resume_workflow(
@@ -395,7 +452,7 @@ class WorkflowService:
             return {"error": "Workflow not found", "thread_id": thread_id}
         
         # Resume with decision by injecting approval_decision into state
-        print(f"🔄 Resuming workflow {thread_id} with decision: {decision}")
+        logger.debug(f"Resuming workflow {thread_id} with decision: {decision}")
         
         # Update state with the decision and clear awaiting_approval
         await self._workflow.get_app().aupdate_state(

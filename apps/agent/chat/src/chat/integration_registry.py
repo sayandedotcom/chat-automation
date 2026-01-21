@@ -15,6 +15,9 @@ from langchain_core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 
+# Global singleton for registry (pre-warmed at startup)
+_global_registry: Optional["IntegrationRegistry"] = None
+
 
 class IntegrationConfig:
     """Configuration for a single integration loaded from YAML."""
@@ -197,3 +200,37 @@ def classify_integrations(request: str, registry: IntegrationRegistry) -> list[s
     )
 
     return list(needed)
+
+
+async def get_registry(tokens: dict) -> IntegrationRegistry:
+    """
+    Get the global registry singleton, initializing if needed.
+
+    This function ensures the registry is only initialized once at startup,
+    avoiding the 5-15s tool loading overhead on every request.
+
+    Args:
+        tokens: Dict containing auth tokens (gmail_token, notion_token, etc.)
+
+    Returns:
+        Initialized IntegrationRegistry singleton
+    """
+    global _global_registry
+
+    if _global_registry is None or not _global_registry.is_initialized:
+        logger.info("Initializing global registry singleton...")
+        _global_registry = IntegrationRegistry()
+        await _global_registry.load_all(tokens)
+        logger.info(f"Registry initialized with {len(_global_registry.get_all_tools())} tools")
+
+    return _global_registry
+
+
+def get_registry_sync() -> Optional[IntegrationRegistry]:
+    """
+    Get the global registry synchronously (returns None if not initialized).
+
+    Use this when you need to check if the registry is available
+    without awaiting initialization.
+    """
+    return _global_registry

@@ -144,6 +144,8 @@ export default function WorkflowPage() {
     step_number?: number;
     thinking?: string;
     duration_ms?: number;
+    // Token streaming
+    content?: string;
   }) => {
     switch (event.type) {
       case "integrations_ready":
@@ -198,6 +200,22 @@ export default function WorkflowPage() {
                     ...step,
                     thinking: event.thinking,
                     thinking_duration_ms: event.duration_ms,
+                  }
+                : step,
+            ),
+          );
+        }
+        break;
+
+      case "token":
+        // Handle streaming tokens from LLM
+        if (event.step_number && event.content) {
+          setSteps((prev) =>
+            prev.map((step) =>
+              step.step_number === event.step_number
+                ? {
+                    ...step,
+                    result: (step.result || "") + event.content,
                   }
                 : step,
             ),
