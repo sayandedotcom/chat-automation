@@ -9,10 +9,13 @@ from langchain_core.messages import BaseMessage, SystemMessage, AIMessage, Human
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolNode
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, TYPE_CHECKING
 from dotenv import load_dotenv
 import os
 import json
+import re
+import time
+import logging
 
 from chat.workflow_schemas import (
     WorkflowState,
@@ -21,7 +24,13 @@ from chat.workflow_schemas import (
     WorkflowPlanOutput,
     PlannedStep,
     SearchResultItem,
+    IntegrationInfo,
 )
+
+if TYPE_CHECKING:
+    from chat.integration_registry import IntegrationRegistry
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -140,19 +149,20 @@ After completing the step:
 class WorkflowNodes:
     """Nodes for the dynamic workflow graph with LLM-driven HITL."""
 
-    def __init__(self, tools: List[BaseTool] = None):
-        """Initialize workflow nodes with LLM and tools."""
+    def __init__(self, tools: List[BaseTool] = None, registry: "IntegrationRegistry" = None):
+        """Initialize workflow nodes with LLM and optional integration registry."""
         self.tools = tools or []
-        
+        self.registry = registry
+
         # Base LLM for planning
         base_planner = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
-        
+
         # Planner with structured output - guaranteed type-safe response
         self.planner_llm = base_planner.with_structured_output(WorkflowPlanOutput)
-        
+
         # Executor LLM (with tools for execution)
         self.executor_llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
@@ -161,9 +171,73 @@ class WorkflowNodes:
         self.executor_with_tools = (
             self.executor_llm.bind_tools(self.tools) if self.tools else self.executor_llm
         )
-        
+
         # Tool node
         self.tool_node = ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
+
+    async def smart_router_node(self, state: WorkflowState) -> dict:
+        """
+        Route request to appropriate integrations using pattern matching.
+        This node runs BEFORE the planner and binds only needed tools.
+        """
+        from chat.integration_registry import classify_integrations
+
+        messages = state["messages"]
+
+        # Get user request
+        user_request = ""
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                user_request = msg.content
+                break
+
+        if not self.registry:
+            # No registry - use all tools (fallback)
+            logger.warning("No registry available, using all tools")
+            return {
+                "loaded_integrations": [],
+                "executor_bound_tools": [t.name for t in self.tools] if self.tools else [],
+                "total_tool_count": len(self.tools) if self.tools else 0,
+                "initial_integrations": [],
+                "incremental_load_events": [],
+            }
+
+        # Classify integrations (instant, no LLM)
+        integrations = classify_integrations(user_request, self.registry)
+
+        # Get filtered tools from registry
+        tools = self.registry.get_toolset(integrations)
+
+        # Build integration info for SSE
+        loaded_integrations = []
+        for name in integrations:
+            config = self.registry.get_integration_config(name)
+            if config:
+                loaded_integrations.append(IntegrationInfo(
+                    name=name,
+                    display_name=config.display_name,
+                    tools_count=len(self.registry._tools_by_integration.get(name, [])),
+                    icon=config.icon,
+                ))
+
+        # Bind filtered tools to executor
+        self.tools = tools
+        self.executor_with_tools = self.executor_llm.bind_tools(tools) if tools else self.executor_llm
+        self.tool_node = ToolNode(tools, handle_tool_errors=True) if tools else None
+
+        logger.info(f"Smart router: bound {len(tools)} tools from {len(integrations)} integrations")
+        print(f"\n🎯 SMART ROUTER")
+        print(f"   Request: {user_request[:80]}...")
+        print(f"   Integrations: {integrations}")
+        print(f"   Tools bound: {len(tools)}")
+
+        return {
+            "loaded_integrations": loaded_integrations,
+            "executor_bound_tools": [t.name for t in tools],
+            "total_tool_count": len(tools),
+            "initial_integrations": integrations,
+            "incremental_load_events": [],
+        }
 
     async def planner_node(self, state: WorkflowState) -> dict:
         """
@@ -238,23 +312,108 @@ class WorkflowNodes:
     async def executor_node(self, state: WorkflowState) -> dict:
         """
         Execute the current step automatically (for steps not requiring approval).
+        Includes thinking capture and incremental tool loading fallback.
         """
         plan = state["plan"]
         current_index = state["current_step_index"]
-        
+        initial_integrations = state.get("initial_integrations", [])
+
         if not plan or current_index >= len(plan.steps):
             return {"messages": [AIMessage(content="Workflow complete!")]}
-        
+
         current_step = plan.steps[current_index]
         current_step.status = "in_progress"
-        
+
         print(f"\n🚀 AUTO-EXECUTING Step {current_step.step_number}: {current_step.description}")
-        
+
         # Build context from previous steps
         previous_results = self._get_previous_results(plan, current_index)
-        
-        # Execute the step
-        return await self._execute_step(current_step, plan, previous_results)
+
+        # Track thinking time
+        start_time = time.time()
+
+        # Try to execute, with incremental loading fallback
+        incremental_load_events = state.get("incremental_load_events", [])
+
+        try:
+            result = await self._execute_step(current_step, plan, previous_results)
+        except Exception as e:
+            error_msg = str(e).lower()
+
+            # Check if error is due to missing tool
+            if self.registry and "tool" in error_msg and ("not found" in error_msg or "unknown" in error_msg):
+                missing_tool = self._extract_tool_name_from_error(str(e))
+
+                if missing_tool:
+                    missing_integration = self.registry.get_integration_for_tool(missing_tool)
+
+                    if missing_integration and missing_integration not in initial_integrations:
+                        logger.warning(
+                            "Incremental loading triggered - classification missed integration",
+                            extra={
+                                "request": state["messages"][-1].content[:100] if state["messages"] else "",
+                                "initially_classified": initial_integrations,
+                                "missing_integration": missing_integration,
+                                "missing_tool": missing_tool,
+                            }
+                        )
+                        print(f"⚠️ Incremental loading: adding {missing_integration} for tool {missing_tool}")
+
+                        # Load additional tools
+                        new_tools = self.registry.get_toolset([missing_integration])
+                        self.tools.extend(new_tools)
+
+                        # Re-bind executor with expanded toolset
+                        self.executor_with_tools = self.executor_llm.bind_tools(self.tools)
+                        self.tool_node = ToolNode(self.tools, handle_tool_errors=True)
+
+                        # Queue incremental load event
+                        config = self.registry.get_integration_config(missing_integration)
+                        incremental_load_events.append({
+                            "integration": missing_integration,
+                            "display_name": config.display_name if config else missing_integration,
+                            "tools_added": len(new_tools),
+                            "triggered_by_tool": missing_tool,
+                        })
+
+                        # Retry
+                        result = await self._execute_step(current_step, plan, previous_results)
+
+                        # Update initial_integrations
+                        initial_integrations = list(initial_integrations)
+                        initial_integrations.append(missing_integration)
+                    else:
+                        raise ValueError(f"Tool '{missing_tool}' not available in any integration")
+                else:
+                    raise
+            else:
+                raise
+
+        # Capture thinking duration
+        thinking_duration_ms = int((time.time() - start_time) * 1000)
+
+        # Update step with thinking info
+        current_step.thinking_duration_ms = thinking_duration_ms
+
+        # Add incremental load events to result
+        if incremental_load_events:
+            result["incremental_load_events"] = incremental_load_events
+            result["initial_integrations"] = initial_integrations
+
+        return result
+
+    def _extract_tool_name_from_error(self, error: str) -> Optional[str]:
+        """Parse tool name from error message."""
+        patterns = [
+            r"tool\s+['\"]([^'\"]+)['\"]",
+            r"unknown\s+tool\s+['\"]?(\w+)['\"]?",
+            r"tool\s+(\w+)\s+not\s+found",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, error, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        return None
 
     async def executor_with_approval_node(self, state: WorkflowState) -> dict:
         """

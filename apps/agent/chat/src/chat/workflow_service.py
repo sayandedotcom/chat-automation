@@ -8,10 +8,14 @@ Use this for multi-step, variable-length workflows.
 from langchain_core.messages import HumanMessage
 from typing import Optional, AsyncGenerator
 import uuid
+import logging
 
 from chat.workflow_graph import DynamicWorkflow
 from chat.workflow_schemas import WorkflowState, WorkflowPlan
 from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
+from chat.integration_registry import IntegrationRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowService:
@@ -50,30 +54,33 @@ class WorkflowService:
         self._client = None
         self._tools = []
         self._workflow = None
+        self._registry = None
         self._initialized = False
 
     async def initialize(self):
-        """Initialize MCP client, load tools, and build workflow."""
+        """Initialize MCP client, registry, load tools, and build workflow."""
         if self._initialized:
             return
-        
-        # Create MCP client with all configured integrations
-        self._client = create_mcp_client(
-            gmail_token=self.gmail_token,
-            vercel_token=self.vercel_token,
-            notion_token=self.notion_token,
-            tavily_api_key=self.tavily_api_key,
-            google_client_id=self.google_client_id,
-            google_client_secret=self.google_client_secret,
-        )
-        
-        # Load MCP tools
-        self._tools = await load_mcp_tools(self._client)
-        
-        # Build dynamic workflow
-        self._workflow = DynamicWorkflow(tools=self._tools)
+
+        # Create integration registry and load all tools
+        self._registry = IntegrationRegistry()
+        await self._registry.load_all({
+            "gmail_token": self.gmail_token,
+            "vercel_token": self.vercel_token,
+            "notion_token": self.notion_token,
+            "tavily_api_key": self.tavily_api_key,
+            "google_client_id": self.google_client_id,
+            "google_client_secret": self.google_client_secret,
+        })
+
+        # Get all tools (for fallback)
+        self._tools = self._registry.get_all_tools()
+
+        # Build dynamic workflow with registry for smart routing
+        self._workflow = DynamicWorkflow(tools=self._tools, registry=self._registry)
         self._initialized = True
-        
+
+        logger.info(f"Workflow service initialized with {len(self._tools)} tools")
         print(f"✅ Workflow service initialized with {len(self._tools)} tools")
 
     async def execute(
@@ -190,27 +197,65 @@ class WorkflowService:
             "awaiting_approval": False,
             "approval_step_info": None,
             "approval_decision": None,
+            # Integration tracking fields
+            "loaded_integrations": [],
+            "executor_bound_tools": None,
+            "total_tool_count": 0,
+            "initial_integrations": None,
+            "incremental_load_events": [],
         }
-        
+
         # Stream the workflow execution
         print(f"\n🔄 Starting astream for workflow...")
         async for chunk in self._workflow.get_app().astream(
-            initial_state, 
+            initial_state,
             config=config,
             stream_mode="updates",
         ):
             # Log every chunk received
             print(f"📥 ASTREAM CHUNK: {list(chunk.keys())}")
-            
+
             # Extract data from node outputs
             for node_name, output in chunk.items():
                 print(f"   📍 Node: {node_name}, Output type: {type(output)}")
                 if not isinstance(output, dict):
                     continue
-                    
+
+                # Handle smart_router output - emit integrations_ready event
+                if node_name == "smart_router":
+                    loaded_integrations = output.get("loaded_integrations", [])
+                    total_tool_count = output.get("total_tool_count", 0)
+
+                    if loaded_integrations:
+                        print(f"   🎯 Smart router: {len(loaded_integrations)} integrations, {total_tool_count} tools")
+                        yield {
+                            "type": "integrations_ready",
+                            "thread_id": thread_id,
+                            "integrations": [
+                                i.model_dump() if hasattr(i, "model_dump") else i
+                                for i in loaded_integrations
+                            ],
+                            "message": f"Added {len(loaded_integrations)} integration{'s' if len(loaded_integrations) != 1 else ''} successfully",
+                            "tool_count": total_tool_count,
+                        }
+
+                # Handle incremental load events
+                incremental_events = output.get("incremental_load_events", [])
+                for event in incremental_events:
+                    print(f"   ⚠️ Incremental load: {event.get('integration')}")
+                    yield {
+                        "type": "integration_added_incrementally",
+                        "thread_id": thread_id,
+                        "integration": event.get("integration"),
+                        "display_name": event.get("display_name"),
+                        "tools_added": event.get("tools_added"),
+                        "triggered_by": event.get("triggered_by_tool"),
+                        "message": f"Added {event.get('display_name')} (+{event.get('tools_added')} tools)",
+                    }
+
                 plan = output.get("plan")
                 current_step = output.get("current_step_index")
-                
+
                 # Check for STATE-BASED HITL approval request
                 if output.get("awaiting_approval") and output.get("approval_step_info"):
                     approval_info = output["approval_step_info"]
@@ -221,11 +266,11 @@ class WorkflowService:
                         "interrupt": approval_info,
                     }
                     return  # Stop streaming, waiting for approval
-                
+
                 # Always yield progress events with plan updates
                 if plan:
                     print(f"   📋 Plan found, steps: {[s.status for s in plan.steps]}")
-                    
+
                     # Yield thinking event if this is the first time we see thinking content
                     if plan.thinking and node_name == "planner":
                         yield {
@@ -234,7 +279,20 @@ class WorkflowService:
                             "content": plan.thinking,
                             "duration_hint": 2,  # Approximate duration in seconds
                         }
-                    
+
+                    # Yield step thinking events for executor nodes
+                    if node_name in ("executor", "executor_with_approval"):
+                        if current_step is not None and 0 <= current_step < len(plan.steps):
+                            step = plan.steps[current_step]
+                            if step.thinking_duration_ms:
+                                yield {
+                                    "type": "step_thinking",
+                                    "thread_id": thread_id,
+                                    "step_number": step.step_number,
+                                    "thinking": step.thinking,
+                                    "duration_ms": step.thinking_duration_ms,
+                                }
+
                     yield {
                         "type": "progress",
                         "thread_id": thread_id,
@@ -252,6 +310,9 @@ class WorkflowService:
                                     "error": s.error,
                                     "requires_human_approval": s.requires_human_approval,
                                     "approval_reason": s.approval_reason,
+                                    # Per-step thinking
+                                    "thinking": s.thinking,
+                                    "thinking_duration_ms": s.thinking_duration_ms,
                                     # Include structured search results if available
                                     "search_results": [
                                         {

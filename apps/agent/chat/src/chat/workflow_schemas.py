@@ -19,6 +19,14 @@ class SearchResultItem(BaseModel):
     date: Optional[str] = Field(default=None, description="Published date if available")
 
 
+class IntegrationInfo(BaseModel):
+    """Information about a loaded integration for UI display."""
+    name: str = Field(..., description="Integration identifier (e.g., 'web_search', 'gmail')")
+    display_name: str = Field(..., description="Human-readable name (e.g., 'Web Search', 'Gmail')")
+    tools_count: int = Field(..., description="Number of tools in this integration")
+    icon: str = Field(default="default", description="Icon identifier for frontend")
+
+
 # -------------------
 # Planner Structured Output Models
 # -------------------
@@ -66,6 +74,9 @@ class WorkflowStep(BaseModel):
     search_results: Optional[List[SearchResultItem]] = Field(
         default=None, description="Structured search results from web search"
     )
+    # Per-step thinking capture
+    thinking: Optional[str] = Field(default=None, description="Executor's reasoning for this step")
+    thinking_duration_ms: Optional[int] = Field(default=None, description="Time spent thinking in milliseconds")
 
 
 class WorkflowPlan(BaseModel):
@@ -86,4 +97,10 @@ class WorkflowState(TypedDict):
     awaiting_approval: bool  # True when waiting for human approval
     approval_step_info: Optional[dict]  # Info about step awaiting approval
     approval_decision: Optional[dict]  # Decision from user (action: approve/edit/skip)
+    # Integration tracking for smart routing
+    loaded_integrations: List[IntegrationInfo]  # Integrations currently loaded
+    executor_bound_tools: Optional[List[str]]  # Tool names bound to executor
+    total_tool_count: int  # Total tools bound to executor
+    initial_integrations: Optional[List[str]]  # For tracking incremental loads
+    incremental_load_events: List[dict]  # Queue for incremental load notifications
 

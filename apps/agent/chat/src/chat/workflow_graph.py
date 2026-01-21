@@ -8,7 +8,7 @@ Implements: Plan → Route → Execute (Auto/Approval) → Loop pattern
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import BaseTool
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 from dotenv import load_dotenv
 import os
 
@@ -19,6 +19,9 @@ from chat.workflow_nodes import (
     should_continue,
     should_execute_next_step,
 )
+
+if TYPE_CHECKING:
+    from chat.integration_registry import IntegrationRegistry
 
 load_dotenv()
 
@@ -104,34 +107,48 @@ class DynamicWorkflow:
                    └─────┘
     """
     
-    def __init__(self, tools: List[BaseTool] = None):
+    def __init__(
+        self,
+        tools: List[BaseTool] = None,
+        registry: "IntegrationRegistry" = None,
+    ):
         """
         Initialize the dynamic workflow.
-        
+
         Args:
             tools: List of MCP tools to use
+            registry: Optional IntegrationRegistry for smart routing
         """
         self.tools = tools or []
+        self.registry = registry
         self.checkpointer = get_checkpointer()
-        self.nodes = WorkflowNodes(tools=self.tools)
+        self.nodes = WorkflowNodes(tools=self.tools, registry=self.registry)
         self.app = self._build_graph()
 
     def _build_graph(self):
         """Build and compile the workflow graph with conditional HITL routing."""
         workflow = StateGraph(WorkflowState)
-        
+
         # Add nodes
+        # Smart router for dynamic integration loading (runs before planner)
+        if self.registry:
+            workflow.add_node("smart_router", self.nodes.smart_router_node)
+
         workflow.add_node("planner", self.nodes.planner_node)
         workflow.add_node("executor", self.nodes.executor_node)
         workflow.add_node("executor_with_approval", self.nodes.executor_with_approval_node)
         workflow.add_node("step_complete", self.nodes.step_complete_node)
-        
-        if self.tools:
+
+        if self.tools or self.registry:
             workflow.add_node("tools", self.nodes.get_tool_node())
-        
+
         # Add edges
-        # START -> PLANNER
-        workflow.add_edge(START, "planner")
+        # START -> SMART_ROUTER (if registry) -> PLANNER
+        if self.registry:
+            workflow.add_edge(START, "smart_router")
+            workflow.add_edge("smart_router", "planner")
+        else:
+            workflow.add_edge(START, "planner")
         
         # PLANNER -> ROUTE_EXECUTOR (conditional based on LLM's HITL classification)
         workflow.add_conditional_edges(

@@ -1,0 +1,208 @@
+integrations:
+  web_search:
+    tool_names:
+      - "tavily-search"
+      - "tavily-extract"
+      - "tavily-crawl"
+      - "tavily-map"
+    display_name: "Web Search"
+    icon: "web_search"
+    request_patterns:
+      - '\b(search|find|research|look\s+up|discover|explore)\b'
+      - '\b(what|who|when|where|why|how)\s+(is|are|was|were)\b'
+      - '\b(best|top|latest|current|recent)\b.*\b(for|in|about)\b'
+      - '\b(compare|comparison|analysis|overview)\b'
+
+  gmail:
+    tool_names:
+      - "search_gmail_messages"
+      - "get_gmail_message_content"
+      - "get_gmail_messages_content_batch"
+      - "get_gmail_thread_content"
+      - "get_gmail_threads_content_batch"
+      - "send_gmail_message"
+      - "draft_gmail_message"
+      - "list_gmail_labels"
+      - "manage_gmail_label"
+      - "modify_gmail_message_labels"
+      - "batch_modify_gmail_message_labels"
+    display_name: "Gmail"
+    icon: "gmail"
+    requires_auth: true
+    mcp_server: "google_workspace"
+    request_patterns:
+      - '\b(email|mail|gmail|send|draft|reply|forward|inbox)\b'
+      - '\b(message|recipient|subject|label|archive|delete)\b'
+
+  google_docs:
+    tool_names:
+      - "search_docs"
+      - "get_doc_content"
+      - "list_docs_in_folder"
+      - "create_doc"
+      - "read_doc_comments"
+      - "create_doc_comment"
+      - "reply_to_comment"
+      - "resolve_comment"
+    display_name: "Google Docs"
+    icon: "google_docs"
+    requires_auth: true
+    mcp_server: "google_workspace"
+    request_patterns:
+      - '\b(doc|document|google\s*doc|write)\b'
+      - '\b(create|edit|comment|review)\b.*\b(doc|document)\b'
+
+  google_sheets:
+    tool_names:
+      - "get_spreadsheet_info"
+      - "read_sheet_values"
+      - "modify_sheet_values"
+      - "create_spreadsheet"
+      - "create_sheet"
+    display_name: "Google Sheets"
+    icon: "google_sheets"
+    requires_auth: true
+    mcp_server: "google_workspace"
+    request_patterns:
+      - '\b(sheet|spreadsheet|google\s*sheets)\b'
+      - '\b(read|write|update|modify)\b.*\b(cell|range|row|column|data)\b'
+      - '\b(create)\b.*\b(spreadsheet|sheet)\b'
+
+  google_slides:
+    tool_names:
+      - "create_presentation"
+      - "get_presentation"
+      - "add_slide"
+      - "update_slide_content"
+    display_name: "Google Slides"
+    icon: "google_slides"
+    requires_auth: true
+    mcp_server: "google_workspace"
+    request_patterns:
+      - '\b(slide|slides|presentation|deck|ppt)\b'
+      - '\b(create|add|update|edit)\b.*\b(slide|presentation)\b'
+
+  google_calendar:
+    tool_names:
+      - "list_calendars"
+      - "get_events"
+      - "create_event"
+      - "modify_event"
+      - "delete_event"
+    display_name: "Google Calendar"
+    icon: "google_calendar"
+    requires_auth: true
+    mcp_server: "google_workspace"
+    request_patterns:
+      - '\b(calendar|schedule|meeting|event|appointment|book)\b'
+      - '\b(next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b'
+
+  google_drive:
+    tool_names:
+      - "search_drive_files"
+      - "get_drive_file_content"
+      - "list_drive_items"
+      - "create_drive_file"
+    display_name: "Google Drive"
+    icon: "drive"
+    requires_auth: true
+    mcp_server: "google_workspace"
+    request_patterns:
+      - '\b(drive|file|upload|download|folder)\b'
+      - '\b(create|read|search)\b.*\b(file|document)\b'
+
+  notion:
+    tool_names:
+      - "notion-search"
+      - "notion-fetch"
+      - "notion-create-pages"
+      - "notion-update-page"
+      - "notion-move-pages"
+      - "notion-duplicate-page"
+      - "notion-create-database"
+      - "notion-update-database"
+      - "notion-query-data-sources"
+      - "notion-create-comment"
+      - "notion-get-comments"
+      - "notion-get-teams"
+      - "notion-get-users"
+      - "notion-get-user"
+      - "notion-get-self"
+    display_name: "Notion"
+    icon: "notion"
+    requires_auth: true
+    request_patterns:
+      # Search & discovery
+      - '\b(search|find|look\s*up|check)\b.*\b(notion|docs?|pages?|notes?)\b'
+      - '\b(search|check|look)\b.*\b(slack|drive|jira)\b'
+
+      # Page & content operations
+      - '\b(create|add|make)\b.*\b(page|note|doc|database)\b'
+      - '\b(update|edit|change|replace)\b.*\b(page|content|section|status)\b'
+      - '\b(move|reorganize|relocate)\b.*\b(page|document)\b'
+      - '\b(duplicate|copy|clone)\b.*\b(page|template)\b'
+
+      # Database & structured queries
+      - '\b(database|table|data\s*source)\b'
+      - '\b(query|filter|group|summarize|rollup)\b'
+
+      # Comments & collaboration
+      - '\b(comment|feedback|note)\b.*\b(page|doc|proposal|review)\b'
+
+      # Workspace & identity
+      - '\b(team|teamspace|users?|workspace|profile|who\s+am\s+i)\b'
+
+  vercel:
+    tool_names:
+      # Documentation
+      - "search_documentation"
+
+      # Project & team management
+      - "list_teams"
+      - "list_projects"
+      - "get_project"
+
+      # Deployments
+      - "list_deployments"
+      - "get_deployment"
+      - "get_deployment_build_logs"
+
+      # Domains (HIGH RISK – requires confirmation)
+      - "check_domain_availability_and_price"
+      - "buy_domain"
+
+      # Access & fetch
+      - "get_access_to_vercel_url"
+      - "web_fetch_vercel_url"
+
+      # CLI & deploy (HIGH RISK – requires confirmation)
+      - "use_vercel_cli"
+      - "deploy_to_vercel"
+
+    display_name: "Vercel"
+    icon: "vercel"
+    requires_auth: true
+
+    request_patterns:
+      # Documentation & how-to
+      - '\b(vercel)\b.*\b(how|configure|setup|docs?|documentation)\b'
+      - '\b(custom\s+domain|routing|data[-\s]?fetching)\b'
+
+      # Teams & projects
+      - '\b(team|teams|organization|org)\b.*\b(vercel)\b'
+      - '\b(project|projects)\b.*\b(vercel)\b'
+
+      # Deployments & logs
+      - '\b(deploy|deployment|build)\b'
+      - '\b(logs?|errors?|failed|failure|status)\b.*\b(deploy|deployment|build)\b'
+
+      # Domains (⚠️ sensitive)
+      - '\b(domain|dns|hostname)\b'
+      - '\b(buy|purchase|register)\b.*\b(domain)\b'
+
+      # Access & previews
+      - '\b(share|access|preview|protected)\b.*\b(vercel|deployment|url)\b'
+
+      # CLI usage
+      - '\b(vercel\s+cli|cli)\b'
+      - '\b(deploy)\b.*\b(using\s+cli)\b'

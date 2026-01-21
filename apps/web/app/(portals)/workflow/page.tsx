@@ -14,6 +14,13 @@ function generateId(): string {
 
 type WorkflowStatus = "idle" | "planning" | "executing" | "complete" | "error";
 
+interface IntegrationInfo {
+  name: string;
+  display_name: string;
+  tools_count: number;
+  icon: string;
+}
+
 export default function WorkflowPage() {
   const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>("idle");
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
@@ -22,8 +29,9 @@ export default function WorkflowPage() {
   const [error, setError] = useState<string | null>(null);
   const [planThinking, setPlanThinking] = useState<string | null>(null);
   const [statusMessages, setStatusMessages] = useState<
-    Array<{ text: string; icon?: string }>
+    Array<{ text: string; icon?: string; type?: string }>
   >([]);
+  const [loadedIntegrations, setLoadedIntegrations] = useState<IntegrationInfo[]>([]);
   const threadIdRef = useRef<string | null>(null);
 
   const executeWorkflow = useCallback(async (request: string) => {
@@ -34,6 +42,7 @@ export default function WorkflowPage() {
     setError(null);
     setPlanThinking(null);
     setStatusMessages([]);
+    setLoadedIntegrations([]);
 
     try {
       // Use streaming endpoint for real-time updates
@@ -109,6 +118,8 @@ export default function WorkflowPage() {
         result?: string;
         requires_human_approval?: boolean;
         approval_reason?: string;
+        thinking?: string; // Per-step thinking
+        thinking_duration_ms?: number;
       }>;
       is_complete?: boolean;
     };
@@ -121,8 +132,79 @@ export default function WorkflowPage() {
       preview?: Record<string, unknown>;
       actions?: string[];
     };
+    // Integration events
+    integrations?: IntegrationInfo[];
+    tool_count?: number;
+    // Incremental loading
+    integration?: string;
+    display_name?: string;
+    tools_added?: number;
+    triggered_by?: string;
+    // Step thinking
+    step_number?: number;
+    thinking?: string;
+    duration_ms?: number;
   }) => {
     switch (event.type) {
+      case "integrations_ready":
+        // Handle integration loading complete
+        if (event.integrations) {
+          setLoadedIntegrations(event.integrations);
+        }
+        if (event.message) {
+          setStatusMessages((prev) => [
+            ...prev,
+            {
+              text: event.message!,
+              icon: "check",
+              type: "integration",
+            },
+          ]);
+        }
+        break;
+
+      case "integration_added_incrementally":
+        // Handle incremental loading
+        if (event.integration) {
+          setLoadedIntegrations((prev) => [
+            ...prev,
+            {
+              name: event.integration!,
+              display_name: event.display_name || event.integration!,
+              tools_count: event.tools_added || 0,
+              icon: event.integration!,
+            },
+          ]);
+        }
+        if (event.message) {
+          setStatusMessages((prev) => [
+            ...prev,
+            {
+              text: event.message!,
+              icon: "plus",
+              type: "incremental",
+            },
+          ]);
+        }
+        break;
+
+      case "step_thinking":
+        // Handle per-step thinking events
+        if (event.step_number) {
+          setSteps((prev) =>
+            prev.map((step) =>
+              step.step_number === event.step_number
+                ? {
+                    ...step,
+                    thinking: event.thinking,
+                    thinking_duration_ms: event.duration_ms,
+                  }
+                : step,
+            ),
+          );
+        }
+        break;
+
       case "thinking":
         // Store the AI's thinking content to display in the timeline
         if (event.content) {
@@ -161,6 +243,9 @@ export default function WorkflowPage() {
                 result: s.result,
                 requires_human_approval: s.requires_human_approval,
                 approval_reason: s.approval_reason,
+                // Per-step thinking
+                thinking: s.thinking || existingStep?.thinking,
+                thinking_duration_ms: s.thinking_duration_ms || existingStep?.thinking_duration_ms,
               };
             });
           });
@@ -378,6 +463,9 @@ export default function WorkflowPage() {
     setCurrentStep(0);
     setOriginalRequest("");
     setError(null);
+    setPlanThinking(null);
+    setStatusMessages([]);
+    setLoadedIntegrations([]);
     threadIdRef.current = null;
   }, []);
 
@@ -445,6 +533,7 @@ export default function WorkflowPage() {
                   currentStep={currentStep}
                   planThinking={planThinking || undefined}
                   statusMessages={statusMessages}
+                  loadedIntegrations={loadedIntegrations}
                   onRetry={handleRetry}
                   onApprove={handleApprove}
                   isComplete={workflowStatus === "complete"}

@@ -59,14 +59,26 @@ export interface WorkflowStep {
   preview?: Record<string, unknown>; // Preview content for approval
   // Structured search results from Tavily
   search_results?: SearchResultData[];
+  // Per-step thinking
+  thinking?: string;
+  thinking_duration_ms?: number;
+}
+
+// Integration info from smart router
+export interface IntegrationInfo {
+  name: string;
+  display_name: string;
+  tools_count: number;
+  icon: string;
 }
 
 interface WorkflowTimelineProps {
   steps: WorkflowStep[];
   currentStep: number;
   thinkingEvents?: ThinkingEvent[];
-  statusMessages?: Array<{ text: string; icon?: string; timestamp?: number }>;
+  statusMessages?: Array<{ text: string; icon?: string; timestamp?: number; type?: string }>;
   planThinking?: string; // Initial thinking from the planner
+  loadedIntegrations?: IntegrationInfo[]; // Integrations loaded by smart router
   onRetry?: (stepNumber: number) => void;
   onApprove?: (
     stepNumber: number,
@@ -184,6 +196,7 @@ export function WorkflowTimeline({
   thinkingEvents,
   statusMessages,
   planThinking,
+  loadedIntegrations,
   onRetry,
   onApprove,
   isComplete,
@@ -286,6 +299,36 @@ export function WorkflowTimeline({
                   duration={2}
                   defaultExpanded={false}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Integration indicator (e.g., "Added 2 integrations successfully") */}
+          {loadedIntegrations && loadedIntegrations.length > 0 && (
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 relative z-10">
+                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Check className="w-3 h-3 text-emerald-400" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 pt-0.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-emerald-400">
+                    Added {loadedIntegrations.length} integration{loadedIntegrations.length !== 1 ? 's' : ''} successfully
+                  </span>
+                  <div className="flex gap-1.5">
+                    {loadedIntegrations.map((integration) => (
+                      <Image
+                        key={integration.name}
+                        src={`/integrations/${integration.icon}.svg`}
+                        alt={integration.display_name}
+                        width={16}
+                        height={16}
+                        className="opacity-60"
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -460,102 +503,124 @@ export function WorkflowTimeline({
                       </div>
                     ) : isRichCard && step.status === "completed" ? (
                       /* RICH RESULT CARD (Web Search, etc.) */
-                      <div
-                        className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden cursor-pointer"
-                        onClick={() => toggleStep(step.step_number)}
-                      >
-                        {/* Card header with tool info */}
-                        <div className="px-4 py-3 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {toolIcon && (
-                              <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                                <Image
-                                  src={toolIcon}
-                                  alt={primaryTool}
-                                  width={14}
-                                  height={14}
-                                  className="object-contain"
-                                />
-                              </div>
-                            )}
-                            <span className="text-sm font-medium text-white/90">
-                              {toolNameMap[primaryTool] || primaryTool}
-                            </span>
-                          </div>
-                          <button className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 transition-colors">
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-white/70" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-white/70" />
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Expanded content */}
-                        {isExpanded && (
-                          <div className="px-4 pb-4 border-t border-white/5">
-                            <div className="pt-3">
-                              {step.error && (
-                                <div className="text-sm text-red-400 bg-red-500/10 rounded-lg p-3">
-                                  <strong>Error:</strong> {step.error}
+                      <div className="space-y-2">
+                        <div
+                          className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden cursor-pointer"
+                          onClick={() => toggleStep(step.step_number)}
+                        >
+                          {/* Card header with tool info */}
+                          <div className="px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {toolIcon && (
+                                <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                                  <Image
+                                    src={toolIcon}
+                                    alt={primaryTool}
+                                    width={14}
+                                    height={14}
+                                    className="object-contain"
+                                  />
                                 </div>
                               )}
-                              {step.result && (
-                                <div className="space-y-2">
-                                  {primaryTool === "web-search" ? (
-                                    step.search_results &&
-                                    step.search_results.length > 0 ? (
-                                      <SearchResultsList
-                                        results={step.search_results}
-                                      />
-                                    ) : (
-                                      (() => {
-                                        const parsed = parseSearchResults(
-                                          step.result || "",
-                                        );
-                                        return parsed.length > 0 ? (
-                                          <SearchResultsList results={parsed} />
-                                        ) : (
-                                          <div className="text-sm text-white/70 whitespace-pre-wrap">
-                                            {step.result}
-                                          </div>
-                                        );
-                                      })()
-                                    )
-                                  ) : (
-                                    <div className="text-sm text-white/70 whitespace-pre-wrap">
-                                      {step.result}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                              <span className="text-sm font-medium text-white/90">
+                                {toolNameMap[primaryTool] || primaryTool}
+                              </span>
                             </div>
+                            <button className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 transition-colors">
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-white/70" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-white/70" />
+                              )}
+                            </button>
                           </div>
+
+                          {/* Expanded content */}
+                          {isExpanded && (
+                            <div className="px-4 pb-4 border-t border-white/5">
+                              <div className="pt-3">
+                                {step.error && (
+                                  <div className="text-sm text-red-400 bg-red-500/10 rounded-lg p-3">
+                                    <strong>Error:</strong> {step.error}
+                                  </div>
+                                )}
+                                {step.result && (
+                                  <div className="space-y-2">
+                                    {primaryTool === "web-search" ? (
+                                      step.search_results &&
+                                      step.search_results.length > 0 ? (
+                                        <SearchResultsList
+                                          results={step.search_results}
+                                        />
+                                      ) : (
+                                        (() => {
+                                          const parsed = parseSearchResults(
+                                            step.result || "",
+                                          );
+                                          return parsed.length > 0 ? (
+                                            <SearchResultsList results={parsed} />
+                                          ) : (
+                                            <div className="text-sm text-white/70 whitespace-pre-wrap">
+                                              {step.result}
+                                            </div>
+                                          );
+                                        })()
+                                      )
+                                    ) : (
+                                      <div className="text-sm text-white/70 whitespace-pre-wrap">
+                                        {step.result}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Per-step thinking for rich cards */}
+                        {step.thinking && (
+                          <ThinkingIndicator
+                            content={step.thinking}
+                            duration={Math.round((step.thinking_duration_ms || 2000) / 1000)}
+                            defaultExpanded={false}
+                          />
                         )}
                       </div>
                     ) : (
                       /* SIMPLE STATUS LINE (General messages - like image 3) */
-                      <div className="flex items-center gap-3 py-0.5">
-                        {getStatusIcon(primaryTool, step.description)}
-                        <p
-                          className={cn(
-                            "text-sm",
-                            step.status === "in_progress" && "text-white/60",
-                            step.status === "completed" && "text-white/50",
-                            step.status === "skipped" && "text-white/40",
-                          )}
-                        >
-                          {step.description}
-                          {step.status === "completed" &&
-                            step.result &&
-                            !isRichCard && (
-                              <span className="text-white/30 ml-1">
-                                {step.result.length > 50
-                                  ? ` - ${step.result.substring(0, 50)}...`
-                                  : ` - ${step.result}`}
-                              </span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 py-0.5">
+                          {getStatusIcon(primaryTool, step.description)}
+                          <p
+                            className={cn(
+                              "text-sm",
+                              step.status === "in_progress" && "text-white/60",
+                              step.status === "completed" && "text-white/50",
+                              step.status === "skipped" && "text-white/40",
                             )}
-                        </p>
+                          >
+                            {step.description}
+                            {step.status === "completed" &&
+                              step.result &&
+                              !isRichCard && (
+                                <span className="text-white/30 ml-1">
+                                  {step.result.length > 50
+                                    ? ` - ${step.result.substring(0, 50)}...`
+                                    : ` - ${step.result}`}
+                                </span>
+                              )}
+                          </p>
+                        </div>
+                        {/* Per-step thinking */}
+                        {step.thinking && (
+                          <div className="ml-7">
+                            <ThinkingIndicator
+                              content={step.thinking}
+                              duration={Math.round((step.thinking_duration_ms || 2000) / 1000)}
+                              defaultExpanded={false}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
