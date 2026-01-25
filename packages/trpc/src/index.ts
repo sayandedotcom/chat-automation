@@ -10,6 +10,7 @@ export type {
   BaseContext,
   ExpressContext,
   CreateContextOptions,
+  SessionInfo,
 } from "./server/context.js";
 
 export {
@@ -17,6 +18,7 @@ export {
   middleware,
   mergeRouters,
   publicProcedure,
+  protectedProcedure,
   baseProcedure,
   createCallerFactory,
 } from "./server/trpc.js";

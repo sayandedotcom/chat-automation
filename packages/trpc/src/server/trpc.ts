@@ -48,7 +48,7 @@ const loggerMiddleware = t.middleware(async ({ path, type, next, ctx }) => {
   const status = result.ok ? "OK" : "ERROR";
 
   console.log(
-    `[tRPC] ${type.toUpperCase()} ${path} - ${status} (${duration}ms) [${ctx.requestId}]`
+    `[tRPC] ${type.toUpperCase()} ${path} - ${status} (${duration}ms) [${ctx.requestId}]`,
   );
 
   return result;
@@ -59,6 +59,33 @@ const loggerMiddleware = t.middleware(async ({ path, type, next, ctx }) => {
  * Includes logging middleware.
  */
 export const publicProcedure = t.procedure.use(loggerMiddleware);
+
+/**
+ * Auth middleware - ensures user is authenticated
+ */
+const authMiddleware = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.session?.user) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be logged in to access this resource",
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      // Narrow the type to ensure user and session are defined
+      user: ctx.session.user,
+      session: ctx.session.session!,
+    },
+  });
+});
+
+/**
+ * Protected procedure - requires authentication.
+ * Use this for any endpoints that need a logged-in user.
+ */
+export const protectedProcedure = publicProcedure.use(authMiddleware);
 
 /**
  * Create a caller for server-side usage.

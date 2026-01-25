@@ -3,24 +3,52 @@
  * Provides middleware and utilities for integrating tRPC with Express.
  */
 
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request } from "express";
 import {
   createExpressMiddleware as trpcExpressMiddleware,
   type CreateExpressContextOptions,
 } from "@trpc/server/adapters/express";
 import { appRouter, type AppRouter } from "../routers/index.js";
-import { createContext } from "../server/context.js";
+import { createContext, type SessionInfo } from "../server/context.js";
 
 export { appRouter, type AppRouter };
 
 /**
+ * Session getter function type
+ */
+type SessionGetter = (req: Request) => Promise<SessionInfo>;
+
+/**
+ * Session getter function - set by the API app
+ */
+let sessionGetter: SessionGetter | null = null;
+
+/**
+ * Set the session getter function.
+ * Call this from your Express app to inject Better Auth session into tRPC context.
+ */
+export function setSessionGetter(fn: SessionGetter) {
+  sessionGetter = fn;
+}
+
+/**
  * Create tRPC context from Express request/response
  */
-export function createExpressContext({
+export async function createExpressContext({
   req,
   res,
 }: CreateExpressContextOptions) {
-  return createContext({ req, res });
+  let session: SessionInfo = { user: null, session: null };
+
+  if (sessionGetter) {
+    try {
+      session = await sessionGetter(req);
+    } catch (error) {
+      console.error("[tRPC] Failed to get session:", error);
+    }
+  }
+
+  return createContext({ req, res, session });
 }
 
 /**

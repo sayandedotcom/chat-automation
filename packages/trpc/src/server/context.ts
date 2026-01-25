@@ -6,6 +6,22 @@
 import type { Request, Response } from "express";
 
 /**
+ * Session information from Better Auth
+ */
+export interface SessionInfo {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    image: string | null;
+  } | null;
+  session: {
+    id: string;
+    expiresAt: Date;
+  } | null;
+}
+
+/**
  * Base context available to all procedures
  */
 export interface BaseContext {
@@ -13,6 +29,10 @@ export interface BaseContext {
    * Unique request ID for tracing
    */
   requestId: string;
+  /**
+   * Session info from Better Auth
+   */
+  session: SessionInfo;
 }
 
 /**
@@ -34,6 +54,7 @@ export type Context = BaseContext | ExpressContext;
 export interface CreateContextOptions {
   req?: Request;
   res?: Response;
+  session?: SessionInfo;
 }
 
 /**
@@ -42,10 +63,12 @@ export interface CreateContextOptions {
  */
 export function createContext(opts: CreateContextOptions = {}): Context {
   const requestId = crypto.randomUUID();
+  const session: SessionInfo = opts.session || { user: null, session: null };
 
   if (opts.req && opts.res) {
     return {
       requestId,
+      session,
       req: opts.req,
       res: opts.res,
     };
@@ -53,6 +76,7 @@ export function createContext(opts: CreateContextOptions = {}): Context {
 
   return {
     requestId,
+    session,
   };
 }
 

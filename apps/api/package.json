@@ -14,7 +14,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@workspace/database": "workspace:*",
     "@workspace/trpc": "workspace:*",
+    "better-auth": "^1.4.17",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.2.1",

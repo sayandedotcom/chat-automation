@@ -4,6 +4,7 @@
  */
 
 import { router } from "../server/trpc.js";
+import { authRouter } from "./auth.js";
 import { greetingRouter } from "./greeting.js";
 
 /**
@@ -11,6 +12,7 @@ import { greetingRouter } from "./greeting.js";
  * Add new routers here as the API grows.
  */
 export const appRouter = router({
+  auth: authRouter,
   greeting: greetingRouter,
 });
 
