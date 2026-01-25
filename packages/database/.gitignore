@@ -1,0 +1,9 @@
+# Generated Prisma Client (regenerated on install)
+src/generated/
+
+# Environment files
+.env
+.env.local
+
+# Node modules (handled at root level)
+node_modules/
