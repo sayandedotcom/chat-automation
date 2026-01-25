@@ -23,6 +23,7 @@ apps/
   ├── api/          # Express + tRPC API server
   └── agent/        # Python FastAPI agent service
 packages/
+  ├── database/     # Prisma schema and client (@workspace/database)
   ├── ui/           # shadcn/ui components
   ├── trpc/         # Shared tRPC definitions and client
   ├── typescript-config/
@@ -73,7 +74,64 @@ pnpm --filter api typecheck
 pnpm format
 ```
 
+### Database (Prisma)
+```bash
+# Generate Prisma client after schema changes
+pnpm --filter @workspace/database db:generate
+
+# Push schema changes to database (development)
+pnpm --filter @workspace/database db:push
+
+# Create and run migrations (production)
+pnpm --filter @workspace/database db:migrate
+
+# Open Prisma Studio (database GUI)
+pnpm --filter @workspace/database db:studio
+
+# Seed the database
+pnpm --filter @workspace/database db:seed
+```
+
 ## Architecture
+
+### Database (@workspace/database)
+
+The `packages/database` package provides centralized database access via Prisma:
+- **Schema**: `packages/database/prisma/schema.prisma` - defines all models
+- **Client**: Exported from `@workspace/database` for use in API and tRPC
+
+**Key models:**
+- **Authentication**: `User`, `Account`, `Session`, `VerificationToken` (for better-auth)
+- **Chat**: `Conversation`, `Message`
+- **Workflows**: `Workflow`, `WorkflowStep`, `WorkflowRun`
+- **Integrations**: `Integration` (OAuth tokens for Gmail, Notion, Slack, etc.)
+
+**Usage:**
+```typescript
+import { prisma } from "@workspace/database";
+
+const user = await prisma.user.findUnique({ where: { id } });
+```
+
+### Authentication (better-auth)
+
+Authentication is implemented using better-auth with Google OAuth:
+- **Server** (`apps/api/src/lib/auth.ts`): Configures better-auth with Prisma adapter
+- **Client** (`apps/web/lib/auth-client.ts`): React hooks for auth state
+- **tRPC Integration**: `authRouter` provides `getSession` (public) and `getUser` (protected) procedures
+
+**Usage in components:**
+```typescript
+import { useSession, signIn, signOut } from "@/lib/auth-client";
+
+const { data: session } = useSession();
+await signIn.social({ provider: "google" });
+```
+
+**Environment variables required:**
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `BETTER_AUTH_URL` - Base URL for auth (default: http://localhost:8000)
 
 ### tRPC Integration (@workspace/trpc)
 
@@ -95,9 +153,22 @@ The `packages/trpc` package is the **central nervous system** of this project. I
 - **Web** (`apps/web`): Uses `TRPCProvider` in `components/providers.tsx` to wrap the app, enabling hooks like `useTRPC()` in client components
 
 **Adding new tRPC endpoints:**
-1. Create a new router in `packages/trpc/src/routers/` (follow `greeting.ts` as example)
+1. Create a new router in `packages/trpc/src/routers/` (follow `greeting.ts` or `auth.ts` as examples)
 2. Add it to `packages/trpc/src/routers/index.ts` in the `appRouter`
 3. The type safety will automatically propagate to the frontend
+
+**Protected procedures:**
+Use `protectedProcedure` for authenticated endpoints:
+```typescript
+import { protectedProcedure } from "../server/trpc.js";
+
+export const myRouter = router({
+  secretData: protectedProcedure.query(({ ctx }) => {
+    // ctx.user is guaranteed to exist
+    return { userId: ctx.user.id };
+  }),
+});
+```
 
 ### Web App (Next.js)
 
@@ -172,7 +243,8 @@ sst deploy
 
 Each app has its own `.env.example` file showing required configuration. Key variables:
 - **Web**: `NEXT_PUBLIC_API_URL` (API server URL)
-- **API**: `PORT` (server port)
+- **API**: `PORT`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_URL`
+- **Database**: `DATABASE_URL` (PostgreSQL connection string)
 - **Agent**: `DATABASE_URL` (PostgreSQL for checkpointing), various API tokens for integrations
 
 ## Development Workflow
