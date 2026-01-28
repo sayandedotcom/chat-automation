@@ -7,10 +7,6 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  // Map to existing table names in your schema
-  user: { modelName: "users" },
-  session: { modelName: "sessions" },
-  account: { modelName: "accounts" },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,

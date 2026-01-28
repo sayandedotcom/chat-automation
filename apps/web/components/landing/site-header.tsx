@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@workspace/ui/components/button";
+import { SignInButton } from "../auth/sign-in-button";
 
 export function SiteHeader() {
   return (
@@ -29,18 +30,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <Link
-            href="#"
-            className="text-sm font-medium text-white hover:text-neutral-300 hidden md:block"
-          >
-            Log in
-          </Link>
-          <Button
-            size="sm"
-            className="rounded-full bg-white text-black hover:bg-neutral-200 px-5 font-medium"
-          >
-            Get Started
-          </Button>
+          <SignInButton />
         </div>
       </div>
     </header>

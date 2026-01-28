@@ -19,6 +19,7 @@
     "better-auth": "^1.4.17",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "tsx": "^4.21.0"

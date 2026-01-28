@@ -7,7 +7,7 @@ interface SignInButtonProps {
   callbackURL?: string;
 }
 
-export function SignInButton({ callbackURL = "/" }: SignInButtonProps) {
+export function SignInButton({ callbackURL = "/chat" }: SignInButtonProps) {
   const handleSignIn = async () => {
     await signIn.social({
       provider: "google",
