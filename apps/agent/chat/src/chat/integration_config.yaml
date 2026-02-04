@@ -1,10 +1,11 @@
 integrations:
   web_search:
     tool_names:
-      - "tavily-search"
-      - "tavily-extract"
-      - "tavily-crawl"
-      - "tavily-map"
+      - "tavily_search"
+      - "tavily_extract"
+      - "tavily_crawl"
+      - "tavily_map"
+      - "tavily_research"
     display_name: "Web Search"
     icon: "web_search"
     request_patterns:
