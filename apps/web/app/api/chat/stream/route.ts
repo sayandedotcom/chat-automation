@@ -5,7 +5,7 @@ const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8000";
 
 /**
  * Stream workflow execution with Server-Sent Events
- * POST /api/workflow/stream
+ * POST /api/chat/stream
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const slackToken = cookieStore.get("slack_access_token")?.value;
 
     // Call the FastAPI workflow stream endpoint
-    const response = await fetch(`${AGENT_API_URL}/workflow/stream`, {
+    const response = await fetch(`${AGENT_API_URL}/chat/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         {
           status: response.status,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
           console.error("Stream error:", error);
           controller.enqueue(
             new TextEncoder().encode(
-              `data: ${JSON.stringify({ type: "error", message: String(error) })}\n\n`
-            )
+              `data: ${JSON.stringify({ type: "error", message: String(error) })}\n\n`,
+            ),
           );
         } finally {
           controller.close();

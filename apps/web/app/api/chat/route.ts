@@ -51,66 +51,69 @@ async function refreshGmailToken(refreshToken: string): Promise<string | null> {
   }
 }
 
+/**
+ * Execute a dynamic workflow
+ * POST /api/chat
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, thread_id } = body;
+    const { request: workflowRequest, thread_id } = body;
 
-    if (!message) {
+    if (!workflowRequest) {
       return NextResponse.json(
-        { error: "Message is required" },
-        { status: 400 }
+        { error: "Request is required" },
+        { status: 400 },
       );
     }
 
-    // Get auth tokens from cookies to pass to the agent
+    // Get auth tokens from cookies
     const cookieStore = await cookies();
     let gmailToken = cookieStore.get("gmail_access_token")?.value;
     const gmailRefreshToken = cookieStore.get("gmail_refresh_token")?.value;
-    const vercelToken = cookieStore.get("vercel_access_token")?.value;
     const notionToken = cookieStore.get("notion_access_token")?.value;
+    const slackToken = cookieStore.get("slack_access_token")?.value;
 
-    // Always refresh Gmail token if we have a refresh token (ensures fresh token)
+    // Refresh Gmail token if available
     if (gmailRefreshToken) {
-      console.log("🔄 Refreshing Gmail access token...");
+      console.log("🔄 Refreshing Gmail access token for workflow...");
       const freshToken = await refreshGmailToken(gmailRefreshToken);
       if (freshToken) {
         gmailToken = freshToken;
       }
     }
 
-    // Call the FastAPI chat endpoint with tokens in the body
+    // Call the FastAPI workflow endpoint
     const response = await fetch(`${AGENT_API_URL}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message,
+        request: workflowRequest,
         thread_id: thread_id || null,
-        // Pass OAuth tokens for MCP integrations
         gmail_token: gmailToken || null,
-        vercel_token: vercelToken || null,
         notion_token: notionToken || null,
+        slack_token: slackToken || null,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Agent API error:", errorText);
+      console.error("Workflow API error:", errorText);
       return NextResponse.json(
-        { error: "Failed to get response from agent" },
-        { status: response.status }
+        { error: "Failed to execute workflow" },
+        { status: response.status },
       );
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("Workflow API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

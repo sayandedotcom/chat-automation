@@ -5,7 +5,7 @@ const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8000";
 
 /**
  * Retry a failed workflow step
- * POST /api/workflow/retry
+ * POST /api/chat/retry
  */
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (!thread_id || !step_number) {
       return NextResponse.json(
         { error: "thread_id and step_number are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const slackToken = cookieStore.get("slack_access_token")?.value;
 
     // Call the FastAPI workflow retry endpoint
-    const response = await fetch(`${AGENT_API_URL}/workflow/retry`, {
+    const response = await fetch(`${AGENT_API_URL}/chat/retry`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       console.error("Workflow retry API error:", errorText);
       return NextResponse.json(
         { error: "Failed to retry workflow step" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     console.error("Workflow retry API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

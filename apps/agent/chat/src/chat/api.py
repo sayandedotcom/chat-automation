@@ -12,14 +12,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from chat.service import ChatService
-from chat.workflow_service import WorkflowService
-from chat.schemas import ChatRequestSchema, ChatResponseSchemaSerializable, ThreadMessagesResponseSchema, GmailCredentialsSyncSchema
+from chat.schemas import GmailCredentialsSyncSchema
 from chat.utils.mcp_client import TAVILY_API_KEY
 from chat.integration_registry import get_registry
 
 
 # -------------------
-# Workflow Schemas
+# Request Schemas
 # -------------------
 class WorkflowRequestSchema(BaseModel):
     """Request schema for workflow execution."""
@@ -78,19 +77,18 @@ _services: dict[str, ChatService] = {}
 
 async def get_or_create_service(
     gmail_token: Optional[str] = None,
-    vercel_token: Optional[str] = None,
     notion_token: Optional[str] = None,
-    tavily_api_key: Optional[str] = None,
+    slack_token: Optional[str] = None,
 ) -> ChatService:
-    """Get or create a chat service for the given token combination."""
-    cache_key = f"{gmail_token or ''}:{vercel_token or ''}:{notion_token or ''}:{tavily_api_key or ''}"
+    """Get or create a workflow service for the given token combination."""
+    cache_key = f"{gmail_token or ''}:{notion_token or ''}:{slack_token or ''}"
     
     if cache_key not in _services:
         service = ChatService(
             gmail_token=gmail_token,
-            vercel_token=vercel_token,
             notion_token=notion_token,
-            tavily_api_key=tavily_api_key,
+            slack_token=slack_token,
+            tavily_api_key=TAVILY_API_KEY,
         )
         await service.initialize()
         _services[cache_key] = service
@@ -100,55 +98,7 @@ async def get_or_create_service(
 
 @app.get("/health")
 def health():
-    return {"status": "chat"}
-
-
-@app.post("/chat")
-async def chat(data: ChatRequestSchema) -> ChatResponseSchemaSerializable:
-    """Process a chat message and return the response."""
-    try:
-        service = await get_or_create_service(
-            gmail_token=data.gmail_token,
-            vercel_token=data.vercel_token,
-            notion_token=data.notion_token,
-            tavily_api_key=TAVILY_API_KEY,
-        )
-        return await service.chat(data)
-    except Exception as e:
-        print(f"Error in chat endpoint: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/chat/messages")
-async def get_chat_messages(thread_id: str) -> ThreadMessagesResponseSchema:
-    """Get messages for a specific thread ID."""
-    if not thread_id:
-        raise HTTPException(status_code=400, detail="thread_id is required")
-    
-    try:
-        service = await get_or_create_service(
-            tavily_api_key=TAVILY_API_KEY,
-        )
-        return await service.get_thread_messages(thread_id)
-    except Exception as e:
-        print(f"Error getting messages: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/chat/threads")
-async def list_threads():
-    """List all conversation threads."""
-    try:
-        service = await get_or_create_service(
-            tavily_api_key=TAVILY_API_KEY,
-        )
-        threads = await service.list_threads()
-        return {"threads": threads}
-    except Exception as e:
-        print(f"Error listing threads: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "ok"}
 
 
 # MCP credentials directory (where workspace-mcp stores OAuth credentials)
@@ -199,32 +149,8 @@ async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
 # -------------------
 # Workflow Endpoints
 # -------------------
-# Workflow service cache
-_workflow_services: dict[str, WorkflowService] = {}
 
-
-async def get_or_create_workflow_service(
-    gmail_token: Optional[str] = None,
-    notion_token: Optional[str] = None,
-    slack_token: Optional[str] = None,
-) -> WorkflowService:
-    """Get or create a workflow service for the given token combination."""
-    cache_key = f"wf:{gmail_token or ''}:{notion_token or ''}:{slack_token or ''}"
-    
-    if cache_key not in _workflow_services:
-        service = WorkflowService(
-            gmail_token=gmail_token,
-            notion_token=notion_token,
-            slack_token=slack_token,
-            tavily_api_key=TAVILY_API_KEY,
-        )
-        await service.initialize()
-        _workflow_services[cache_key] = service
-    
-    return _workflow_services[cache_key]
-
-
-@app.post("/workflow")
+@app.post("/chat")
 async def execute_workflow(data: WorkflowRequestSchema):
     """
     Execute a dynamic multi-step workflow.
@@ -240,7 +166,7 @@ async def execute_workflow(data: WorkflowRequestSchema):
     3. Return the final result with all step outputs
     """
     try:
-        service = await get_or_create_workflow_service(
+        service = await get_or_create_service(
             gmail_token=data.gmail_token,
             notion_token=data.notion_token,
             slack_token=data.slack_token,
@@ -260,7 +186,7 @@ async def execute_workflow(data: WorkflowRequestSchema):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/workflow/stream")
+@app.post("/chat/stream")
 async def execute_workflow_stream(data: WorkflowRequestSchema):
     """
     Execute a workflow with streaming progress updates.
@@ -272,7 +198,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
         service = None
         
         try:
-            service = await get_or_create_workflow_service(
+            service = await get_or_create_service(
                 gmail_token=data.gmail_token,
                 notion_token=data.notion_token,
                 slack_token=data.slack_token,
@@ -362,15 +288,15 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
     )
 
 
-@app.get("/workflow/status/{thread_id}")
+@app.get("/chat/status/{thread_id}")
 async def get_workflow_status(thread_id: str):
     """Get the current status of a workflow."""
     try:
         # Get any available workflow service
-        if not _workflow_services:
-            service = await get_or_create_workflow_service()
+        if not _services:
+            service = await get_or_create_service()
         else:
-            service = list(_workflow_services.values())[0]
+            service = list(_services.values())[0]
         
         state = await service.get_workflow_state(thread_id)
         if not state:
@@ -395,7 +321,7 @@ class WorkflowRetrySchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
 
 
-@app.post("/workflow/retry")
+@app.post("/chat/retry")
 async def retry_workflow_step(data: WorkflowRetrySchema):
     """
     Retry a failed workflow step and continue execution.
@@ -404,7 +330,7 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
     then resumes execution from that step.
     """
     try:
-        service = await get_or_create_workflow_service(
+        service = await get_or_create_service(
             gmail_token=data.gmail_token,
             notion_token=data.notion_token,
             slack_token=data.slack_token,
@@ -440,7 +366,7 @@ class WorkflowResumeSchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
 
 
-@app.post("/workflow/resume")
+@app.post("/chat/resume")
 async def resume_workflow_with_decision(data: WorkflowResumeSchema):
     """
     Resume a paused workflow with human decision (approve/edit/skip).
@@ -448,7 +374,7 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
     Used for Human-in-the-Loop approval workflow.
     """
     try:
-        service = await get_or_create_workflow_service(
+        service = await get_or_create_service(
             gmail_token=data.gmail_token,
             notion_token=data.notion_token,
             slack_token=data.slack_token,

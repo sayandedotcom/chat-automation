@@ -5,7 +5,7 @@ const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8000";
 
 /**
  * Resume a paused workflow with HITL decision
- * POST /api/workflow/resume
+ * POST /api/chat/resume
  */
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (!thread_id || !action) {
       return NextResponse.json(
         { error: "thread_id and action are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const slackToken = cookieStore.get("slack_access_token")?.value;
 
     // Call the FastAPI workflow resume endpoint
-    const response = await fetch(`${AGENT_API_URL}/workflow/resume`, {
+    const response = await fetch(`${AGENT_API_URL}/chat/resume`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       console.error("Workflow resume API error:", errorText);
       return NextResponse.json(
         { error: "Failed to resume workflow" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     console.error("Workflow resume API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
