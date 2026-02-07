@@ -61,6 +61,9 @@ pnpm --filter api build
 # Lint all packages
 pnpm lint
 
+# Type check all packages
+pnpm check-types
+
 # Type check Next.js app
 pnpm --filter web typecheck
 
@@ -98,7 +101,7 @@ pnpm --filter @workspace/database db:seed
 
 The `packages/database` package provides centralized database access via Prisma:
 - **Schema**: `packages/database/prisma/schema.prisma` - defines all models
-- **Client**: Exported from `@workspace/database` for use in API and tRPC
+- **Client**: Generated to `packages/database/src/generated/client` (non-default path), exported from `@workspace/database`
 
 **Key models:**
 - **Authentication**: `User`, `Account`, `Session`, `VerificationToken` (for better-auth)
@@ -131,6 +134,7 @@ await signIn.social({ provider: "google" });
 **Environment variables required:**
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `BETTER_AUTH_SECRET` - Secret key for better-auth (32+ characters)
 - `BETTER_AUTH_URL` - Base URL for auth (default: http://localhost:8000)
 
 ### tRPC Integration (@workspace/trpc)
@@ -193,10 +197,13 @@ import { Button } from "@workspace/ui/components/button"
 ### API Server (Express + tRPC)
 
 - **Location**: `apps/api/src/index.ts`
+- **Express Version**: 5.x (uses `/*splat` syntax instead of v4's `/*` for catch-all routes)
 - **Port**: 8000 (configurable via `PORT` env var)
 - **CORS**: Configured to allow `http://localhost:3000` with credentials
 - **Security**: Helmet middleware with CSP disabled
 - **Health check**: `GET /health` returns `{ status: "ok", timestamp: "..." }`
+
+**Critical middleware ordering:** CORS must come first, then Better Auth handler (`/api/auth/*splat`), then `express.json()`. Better Auth breaks if body parsing middleware is mounted before it.
 
 The API server is a thin wrapper around tRPC - all business logic should be in tRPC routers.
 
@@ -214,7 +221,10 @@ The API server is a thin wrapper around tRPC - all business logic should be in t
 - `src/chat/workflow_nodes.py` - Node implementations for workflow steps
 - `src/chat/workflow_service.py` - Service layer for workflow execution
 - `src/chat/service.py` - Chat service with MCP tool integration
+- `src/chat/integration_registry.py` - Manages MCP tool integrations and OAuth credentials
 - `src/chat/utils/mcp_client.py` - MCP (Model Context Protocol) client for tool integration
+
+**Startup behavior:** The FastAPI lifespan handler pre-warms MCP connections at startup to avoid 5-15s cold start delays on first request. ChatService instances are cached by token combination in a `_services` dict.
 
 **Workflow Architecture:**
 The agent uses LangGraph to create dynamic multi-step workflows with Human-in-the-Loop (HITL) capabilities:
@@ -224,12 +234,12 @@ The agent uses LangGraph to create dynamic multi-step workflows with Human-in-th
 4. **Checkpointing**: Supports PostgreSQL (via `DATABASE_URL`) or in-memory checkpointing
 
 **Key endpoints:**
-- `POST /chat` - Single-turn chat interaction
-- `POST /workflow` - Execute multi-step workflow
-- `POST /workflow/stream` - Stream workflow progress with SSE
-- `POST /workflow/resume` - Resume paused workflow with HITL decision (approve/edit/skip)
-- `POST /workflow/retry` - Retry failed workflow step
-- `GET /workflow/status/{thread_id}` - Get workflow state
+- `POST /chat` - Execute multi-step workflow
+- `POST /chat/stream` - Stream workflow progress with SSE
+- `POST /chat/resume` - Resume paused workflow with HITL decision (approve/edit/skip)
+- `POST /chat/retry` - Retry failed workflow step
+- `GET /chat/status/{thread_id}` - Get workflow state
+- `POST /sync-gmail-credentials` - Sync frontend OAuth tokens to MCP credential store
 
 **Deployment:**
 The agent is configured for AWS Lambda deployment via SST (`apps/agent/sst.config.ts`):
@@ -242,10 +252,10 @@ sst deploy
 ## Environment Variables
 
 Each app has its own `.env.example` file showing required configuration. Key variables:
-- **Web**: `NEXT_PUBLIC_API_URL` (API server URL)
-- **API**: `PORT`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_URL`
+- **Web**: `NEXT_PUBLIC_API_URL` (API server URL), `AGENT_API_URL` (agent service URL)
+- **API**: `PORT`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`
 - **Database**: `DATABASE_URL` (PostgreSQL connection string)
-- **Agent**: `DATABASE_URL` (PostgreSQL for checkpointing), various API tokens for integrations
+- **Agent**: `DATABASE_URL` (PostgreSQL for checkpointing), `GOOGLE_API_KEY` (Gemini LLM), `TAVILY_API_KEY` (web search), OAuth tokens for integrations
 
 ## Development Workflow
 
