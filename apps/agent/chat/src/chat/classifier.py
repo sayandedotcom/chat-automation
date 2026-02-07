@@ -24,10 +24,10 @@ _MAIN_SUFFIXES: list[tuple[str, str, int]] = [
     # because they cause singular/plural stems to diverge:
     #   stem("document") = "docu"  vs  stem("documents") = "document"
     # (suffix, replacement, min_stem_length)
-    ("ing", "", 3),
+    ("ing", "", 5),  # min_len=5 to avoid stripping nouns like "meeting" (4 chars stem)
     ("ed", "", 3),
-    ("er", "", 3),
     ("ly", "", 3),
+    # Note: -er removed because "folder"→"fold" vs "folders"→"folder" diverge
 ]
 
 
