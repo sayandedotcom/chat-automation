@@ -8,6 +8,43 @@ integrations:
       - "tavily_research"
     display_name: "Web Search"
     icon: "web_search"
+    description: "Web search and research: finding information, answering questions, comparing options, discovering latest content online."
+    keywords:
+      - search
+      - find
+      - research
+      - lookup
+      - discover
+      - explore
+      - latest
+      - current
+      - recent
+      - trending
+      - compare
+      - comparison
+      - analysis
+      - overview
+      - best
+      - top
+      - wikipedia
+      - article
+      - news
+      - information
+      - explain
+      - define
+      - meaning
+    phrases:
+      - "search the web"
+      - "find information about"
+      - "look up"
+      - "what is"
+      - "who is"
+      - "tell me about"
+      - "latest news on"
+      - "compare options for"
+      - "how does"
+      - "search for"
+      - "find out"
     request_patterns:
       - '\b(search|find|research|look\s+up|discover|explore)\b'
       - '\b(what|who|when|where|why|how)\s+(is|are|was|were)\b'
@@ -35,6 +72,56 @@ integrations:
     icon: "gmail"
     requires_auth: true
     mcp_server: "google_workspace"
+    description: "Email operations via Gmail: sending, drafting, reading, searching, labeling, filtering, and managing email messages and threads."
+    keywords:
+      - email
+      - emails
+      - mail
+      - mails
+      - gmail
+      - send
+      - sent
+      - draft
+      - drafts
+      - reply
+      - forward
+      - inbox
+      - outbox
+      - recipient
+      - recipients
+      - subject
+      - label
+      - labels
+      - archive
+      - compose
+      - letter
+      - correspondence
+      - unread
+      - attachment
+      - attachments
+      - thread
+      - threads
+      - cc
+      - bcc
+      - message
+      - messages
+      - spam
+      - trash
+      - filter
+      - filters
+    phrases:
+      - "send an email"
+      - "write an email"
+      - "check my inbox"
+      - "draft a reply"
+      - "forward this"
+      - "email someone"
+      - "reach out to"
+      - "get in touch"
+      - "notify via email"
+      - "send a message to"
+      - "compose an email"
+      - "read my emails"
     request_patterns:
       - '\b(email|mail|gmail|send|draft|reply|forward|inbox)\b'
       - '\b(message|recipient|subject|label|archive|delete)\b'
@@ -64,6 +151,53 @@ integrations:
     icon: "google_docs"
     requires_auth: true
     mcp_server: "google_workspace"
+    description: "Document creation and editing via Google Docs: creating, writing, editing, commenting, exporting, and formatting documents."
+    keywords:
+      - doc
+      - docs
+      - document
+      - documents
+      - memo
+      - writeup
+      - write
+      - writing
+      - paragraph
+      - text
+      - heading
+      - comment
+      - comments
+      - review
+      - template
+      - page
+      - content
+      - pdf
+      - export
+      - table
+      - style
+      - header
+      - footer
+      - report
+      - proposal
+      - brief
+      - summary
+      - paper
+      - essay
+      - note
+      - notes
+      - outline
+    phrases:
+      - "create a document"
+      - "write a report"
+      - "draft a memo"
+      - "edit the document"
+      - "add content to"
+      - "write a summary"
+      - "create a writeup"
+      - "prepare a brief"
+      - "type up"
+      - "put together a document"
+      - "open the doc"
+      - "write up"
     request_patterns:
       - '\b(doc|document|google\s*doc|write)\b'
       - '\b(create|edit|comment|review)\b.*\b(doc|document)\b'
@@ -79,6 +213,42 @@ integrations:
     icon: "google_sheets"
     requires_auth: true
     mcp_server: "google_workspace"
+    description: "Spreadsheet operations via Google Sheets: creating, reading, writing, and modifying spreadsheet data, cells, and ranges."
+    keywords:
+      - sheet
+      - sheets
+      - spreadsheet
+      - spreadsheets
+      - cell
+      - cells
+      - row
+      - rows
+      - column
+      - columns
+      - data
+      - table
+      - formula
+      - range
+      - values
+      - csv
+      - excel
+      - workbook
+      - grid
+      - calculate
+      - numbers
+      - figures
+      - stats
+      - statistics
+      - pivot
+    phrases:
+      - "create a spreadsheet"
+      - "update the sheet"
+      - "read cell values"
+      - "modify the data"
+      - "enter data into"
+      - "build a spreadsheet"
+      - "add a row"
+      - "fill in the sheet"
     request_patterns:
       - '\b(sheet|spreadsheet|google\s*sheets)\b'
       - '\b(read|write|update|modify)\b.*\b(cell|range|row|column|data)\b'
@@ -94,6 +264,28 @@ integrations:
     icon: "google_slides"
     requires_auth: true
     mcp_server: "google_workspace"
+    description: "Presentation operations via Google Slides: creating, editing, and managing slide presentations."
+    keywords:
+      - slide
+      - slides
+      - presentation
+      - presentations
+      - deck
+      - ppt
+      - powerpoint
+      - slideshow
+      - talk
+      - pitch
+      - keynote
+      - layout
+      - visual
+    phrases:
+      - "create a presentation"
+      - "make a slide deck"
+      - "add a slide"
+      - "build a pitch deck"
+      - "prepare slides for"
+      - "put together a presentation"
     request_patterns:
       - '\b(slide|slides|presentation|deck|ppt)\b'
       - '\b(create|add|update|edit)\b.*\b(slide|presentation)\b'
@@ -110,6 +302,52 @@ integrations:
     icon: "google_calendar"
     requires_auth: true
     mcp_server: "google_workspace"
+    description: "Calendar management via Google Calendar: scheduling meetings, creating events, checking availability, and managing appointments."
+    keywords:
+      - calendar
+      - calendars
+      - schedule
+      - scheduling
+      - meeting
+      - meetings
+      - event
+      - events
+      - appointment
+      - appointments
+      - book
+      - booking
+      - availability
+      - free
+      - busy
+      - invite
+      - reminder
+      - agenda
+      - tomorrow
+      - today
+      - monday
+      - tuesday
+      - wednesday
+      - thursday
+      - friday
+      - saturday
+      - sunday
+      - week
+      - month
+      - morning
+      - afternoon
+      - evening
+      - noon
+    phrases:
+      - "schedule a meeting"
+      - "book an appointment"
+      - "check my calendar"
+      - "when am I free"
+      - "create an event"
+      - "set up a meeting"
+      - "find a time"
+      - "check availability"
+      - "block off time"
+      - "what's on my calendar"
     request_patterns:
       - '\b(calendar|schedule|meeting|event|appointment|book)\b'
       - '\b(next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b'
@@ -136,6 +374,40 @@ integrations:
     icon: "drive"
     requires_auth: true
     mcp_server: "google_workspace"
+    description: "File management via Google Drive: uploading, downloading, sharing, organizing, and managing files and folders."
+    keywords:
+      - drive
+      - file
+      - files
+      - upload
+      - download
+      - folder
+      - folders
+      - share
+      - sharing
+      - permission
+      - permissions
+      - storage
+      - move
+      - copy
+      - rename
+      - delete
+      - link
+      - access
+      - transfer
+      - ownership
+      - organize
+    phrases:
+      - "upload a file"
+      - "download the file"
+      - "share the document"
+      - "find files in drive"
+      - "create a folder"
+      - "move the file to"
+      - "get a shareable link"
+      - "give access to"
+      - "organize my files"
+      - "search my drive"
     request_patterns:
       - '\b(drive|file|upload|download|folder)\b'
       - '\b(create|read|search)\b.*\b(file|document)\b'
@@ -160,6 +432,45 @@ integrations:
     display_name: "Notion"
     icon: "notion"
     requires_auth: true
+    description: "Workspace and knowledge management via Notion: creating pages, managing databases, searching content, commenting, and organizing workspace."
+    keywords:
+      - notion
+      - page
+      - pages
+      - note
+      - notes
+      - database
+      - databases
+      - workspace
+      - wiki
+      - knowledge
+      - kanban
+      - board
+      - task
+      - tasks
+      - project
+      - projects
+      - team
+      - teams
+      - template
+      - property
+      - properties
+      - relation
+      - rollup
+      - filter
+      - view
+      - comment
+      - comments
+    phrases:
+      - "create a Notion page"
+      - "update the database"
+      - "search in Notion"
+      - "add a comment"
+      - "find in my workspace"
+      - "organize in Notion"
+      - "check my Notion"
+      - "create a database"
+      - "duplicate the page"
     request_patterns:
       # Search & discovery
       - '\b(search|find|look\s*up|check)\b.*\b(notion|docs?|pages?|notes?)\b'
@@ -211,7 +522,40 @@ integrations:
     display_name: "Vercel"
     icon: "vercel"
     requires_auth: true
-
+    description: "Deployment and hosting via Vercel: deploying apps, managing domains, viewing build logs, and managing projects."
+    keywords:
+      - vercel
+      - deploy
+      - deployment
+      - deployments
+      - build
+      - builds
+      - domain
+      - domains
+      - dns
+      - hosting
+      - preview
+      - production
+      - staging
+      - project
+      - projects
+      - cli
+      - logs
+      - errors
+      - nextjs
+      - frontend
+      - website
+      - site
+      - serverless
+    phrases:
+      - "deploy to vercel"
+      - "check deployment status"
+      - "buy a domain"
+      - "view build logs"
+      - "deploy my app"
+      - "check deployment errors"
+      - "set up custom domain"
+      - "deploy the website"
     request_patterns:
       # Documentation & how-to
       - '\b(vercel)\b.*\b(how|configure|setup|docs?|documentation)\b'

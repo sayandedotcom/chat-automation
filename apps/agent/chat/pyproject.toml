@@ -17,6 +17,7 @@ dependencies = [
     "langchain-google-genai>=2.0.0",
     "psycopg[binary]>=3.0.0",
     "mangum>=0.20.0",
+    "rapidfuzz>=3.0.0",
 ]
 
 [project.scripts]

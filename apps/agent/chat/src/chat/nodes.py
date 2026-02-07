@@ -224,8 +224,8 @@ class WorkflowNodes:
                 "incremental_load_events": [],
             }
 
-        # Classify integrations (instant, no LLM)
-        integrations = classify_integrations(user_request, self.registry)
+        # Classify integrations (Phase 1: instant NLP, Phase 2: LLM fallback if ambiguous)
+        integrations = await classify_integrations(user_request, self.registry)
 
         # Get filtered tools from registry
         tools = self.registry.get_toolset(integrations)

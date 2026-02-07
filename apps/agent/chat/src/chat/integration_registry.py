@@ -52,7 +52,7 @@ class IntegrationRegistry:
         self._initialized = False
 
     def _load_config(self):
-        """Load integration config from YAML."""
+        """Load integration config from YAML and build classifier index."""
         if not self._config_path.exists():
             logger.warning(f"Integration config not found at {self._config_path}")
             return
@@ -60,13 +60,21 @@ class IntegrationRegistry:
         with open(self._config_path) as f:
             config = yaml.safe_load(f)
 
-        for name, integration_config in config.get("integrations", {}).items():
+        integrations_config = config.get("integrations", {})
+
+        for name, integration_config in integrations_config.items():
             self._integrations[name] = IntegrationConfig(name, integration_config)
             # Build reverse lookup from config tool_names
             for tool_name in integration_config.get("tool_names", []):
                 self._tool_name_to_integration[tool_name] = name
 
         logger.info(f"Loaded {len(self._integrations)} integration configs")
+
+        # Build classifier index from the same config
+        from chat.classifier import get_classifier
+
+        classifier = get_classifier()
+        classifier.build_index(integrations_config)
 
     async def load_all(self, tokens: dict):
         """
@@ -148,11 +156,15 @@ class IntegrationRegistry:
         return self._initialized
 
 
-def classify_integrations(request: str, registry: IntegrationRegistry) -> list[str]:
+async def classify_integrations(request: str, registry: IntegrationRegistry) -> list[str]:
     """
-    Classify which integrations are needed for a request using pattern matching.
+    Classify which integrations are needed using two-phase approach.
 
-    This function does NOT use an LLM - it uses regex patterns from the config.
+    Phase 1: Enhanced NLP — stemmed keywords + fuzzy phrase matching (instant)
+    Phase 2: LLM fallback — Gemini Flash classification (if Phase 1 is ambiguous)
+
+    Falls back to legacy regex-only classification if the classifier is not
+    initialised (e.g. during tests or when config loading failed).
 
     Args:
         request: User's request text
@@ -160,6 +172,33 @@ def classify_integrations(request: str, registry: IntegrationRegistry) -> list[s
 
     Returns:
         List of integration names that should be loaded
+    """
+    from chat.classifier import get_classifier
+
+    classifier = get_classifier()
+
+    if not classifier.is_initialized:
+        logger.warning("Classifier not initialised, falling back to legacy regex matching")
+        return _legacy_classify(request, registry)
+
+    result = await classifier.classify_with_fallback(request)
+
+    logger.info(
+        "Smart router classification",
+        extra={
+            "request": request[:100],
+            "classified_integrations": result.integrations,
+            "method": result.method,
+            "confidence": f"{result.confidence:.2f}",
+        },
+    )
+
+    return result.integrations
+
+
+def _legacy_classify(request: str, registry: IntegrationRegistry) -> list[str]:
+    """
+    Original regex-only classification (kept as safety-net fallback).
     """
     request_lower = request.lower()
     needed = set()
@@ -192,7 +231,7 @@ def classify_integrations(request: str, registry: IntegrationRegistry) -> list[s
             needed.add("web_search")
 
     logger.info(
-        "Smart router classification",
+        "Legacy classification",
         extra={
             "request": request[:100],
             "classified_integrations": list(needed),
