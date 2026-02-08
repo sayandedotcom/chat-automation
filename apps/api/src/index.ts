@@ -68,7 +68,7 @@ async function main() {
   // Mount tRPC on /trpc
   mountTRPC(app);
 
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8001;
 
   app.listen(PORT, () => {
     console.log(`[API] Server listening on http://localhost:${PORT}`);

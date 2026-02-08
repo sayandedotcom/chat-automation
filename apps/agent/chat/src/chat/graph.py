@@ -6,11 +6,11 @@ Implements: Plan → Route → Execute (Auto/Approval) → Loop pattern
 """
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import BaseTool
 from typing import List, Optional, TYPE_CHECKING
 from dotenv import load_dotenv
-import os
 
 from chat.schemas import WorkflowState
 from chat.nodes import (
@@ -24,27 +24,6 @@ if TYPE_CHECKING:
     from chat.integration_registry import IntegrationRegistry
 
 load_dotenv()
-
-
-def get_checkpointer():
-    """Get the appropriate checkpointer based on environment."""
-    database_url = os.getenv("DATABASE_URL")
-    
-    if database_url:
-        try:
-            from langgraph.checkpoint.postgres import PostgresSaver
-            import psycopg
-            
-            conn = psycopg.connect(database_url)
-            checkpointer = PostgresSaver(conn)
-            checkpointer.setup()
-            print("✅ Workflow: Using PostgreSQL checkpointer")
-            return checkpointer
-        except Exception as e:
-            print(f"⚠️ Workflow: Failed to connect to PostgreSQL: {e}")
-    
-    print("📝 Workflow: Using MemorySaver")
-    return MemorySaver()
 
 
 class DynamicWorkflow:
@@ -111,6 +90,7 @@ class DynamicWorkflow:
         self,
         tools: List[BaseTool] = None,
         registry: "IntegrationRegistry" = None,
+        checkpointer: Optional[BaseCheckpointSaver] = None,
     ):
         """
         Initialize the dynamic workflow.
@@ -118,10 +98,12 @@ class DynamicWorkflow:
         Args:
             tools: List of MCP tools to use
             registry: Optional IntegrationRegistry for smart routing
+            checkpointer: Checkpointer for persisting workflow state.
+                          If None, falls back to in-memory MemorySaver.
         """
         self.tools = tools or []
         self.registry = registry
-        self.checkpointer = get_checkpointer()
+        self.checkpointer = checkpointer or MemorySaver()
         self.nodes = WorkflowNodes(tools=self.tools, registry=self.registry)
         self.app = self._build_graph()
 

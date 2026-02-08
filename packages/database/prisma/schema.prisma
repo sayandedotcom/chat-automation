@@ -25,8 +25,9 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  accounts Account[]
-  sessions Session[]
+  accounts      Account[]
+  sessions      Session[]
+  conversations Conversation[]
 
   @@map("users")
 }
@@ -86,12 +87,15 @@ model Conversation {
   id        String   @id @default(cuid())
   title     String?
   userId    String
+  threadId  String   @unique // LangGraph checkpoint thread_id
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages Message[]
 
   @@index([userId])
+  @@index([userId, updatedAt])
   @@map("conversations")
 }
 

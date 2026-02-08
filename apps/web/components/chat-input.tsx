@@ -50,9 +50,11 @@ const files: FileItem[] = [
 export function ChatInputWithMentions({
   onSubmit,
   placeholder = "Type and press enter to start chatting...",
+  disabled = false,
 }: {
   onSubmit?: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const [highlightedOutput, setHighlightedOutput] = useState<string>("");
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -145,6 +147,7 @@ export function ChatInputWithMentions({
           <ChatInputEditor
             placeholder={placeholder}
             className="text-neutral-200 placeholder:text-neutral-500 min-h-[28px] text-sm"
+            disabled={disabled}
           />
 
           {/* Bottom: Actions bar */}
@@ -204,7 +207,10 @@ export function ChatInputWithMentions({
               >
                 <Mic className="h-4 w-4" />
               </Button>
-              <ChatInputSubmitButton className="bg-white hover:bg-neutral-200 text-black rounded-full h-9 w-9 shadow-md" />
+              <ChatInputSubmitButton
+                className="bg-white hover:bg-neutral-200 text-black rounded-full h-9 w-9 shadow-md"
+                disabled={disabled}
+              />
             </div>
           </ChatInputGroupAddon>
         </ChatInput>

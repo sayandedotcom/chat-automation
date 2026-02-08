@@ -10,6 +10,7 @@ from typing import Optional, AsyncGenerator
 import uuid
 import logging
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from chat.graph import DynamicWorkflow
 from chat.schemas import WorkflowState, WorkflowPlan
 from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
@@ -41,6 +42,7 @@ class ChatService:
         slack_token: Optional[str] = None,
         google_client_id: Optional[str] = None,
         google_client_secret: Optional[str] = None,
+        checkpointer: Optional[BaseCheckpointSaver] = None,
     ):
         """Initialize the workflow service with integration tokens."""
         self.gmail_token = gmail_token
@@ -50,7 +52,8 @@ class ChatService:
         self.slack_token = slack_token
         self.google_client_id = google_client_id
         self.google_client_secret = google_client_secret
-        
+        self._checkpointer = checkpointer
+
         self._client = None
         self._tools = []
         self._workflow = None
@@ -85,7 +88,11 @@ class ChatService:
         self._tools = self._registry.get_all_tools()
 
         # Build dynamic workflow with registry for smart routing
-        self._workflow = DynamicWorkflow(tools=self._tools, registry=self._registry)
+        self._workflow = DynamicWorkflow(
+            tools=self._tools,
+            registry=self._registry,
+            checkpointer=self._checkpointer,
+        )
         self._initialized = True
 
         logger.info(f"Workflow service initialized with {len(self._tools)} tools")

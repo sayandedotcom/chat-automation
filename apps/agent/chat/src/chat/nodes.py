@@ -261,20 +261,49 @@ class WorkflowNodes:
         """
         Analyze the user request and create a step-by-step plan.
         Uses structured output for type-safe planning with HITL classification.
+        Includes conversation history for cross-message context awareness.
         """
         messages = state["messages"]
-        
-        # Get the original user request
+
+        # Build conversation context from all messages
+        conversation_context = []
+        for msg in messages:
+            if isinstance(msg, HumanMessage):
+                conversation_context.append(f"User: {msg.content}")
+            elif isinstance(msg, AIMessage) and msg.content:
+                # Include AI responses but truncate verbose outputs
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                # Truncate long responses to keep context manageable
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                conversation_context.append(f"Assistant: {content}")
+
+        # Get the latest user request
         user_request = ""
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 user_request = msg.content
                 break
-        
+
+        # Build prompt with context for multi-turn conversations
+        if len(conversation_context) > 2:  # Multi-turn conversation
+            # Use last 10 turns to avoid context bloat
+            recent_context = conversation_context[-10:]
+            context_str = "\n".join(recent_context)
+            prompt = f"""CONVERSATION HISTORY:
+{context_str}
+
+LATEST REQUEST: {user_request}
+
+Create a plan for the latest request. Use context from the conversation history where relevant to understand references like "that", "those", "the previous results", etc."""
+        else:
+            # Single-turn - no need for context
+            prompt = f"Create a plan for: {user_request}"
+
         # Get structured plan from LLM - no JSON parsing needed!
         plan_output: WorkflowPlanOutput = await self.planner_llm.ainvoke([
             SystemMessage(content=PLANNER_SYSTEM_PROMPT),
-            HumanMessage(content=f"Create a plan for: {user_request}")
+            HumanMessage(content=prompt)
         ])
         
         logger.debug(f"Plan created: {len(plan_output.steps)} steps, thinking: {plan_output.thinking[:100]}...")

@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, AsyncExitStack
 import os
 
 from fastapi import FastAPI, HTTPException
@@ -30,33 +30,61 @@ class WorkflowRequestSchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
 
 
+# Global checkpointer — created in lifespan, shared across all services
+_checkpointer = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Pre-warm MCP connections and registry at startup.
-
-    This eliminates the 5-15s cold start delay on first request
-    by loading all integrations and tools during app initialization.
+    Initialize PostgreSQL checkpointer and pre-warm MCP connections at startup.
     """
-    print("🔥 Pre-warming MCP connections and registry...")
+    global _checkpointer
 
-    # Get tokens from environment
-    tokens = {
-        "gmail_token": os.getenv("GMAIL_TOKEN"),
-        "notion_token": os.getenv("NOTION_TOKEN"),
-        "vercel_token": os.getenv("VERCEL_TOKEN"),
-        "tavily_api_key": TAVILY_API_KEY,
-    }
+    async with AsyncExitStack() as stack:
+        # Step 1: Set up PostgreSQL checkpointer for workflow persistence
+        database_url = os.getenv("DATABASE_URL")
 
-    try:
-        registry = await get_registry(tokens)
-        print(f"✅ Registry pre-warmed with {len(registry.get_all_tools())} tools")
-    except Exception as e:
-        print(f"⚠️ Failed to pre-warm registry: {e}")
-        import traceback
-        traceback.print_exc()
+        if database_url:
+            try:
+                from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-    yield  # App runs here
+                checkpointer = await stack.enter_async_context(
+                    AsyncPostgresSaver.from_conn_string(database_url)
+                )
+                await checkpointer.setup()
+                _checkpointer = checkpointer
+                print("✅ PostgreSQL async checkpointer ready")
+            except Exception as e:
+                print(f"⚠️ AsyncPostgresSaver failed: {e}")
+                import traceback
+                traceback.print_exc()
+                from langgraph.checkpoint.memory import MemorySaver
+                _checkpointer = MemorySaver()
+                print("📝 Falling back to MemorySaver")
+        else:
+            from langgraph.checkpoint.memory import MemorySaver
+            _checkpointer = MemorySaver()
+            print("📝 Using MemorySaver (no DATABASE_URL)")
+
+        # Step 2: Pre-warm MCP connections and registry
+        print("🔥 Pre-warming MCP connections and registry...")
+        tokens = {
+            "gmail_token": os.getenv("GMAIL_TOKEN"),
+            "notion_token": os.getenv("NOTION_TOKEN"),
+            "vercel_token": os.getenv("VERCEL_TOKEN"),
+            "tavily_api_key": TAVILY_API_KEY,
+        }
+
+        try:
+            registry = await get_registry(tokens)
+            print(f"✅ Registry pre-warmed with {len(registry.get_all_tools())} tools")
+        except Exception as e:
+            print(f"⚠️ Failed to pre-warm registry: {e}")
+            import traceback
+            traceback.print_exc()
+
+        yield  # App runs here
 
     print("👋 Shutting down...")
 
@@ -82,17 +110,18 @@ async def get_or_create_service(
 ) -> ChatService:
     """Get or create a workflow service for the given token combination."""
     cache_key = f"{gmail_token or ''}:{notion_token or ''}:{slack_token or ''}"
-    
+
     if cache_key not in _services:
         service = ChatService(
             gmail_token=gmail_token,
             notion_token=notion_token,
             slack_token=slack_token,
             tavily_api_key=TAVILY_API_KEY,
+            checkpointer=_checkpointer,
         )
         await service.initialize()
         _services[cache_key] = service
-    
+
     return _services[cache_key]
 
 
@@ -297,17 +326,114 @@ async def get_workflow_status(thread_id: str):
             service = await get_or_create_service()
         else:
             service = list(_services.values())[0]
-        
+
         state = await service.get_workflow_state(thread_id)
         if not state:
             raise HTTPException(status_code=404, detail="Workflow not found")
-        
+
         return {"thread_id": thread_id, "state": state}
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error getting workflow status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/chat/history/{thread_id}")
+async def get_conversation_history(thread_id: str):
+    """
+    Retrieve the full conversation history from LangGraph checkpoint.
+    Returns messages and workflow plan suitable for UI rendering.
+    """
+    try:
+        # Get any available service
+        if not _services:
+            service = await get_or_create_service()
+        else:
+            service = list(_services.values())[0]
+
+        state = await service.get_workflow_state(thread_id)
+        if not state:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Extract messages for UI
+        messages_for_ui = []
+        for msg in state.get("messages", []):
+            if hasattr(msg, "type") and hasattr(msg, "content"):
+                if msg.type == "human":
+                    messages_for_ui.append({"role": "user", "content": msg.content})
+                elif msg.type == "ai" and msg.content:
+                    # Skip tool-call-only messages, extract text content
+                    content = msg.content
+                    if isinstance(content, list):
+                        text_parts = [
+                            p.get("text", "") if isinstance(p, dict) else str(p)
+                            for p in content
+                            if isinstance(p, dict) and p.get("text")
+                        ]
+                        content = "\n".join(text_parts)
+                    if content:
+                        messages_for_ui.append({"role": "assistant", "content": content})
+
+        # Extract plan
+        plan = state.get("plan")
+        plan_data = None
+        if plan:
+            plan_data = {
+                "thinking": getattr(plan, "thinking", None),
+                "original_request": getattr(plan, "original_request", None),
+                "steps": [
+                    {
+                        "step_number": s.step_number,
+                        "description": s.description,
+                        "status": s.status,
+                        "result": s.result,
+                        "error": s.error,
+                        "tools_used": s.tools_used,
+                        "requires_human_approval": s.requires_human_approval,
+                        "approval_reason": s.approval_reason,
+                        "thinking": s.thinking,
+                        "thinking_duration_ms": s.thinking_duration_ms,
+                        "search_results": [
+                            {
+                                "title": r.title,
+                                "url": r.url,
+                                "domain": r.domain,
+                                "favicon": r.favicon,
+                                "date": r.date,
+                            }
+                            for r in (s.search_results or [])
+                        ] if s.search_results else None,
+                    }
+                    for s in plan.steps
+                ],
+                "is_complete": plan.is_complete,
+                "final_summary": plan.final_summary,
+            }
+
+        # Extract loaded integrations
+        loaded_integrations = []
+        for integration in state.get("loaded_integrations", []):
+            if hasattr(integration, "model_dump"):
+                loaded_integrations.append(integration.model_dump())
+            elif isinstance(integration, dict):
+                loaded_integrations.append(integration)
+
+        return {
+            "thread_id": thread_id,
+            "messages": messages_for_ui,
+            "plan": plan_data,
+            "current_step_index": state.get("current_step_index", -1),
+            "loaded_integrations": loaded_integrations,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting conversation history: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

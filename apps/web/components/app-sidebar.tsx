@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Sparkles,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { NavChats } from "@/components/nav-chats";
 import { NavUser } from "@/components/nav-user";
@@ -29,6 +30,7 @@ import {
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTRPC } from "@workspace/trpc/client/react";
 
 // Navigation items for the top section
 const navItems = [
@@ -65,20 +67,6 @@ const navItems = [
   },
 ];
 
-// Sample chat history
-const chats = [
-  {
-    id: "1",
-    title: "Onboarding Sayan",
-    url: "/chat/1",
-  },
-  {
-    id: "2",
-    title: "New Chat",
-    url: "/chat/2",
-  },
-];
-
 const user = {
   name: "shadcn",
   email: "m@example.com",
@@ -87,6 +75,20 @@ const user = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isMobile = useIsMobile();
+  const trpc = useTRPC();
+
+  // Fetch conversations from database
+  const { data: conversations = [] } = useQuery(
+    trpc.conversation.list.queryOptions()
+  );
+
+  // Map to chat format for NavChats component
+  const chats = conversations.map((c) => ({
+    id: c.id,
+    title: c.title || "New Chat",
+    url: `/chat/${c.id}`,
+  }));
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
