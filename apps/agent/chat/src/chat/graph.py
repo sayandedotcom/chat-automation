@@ -27,25 +27,39 @@ if TYPE_CHECKING:
 load_dotenv()
 
 
+_checkpointer = None  # Module-level singleton — shared across all DynamicWorkflow instances
+
+
 def get_checkpointer():
-    """Get the appropriate checkpointer based on environment."""
+    """Get the shared checkpointer (singleton).
+
+    MemorySaver must be shared across ChatService instances so that
+    checkpoint data persists when OAuth tokens refresh and a new
+    ChatService is created for the same user.
+    """
+    global _checkpointer
+    if _checkpointer is not None:
+        return _checkpointer
+
     database_url = os.getenv("DATABASE_URL")
-    
+
     if database_url:
         try:
             from langgraph.checkpoint.postgres import PostgresSaver
             import psycopg
-            
+
             conn = psycopg.connect(database_url)
             checkpointer = PostgresSaver(conn)
             checkpointer.setup()
             print("✅ Workflow: Using PostgreSQL checkpointer")
-            return checkpointer
+            _checkpointer = checkpointer
+            return _checkpointer
         except Exception as e:
             print(f"⚠️ Workflow: Failed to connect to PostgreSQL: {e}")
-    
+
     print("📝 Workflow: Using MemorySaver")
-    return MemorySaver()
+    _checkpointer = MemorySaver()
+    return _checkpointer
 
 
 class DynamicWorkflow:

@@ -25,6 +25,7 @@ from chat.schemas import (
     PlannedStep,
     SearchResultItem,
     IntegrationInfo,
+    Artifact,
 )
 
 if TYPE_CHECKING:
@@ -130,13 +131,382 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
     return None if not search_results else search_results
 
 
-def build_conversation_summary(messages: List[BaseMessage]) -> Optional[str]:
+# -------------------
+# Artifact Extraction
+# -------------------
+
+# Map URL domains to artifact types
+_DOMAIN_TO_TYPE = {
+    "docs.google.com/document": "document",
+    "docs.google.com/spreadsheets": "spreadsheet",
+    "docs.google.com/presentation": "presentation",
+    "drive.google.com": "file",
+    "calendar.google.com": "event",
+    "notion.so": "page",
+    "notion.site": "page",
+}
+
+# Extraction config per integration: (json_id_field, json_url_field, artifact_type, url_regex)
+_INTEGRATION_EXTRACTORS = {
+    "google_docs": {
+        "id_fields": ["documentId"],
+        "url_fields": [],
+        "type": "document",
+        "url_pattern": r'https://docs\.google\.com/document/d/([A-Za-z0-9_-]+)',
+    },
+    "gmail": {
+        "id_fields": ["messageId", "id"],
+        "url_fields": [],
+        "type": "email",
+        "url_pattern": None,
+    },
+    "notion": {
+        "id_fields": ["id"],
+        "url_fields": ["url"],
+        "type": "page",
+        "url_pattern": r'https://(?:www\.)?notion\.(?:so|site)/[^\s]+',
+    },
+    "google_calendar": {
+        "id_fields": ["id"],
+        "url_fields": ["htmlLink"],
+        "type": "event",
+        "url_pattern": None,
+    },
+    "google_drive": {
+        "id_fields": ["id"],
+        "url_fields": ["webViewLink"],
+        "type": "file",
+        "url_pattern": None,
+    },
+    "google_sheets": {
+        "id_fields": ["spreadsheetId"],
+        "url_fields": ["spreadsheetUrl"],
+        "type": "spreadsheet",
+        "url_pattern": r'https://docs\.google\.com/spreadsheets/d/([A-Za-z0-9_-]+)',
+    },
+    "google_slides": {
+        "id_fields": ["presentationId"],
+        "url_fields": [],
+        "type": "presentation",
+        "url_pattern": r'https://docs\.google\.com/presentation/d/([A-Za-z0-9_-]+)',
+    },
+}
+
+
+def _find_field_recursive(data: dict, field: str) -> Optional[str]:
+    """Recursively search a nested dict for a field, return its string value."""
+    if field in data:
+        val = data[field]
+        if isinstance(val, str) and val:
+            return val
+    for v in data.values():
+        if isinstance(v, dict):
+            result = _find_field_recursive(v, field)
+            if result:
+                return result
+    return None
+
+
+def _extract_name_from_data(data: dict) -> str:
+    """Try to extract a human-readable name from JSON response data."""
+    for key in ("title", "name", "subject", "snippet", "summary"):
+        val = _find_field_recursive(data, key)
+        if val:
+            return val[:200]
+    return "Untitled"
+
+
+def _classify_url_type(url: str) -> Optional[str]:
+    """Classify artifact type from URL domain."""
+    for domain_prefix, artifact_type in _DOMAIN_TO_TYPE.items():
+        if domain_prefix in url:
+            return artifact_type
+    return None
+
+
+def _build_artifact_from_match(
+    ext_name: str,
+    ext_config: dict,
+    data: dict,
+    artifact_id: str,
+    messages: List[BaseMessage],
+    step_number: int,
+    turn_number: int,
+    seen_ids: set,
+) -> Optional[dict]:
+    """Build an Artifact dict from a matched extractor and JSON data."""
+    if artifact_id in seen_ids:
+        return None
+
+    seen_ids.add(artifact_id)
+
+    # Extract URL from configured fields
+    artifact_url = None
+    for url_field in ext_config["url_fields"]:
+        artifact_url = _find_field_recursive(data, url_field)
+        if artifact_url:
+            break
+
+    # Construct URL from ID if no URL field found
+    if not artifact_url:
+        if ext_name == "google_docs":
+            artifact_url = f"https://docs.google.com/document/d/{artifact_id}/edit"
+        elif ext_name == "google_sheets":
+            artifact_url = f"https://docs.google.com/spreadsheets/d/{artifact_id}/edit"
+        elif ext_name == "google_slides":
+            artifact_url = f"https://docs.google.com/presentation/d/{artifact_id}/edit"
+
+    name = _extract_name_from_data(data)
+
+    # For gmail, extract recipient from preceding AIMessage tool_calls
+    metadata = {}
+    if ext_name == "gmail":
+        for prev_msg in messages:
+            if isinstance(prev_msg, AIMessage) and hasattr(prev_msg, "tool_calls"):
+                for tc in prev_msg.tool_calls:
+                    args = tc.get("args", {})
+                    if "to" in args:
+                        metadata["to"] = args["to"]
+                    if "subject" in args:
+                        metadata["subject"] = args["subject"]
+
+    artifact = Artifact(
+        type=ext_config["type"],
+        name=name,
+        url=artifact_url,
+        id=artifact_id,
+        integration=ext_name,
+        step_number=step_number,
+        turn_number=turn_number,
+        metadata=metadata,
+    )
+    return artifact.model_dump()
+
+
+def extract_artifacts_from_step(
+    messages: List[BaseMessage],
+    step_number: int,
+    turn_number: int = 1,
+    integration_hint: Optional[str] = None,
+) -> List[dict]:
+    """
+    Extract structured artifacts from a step's messages (ToolMessage JSON + URL fallback).
+
+    Tries ALL extractors against every ToolMessage — unique ID fields like
+    documentId/spreadsheetId match unambiguously without needing integration detection.
+    Generic "id" fields require a confirming URL field (htmlLink, webViewLink, url)
+    or a matching integration_hint.
+
+    Returns list of Artifact.model_dump() dicts.
+    """
+    artifacts = []
+    seen_ids = set()
+
+    # --- Phase 1: Parse ToolMessage content, try all extractors ---
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+
+        content = msg.content
+        if not content:
+            continue
+
+        # Normalize content: MCP servers often return list of content blocks
+        # e.g., [{'type': 'text', 'text': '...'}] — extract text from blocks
+        raw_text = None
+        if isinstance(content, list):
+            text_parts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text_parts.append(block.get("text", ""))
+                elif isinstance(block, str):
+                    text_parts.append(block)
+            raw_text = "\n".join(text_parts) if text_parts else None
+        elif isinstance(content, str):
+            raw_text = content
+        elif isinstance(content, dict):
+            raw_text = None  # Will handle as dict below
+
+        logger.info(f"[ARTIFACT_EXTRACT] ToolMessage content type={type(content).__name__}, "
+                     f"raw_text preview={raw_text[:300] if raw_text else 'None'}")
+
+        # Try to parse JSON from the text
+        data = None
+        if raw_text:
+            try:
+                text = raw_text.strip()
+                if "```json" in text:
+                    text = text.split("```json")[1].split("```")[0].strip()
+                if text.startswith("{") or text.startswith("["):
+                    parsed = json.loads(text)
+                    if isinstance(parsed, dict):
+                        data = parsed
+            except (json.JSONDecodeError, IndexError):
+                pass
+        elif isinstance(content, dict):
+            data = content
+
+        # Phase 1a: If we got structured JSON, try extractors on it
+        if data and isinstance(data, dict):
+            logger.info(f"[ARTIFACT_EXTRACT] Parsed JSON dict keys: {list(data.keys())[:10]}")
+
+            # Pass 1: Try UNIQUE id fields (documentId, spreadsheetId, etc.)
+            matched = False
+            for ext_name, ext_config in _INTEGRATION_EXTRACTORS.items():
+                for id_field in ext_config["id_fields"]:
+                    if id_field == "id":
+                        continue  # Skip generic "id" in pass 1
+                    artifact_id = _find_field_recursive(data, id_field)
+                    if artifact_id:
+                        logger.info(f"[ARTIFACT_EXTRACT] Pass 1 MATCH: {ext_name}.{id_field}={artifact_id}")
+                        result = _build_artifact_from_match(
+                            ext_name, ext_config, data, artifact_id,
+                            messages, step_number, turn_number, seen_ids,
+                        )
+                        if result:
+                            artifacts.append(result)
+                        matched = True
+                        break
+                if matched:
+                    break
+
+            if matched:
+                continue
+
+            # Pass 2: Generic "id" + confirming URL field
+            generic_id = _find_field_recursive(data, "id")
+            if generic_id:
+                for ext_name, ext_config in _INTEGRATION_EXTRACTORS.items():
+                    if "id" not in ext_config["id_fields"]:
+                        continue
+                    if ext_config["url_fields"]:
+                        confirmed = any(
+                            _find_field_recursive(data, uf) for uf in ext_config["url_fields"]
+                        )
+                        if confirmed:
+                            result = _build_artifact_from_match(
+                                ext_name, ext_config, data, generic_id,
+                                messages, step_number, turn_number, seen_ids,
+                            )
+                            if result:
+                                artifacts.append(result)
+                            break
+                    elif ext_name == integration_hint:
+                        result = _build_artifact_from_match(
+                            ext_name, ext_config, data, generic_id,
+                            messages, step_number, turn_number, seen_ids,
+                        )
+                        if result:
+                            artifacts.append(result)
+                        break
+            continue
+
+        # Phase 1b: Plain text ToolMessage — parse IDs and URLs with regex
+        # MCP servers often return human-readable text like:
+        #   "Created Google Doc 'Title' (ID: abc123) ... Link: https://docs.google.com/..."
+        if raw_text:
+            text_matched = False
+            for ext_name, ext_config in _INTEGRATION_EXTRACTORS.items():
+                url_pattern = ext_config.get("url_pattern")
+                if not url_pattern:
+                    continue
+                url_match = re.search(url_pattern, raw_text)
+                if url_match:
+                    # Extract ID from URL capture group or from (ID: ...) pattern
+                    artifact_id = url_match.group(1) if url_match.lastindex else None
+                    if not artifact_id:
+                        id_regex = re.search(r'\(ID:\s*([A-Za-z0-9_-]+)\)', raw_text)
+                        if id_regex:
+                            artifact_id = id_regex.group(1)
+                    artifact_url = url_match.group(0)
+
+                    # Extract name from quoted string: 'Title' or "Title"
+                    name = "Untitled"
+                    name_match = re.search(r"['\"]([^'\"]{2,200})['\"]", raw_text)
+                    if name_match:
+                        name = name_match.group(1)
+
+                    if artifact_id and artifact_id not in seen_ids:
+                        seen_ids.add(artifact_id)
+                        logger.info(f"[ARTIFACT_EXTRACT] Phase 1b text MATCH: {ext_name}, "
+                                     f"id={artifact_id}, url={artifact_url}, name={name}")
+                        artifact = Artifact(
+                            type=ext_config["type"],
+                            name=name,
+                            url=artifact_url,
+                            id=artifact_id,
+                            integration=ext_name,
+                            step_number=step_number,
+                            turn_number=turn_number,
+                        )
+                        artifacts.append(artifact.model_dump())
+                        text_matched = True
+                        break
+
+            if text_matched:
+                continue
+
+            # Also try (ID: ...) pattern without URL for integrations like gmail
+            id_regex = re.search(r'\(ID:\s*([A-Za-z0-9_-]+)\)', raw_text)
+            if id_regex and integration_hint:
+                ext_config = _INTEGRATION_EXTRACTORS.get(integration_hint)
+                if ext_config:
+                    artifact_id = id_regex.group(1)
+                    if artifact_id not in seen_ids:
+                        seen_ids.add(artifact_id)
+                        name = "Untitled"
+                        name_match = re.search(r"['\"]([^'\"]{2,200})['\"]", raw_text)
+                        if name_match:
+                            name = name_match.group(1)
+                        artifact = Artifact(
+                            type=ext_config["type"],
+                            name=name,
+                            url=None,
+                            id=artifact_id,
+                            integration=integration_hint,
+                            step_number=step_number,
+                            turn_number=turn_number,
+                        )
+                        artifacts.append(artifact.model_dump())
+
+    # --- Phase 2: Fallback URL regex on AIMessage content ---
+    if not artifacts:
+        logger.info(f"[ARTIFACT_EXTRACT] Phase 1 found nothing, falling back to URL regex on AIMessages")
+        for msg in messages:
+            if isinstance(msg, AIMessage) and msg.content:
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                urls = re.findall(r'https?://[^\s\)\"\'>\]]+', content)
+                for url in urls:
+                    artifact_type = _classify_url_type(url)
+                    if artifact_type and url not in seen_ids:
+                        seen_ids.add(url)
+                        artifact = Artifact(
+                            type=artifact_type,
+                            name="Untitled",
+                            url=url,
+                            id=None,
+                            integration=integration_hint or "unknown",
+                            step_number=step_number,
+                            turn_number=turn_number,
+                        )
+                        artifacts.append(artifact.model_dump())
+
+    return artifacts
+
+
+def build_conversation_summary(
+    messages: List[BaseMessage],
+    artifacts: List[dict] = None,
+) -> Optional[str]:
     """
     Build a condensed summary of previous conversation turns from accumulated messages.
 
     The messages list contains ALL messages from all turns (due to add_messages reducer).
     We identify turn boundaries by HumanMessage entries. For each previous turn, we extract
     the user request and the final workflow summary.
+
+    If structured artifacts are provided, renders an ARTIFACTS CREATED section per turn.
+    Falls back to URL regex extraction when no artifacts exist (backward compat).
 
     Returns None if this is the first turn (only one HumanMessage).
     """
@@ -150,11 +520,19 @@ def build_conversation_summary(messages: List[BaseMessage]) -> Optional[str]:
     if len(human_indices) <= 1:
         return None
 
+    # Index artifacts by turn number for fast lookup
+    artifacts_by_turn: dict[int, list[dict]] = {}
+    if artifacts:
+        for a in artifacts:
+            turn = a.get("turn_number", 1)
+            artifacts_by_turn.setdefault(turn, []).append(a)
+
     # Build summaries for each PREVIOUS turn (exclude the last HumanMessage = current request)
     turn_summaries = []
     for turn_idx in range(len(human_indices) - 1):
         start_idx = human_indices[turn_idx]
         end_idx = human_indices[turn_idx + 1]
+        turn_number = turn_idx + 1
 
         user_msg = messages[start_idx].content
 
@@ -170,17 +548,6 @@ def build_conversation_summary(messages: List[BaseMessage]) -> Optional[str]:
                 if len(content) > 50 and not turn_result:
                     turn_result = content[:1500]
 
-        # Also extract URLs / artifact references from all AIMessages in this turn
-        artifacts = []
-        for msg in messages[start_idx:end_idx]:
-            if isinstance(msg, AIMessage) and msg.content:
-                content = msg.content if isinstance(msg.content, str) else str(msg.content)
-                # Extract URLs (document links, etc.)
-                urls = re.findall(r'https?://[^\s\)\"\'>\]]+', content)
-                for url in urls:
-                    if url not in artifacts:
-                        artifacts.append(url)
-
         if not turn_result:
             turn_result = "(Workflow completed)"
 
@@ -189,9 +556,35 @@ def build_conversation_summary(messages: List[BaseMessage]) -> Optional[str]:
             for kw in ["can't", "cannot", "failed", "error", "unable"]
         ) else "SUCCESS"
 
-        summary = f"Turn {turn_idx + 1} [{success}]:\n  User request: {user_msg}\n  Outcome: {turn_result}"
-        if artifacts:
-            summary += "\n  Artifacts/URLs: " + ", ".join(artifacts[:5])
+        summary = f"Turn {turn_number} [{success}]:\n  User request: {user_msg}\n  Outcome: {turn_result}"
+
+        # Render structured artifacts if available for this turn
+        turn_artifacts = artifacts_by_turn.get(turn_number, [])
+        if turn_artifacts:
+            summary += "\n  ARTIFACTS CREATED:"
+            for a in turn_artifacts:
+                summary += f'\n    - [{a.get("type", "unknown")}] "{a.get("name", "Untitled")}"'
+                if a.get("url"):
+                    summary += f'\n      URL: {a["url"]}'
+                if a.get("id"):
+                    summary += f'\n      ID: {a["id"]}'
+                summary += f'\n      Integration: {a.get("integration", "unknown")}'
+                if a.get("metadata"):
+                    for mk, mv in a["metadata"].items():
+                        summary += f"\n      {mk}: {mv}"
+        else:
+            # Fallback: extract URLs from AIMessages (backward compat for old checkpoints)
+            fallback_urls = []
+            for msg in messages[start_idx:end_idx]:
+                if isinstance(msg, AIMessage) and msg.content:
+                    content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                    urls = re.findall(r'https?://[^\s\)\"\'>\]]+', content)
+                    for url in urls:
+                        if url not in fallback_urls:
+                            fallback_urls.append(url)
+            if fallback_urls:
+                summary += "\n  Artifacts/URLs: " + ", ".join(fallback_urls[:5])
+
         turn_summaries.append(summary)
 
     if not turn_summaries:
@@ -215,27 +608,53 @@ def format_integration_context(integrations: list[str] | None) -> str:
     )
 
 
+def format_artifacts_context(artifacts: List[dict]) -> str:
+    """Build an AVAILABLE ARTIFACTS section for LLM system prompts.
+
+    Returns empty string if no artifacts exist.
+    """
+    if not artifacts:
+        return ""
+
+    lines = ["AVAILABLE ARTIFACTS (from previous steps/turns — use exact URLs and IDs):"]
+    for a in artifacts:
+        label = a.get("type", "unknown")
+        name = a.get("name", "Untitled")
+        step = a.get("step_number", "?")
+        turn = a.get("turn_number", "?")
+        lines.append(f'  - [{label}] "{name}" (step {step}, turn {turn})')
+        if a.get("url"):
+            lines.append(f"    URL: {a['url']}")
+        if a.get("id"):
+            lines.append(f"    ID: {a['id']}")
+        if a.get("integration"):
+            lines.append(f"    Integration: {a['integration']}")
+        if a.get("metadata"):
+            for mk, mv in a["metadata"].items():
+                lines.append(f"    {mk}: {mv}")
+    return "\n".join(lines) + "\n"
+
+
 # -------------------
 # Prompts
 # -------------------
 PLANNER_SYSTEM_PROMPT = """You are a workflow planner. Analyze the user's request and create a step-by-step execution plan.
 {conversation_context}
 {integration_context}
+{artifacts_context}
+{integration_hints}
 RULES:
 1. Each step should be a single, atomic action
 2. Steps should be in correct execution order (dependencies first)
 3. Be specific about what tools/actions each step requires
 4. Keep steps concise but clear
-5. IMPORTANT - Resolving references and filling in implicit details:
-   - When the user says "it", "that", "the document", "send it", "mail this", etc., look across ALL previous turns to find the most relevant successful artifact.
-   - If the most recent turn FAILED, the user almost certainly refers to an artifact from an EARLIER successful turn. Do NOT say "nothing to send" just because the last turn failed.
-   - Use the [SUCCESS]/[FAILED] markers and Artifacts/URLs in the conversation history to identify what the user means.
-   - Include specific URLs or identifiers from previous turns in your step descriptions so the executor knows exactly what to act on.
-   - NEVER plan a step that asks the user for information you can infer from context. For example:
-     * "mail this to X" → compose an appropriate subject and body from the conversation context (e.g., document title as subject, document link in body). Do NOT ask the user for subject/body.
-     * "share this with X" → infer what to share from previous turns.
-     * "save this" → infer what content to save from the conversation.
-   - Be proactive: generate sensible defaults for any missing details based on the conversation history rather than blocking on the user.
+5. ARTIFACT RESOLUTION: When the user refers to "it", "that", "the document", "send it", "mail this", etc.:
+   - Check AVAILABLE ARTIFACTS above and embed the exact URL/ID directly into step descriptions.
+   - If the most recent turn FAILED, look at EARLIER successful turns for the artifact.
+   - Use the [SUCCESS]/[FAILED] markers in conversation history to identify what the user means.
+   - Copy URLs and IDs exactly as shown — do NOT invent or guess resource identifiers.
+   - NEVER plan a step that asks the user for information available in AVAILABLE ARTIFACTS or conversation context.
+   - Be proactive: generate sensible defaults for any missing details based on artifacts and conversation history rather than blocking on the user.
 
 For EACH step, you MUST determine if it requires human approval:
 
@@ -260,6 +679,8 @@ Be thoughtful about your approval decisions - only require approval when the act
 EXECUTOR_SYSTEM_PROMPT = """You are a workflow executor. Execute the specific step given to you.
 {conversation_context}
 {integration_context}
+{artifacts_context}
+{integration_hints}
 CURRENT STEP: {current_step}
 STEP {step_number} OF {total_steps}
 
@@ -268,18 +689,8 @@ PREVIOUS STEPS COMPLETED:
 
 YOUR TASK:
 Execute ONLY this step using the available tools. Be thorough but focused on just this step.
+If the step references a resource, use the exact URL or ID from AVAILABLE ARTIFACTS. Do NOT ask the user for information available in artifacts.
 If the step references items from previous conversation turns (e.g., a document URL, an email address), use the conversation context above.
-
-NOTION TOOL GUIDE (if using Notion tools):
-- To create a page at the workspace top level, use API-post-page with:
-  parent: {{"type": "workspace", "workspace": true}}
-- To create a page under an existing page, use parent: {{"type": "page_id", "page_id": "<id>"}}
-- Include content directly in the "children" parameter as block objects, e.g.:
-  children: [{{"object": "block", "type": "paragraph", "paragraph": {{"rich_text": [{{"type": "text", "text": {{"content": "Your text here"}}}}]}}}}]
-- Use "properties" with "title" to set the page title:
-  properties: {{"title": [{{"text": {{"content": "Page Title"}}}}]}}
-- Do NOT ask for a parent page ID if the user doesn't specify one — just use workspace parent.
-- To search for pages, use API-post-search.
 
 After completing the step:
 1. Report what you accomplished
@@ -383,8 +794,15 @@ class WorkflowNodes:
                 user_request = msg.content
                 break
 
-        # Build conversation context from accumulated messages
-        conversation_summary = build_conversation_summary(messages)
+        # Build conversation context from accumulated messages (with structured artifacts)
+        state_artifacts = state.get("artifacts", [])
+        logger.info(f"[PLANNER_DIAG] Turn start — artifacts from state: {state_artifacts}")
+        logger.info(f"[PLANNER_DIAG] Total messages: {len(messages)}, "
+                     f"HumanMessages: {sum(1 for m in messages if isinstance(m, HumanMessage))}")
+        conversation_summary = build_conversation_summary(
+            messages, artifacts=state_artifacts
+        )
+        logger.info(f"[PLANNER_DIAG] conversation_summary: {conversation_summary[:500] if conversation_summary else 'None'}")
 
         # Format the system prompt with conversation context
         if conversation_summary:
@@ -395,9 +813,20 @@ class WorkflowNodes:
         initial_integrations = state.get("initial_integrations") or []
         integration_context = format_integration_context(initial_integrations)
 
+        # Format artifacts context for planner
+        artifacts_context = format_artifacts_context(state_artifacts)
+        logger.info(f"[PLANNER_DIAG] artifacts_context for planner: {artifacts_context[:500] if artifacts_context else 'EMPTY'}")
+
+        # Get dynamic integration hints for planner
+        integration_hints = ""
+        if self.registry and initial_integrations:
+            integration_hints = self.registry.get_hints(initial_integrations, "planner")
+
         system_prompt = PLANNER_SYSTEM_PROMPT.format(
             conversation_context=context_section,
             integration_context=integration_context,
+            artifacts_context=artifacts_context,
+            integration_hints=integration_hints,
         )
 
         # Get structured plan from LLM - no JSON parsing needed!
@@ -466,6 +895,7 @@ class WorkflowNodes:
         current_step.status = "in_progress"
         initial_integrations = state.get("initial_integrations", [])
         conversation_summary = state.get("conversation_summary", "")
+        step_artifacts = state.get("artifacts", [])
 
         logger.debug(f"Executing step {current_step.step_number}: {current_step.description}")
 
@@ -475,7 +905,8 @@ class WorkflowNodes:
 
         try:
             response, executor_chat = await self._start_step_execution(
-                current_step, plan, previous_results, conversation_summary, initial_integrations
+                current_step, plan, previous_results, conversation_summary, initial_integrations,
+                artifacts=step_artifacts,
             )
         except Exception as e:
             error_msg = str(e).lower()
@@ -512,7 +943,8 @@ class WorkflowNodes:
                         })
 
                         response, executor_chat = await self._start_step_execution(
-                            current_step, plan, previous_results, conversation_summary, initial_integrations
+                            current_step, plan, previous_results, conversation_summary, initial_integrations,
+                            artifacts=step_artifacts,
                         )
 
                         initial_integrations = list(initial_integrations)
@@ -576,6 +1008,7 @@ class WorkflowNodes:
 
         conversation_summary = state.get("conversation_summary", "")
         initial_integrations = state.get("initial_integrations", [])
+        step_artifacts = state.get("artifacts", [])
 
         # Check if we're resuming after approval
         approval_decision = state.get("approval_decision")
@@ -605,11 +1038,12 @@ class WorkflowNodes:
                 logger.debug(f"Step {current_step.step_number} content edited by user")
                 response, executor_chat = await self._start_step_execution(
                     current_step, plan, previous_results, conversation_summary, initial_integrations,
-                    approved_content=edited_content,
+                    approved_content=edited_content, artifacts=step_artifacts,
                 )
             else:
                 response, executor_chat = await self._start_step_execution(
                     current_step, plan, previous_results, conversation_summary, initial_integrations,
+                    artifacts=step_artifacts,
                 )
 
             return {
@@ -698,6 +1132,7 @@ Respond with JSON only.
         conversation_summary: str = "",
         initial_integrations: list[str] | None = None,
         approved_content: dict = None,
+        artifacts: list[dict] = None,
     ) -> tuple:
         """
         Initialize executor conversation for a step and invoke LLM.
@@ -707,9 +1142,19 @@ Respond with JSON only.
         context_section = f"\nCONVERSATION HISTORY:\n{conversation_summary}\n" if conversation_summary else ""
         integration_context = format_integration_context(initial_integrations)
 
+        # Format artifacts context for executor
+        artifacts_context = format_artifacts_context(artifacts or [])
+
+        # Get dynamic integration hints for executor
+        integration_hints = ""
+        if self.registry and initial_integrations:
+            integration_hints = self.registry.get_hints(initial_integrations, "executor")
+
         system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
             conversation_context=context_section,
             integration_context=integration_context,
+            artifacts_context=artifacts_context,
+            integration_hints=integration_hints,
             current_step=step.description,
             step_number=step.step_number,
             total_steps=len(plan.steps),
@@ -792,18 +1237,34 @@ Respond with JSON only.
         # Update current step
         current_step = plan.steps[current_index]
         current_step.status = "completed"
-        current_step.result = last_message[:500] if last_message else "Step completed"
-        
+        current_step.result = last_message[:2000] if last_message else "Step completed"
+
         # Extract structured search results for web-search steps
         if any("search" in step.description.lower() for step in [current_step]):
             search_results = extract_search_results_from_messages(messages)
             if search_results:
                 current_step.search_results = search_results
                 logger.debug(f"Extracted {len(search_results)} structured search results")
-        
+
+        # Extract structured artifacts from this step's messages
+        # Only return NEW artifacts — the add_artifacts reducer handles accumulation
+        turn_number = sum(1 for m in messages if isinstance(m, HumanMessage))
+
+        # Diagnostic: log message types for extraction
+        msg_types = [(type(m).__name__, m.content[:100] if hasattr(m, 'content') and m.content else "")
+                     for m in messages[-10:]]
+        logger.info(f"[ARTIFACT_DIAG] step_complete step={current_step.step_number}, "
+                     f"total_msgs={len(messages)}, last_10_types={msg_types}")
+        logger.info(f"[ARTIFACT_DIAG] existing artifacts in state: {state.get('artifacts', [])}")
+
+        new_artifacts = extract_artifacts_from_step(
+            messages, step_number=current_step.step_number, turn_number=turn_number
+        )
+        logger.info(f"[ARTIFACT_DIAG] new_artifacts extracted: {new_artifacts}")
+
         # Move to next step
         next_index = current_index + 1
-        
+
         # Check if we're done
         if next_index >= len(plan.steps):
             plan.is_complete = True
@@ -814,12 +1275,13 @@ Respond with JSON only.
                 status_icon = "✓" if step.status == "completed" else "⏭️" if step.status == "skipped" else "?"
                 result_preview = step.result[:100] if step.result else "N/A"
                 summary += f"{step.step_number}. {status_icon} {step.description}\n   → {result_preview}...\n\n"
-            
+
             plan.final_summary = summary
             return {
                 "messages": [AIMessage(content=summary)],
                 "plan": plan,
                 "current_step_index": next_index,
+                "artifacts": new_artifacts,
                 "_executor_chat": None,
                 "_step_tool_calls": 0,
             }
@@ -832,6 +1294,7 @@ Respond with JSON only.
             "messages": [AIMessage(content=progress)],
             "plan": plan,
             "current_step_index": next_index,
+            "artifacts": new_artifacts,
             "_executor_chat": None,
             "_step_tool_calls": 0,
         }

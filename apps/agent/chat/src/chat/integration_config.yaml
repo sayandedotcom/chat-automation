@@ -51,6 +51,8 @@ integrations:
       - '\b(what|who|when|where|why|how)\s+(is|are|was|were)\b'
       - '\b(best|top|latest|current|recent)\b.*\b(for|in|about)\b'
       - '\b(compare|comparison|analysis|overview)\b'
+    planner_hints: ""
+    executor_hints: ""
 
   gmail:
     tool_names:
@@ -131,6 +133,14 @@ integrations:
     request_patterns:
       - '\b(email|mail|gmail|send|draft|reply|forward|inbox)\b'
       - '\b(message|recipient|subject|label|archive|delete)\b'
+    planner_hints: |
+      GMAIL: When user says "mail/send/email this", check AVAILABLE ARTIFACTS for the
+      most recent document or content. Embed its URL and title into the step description.
+      Compose a sensible subject from artifact name if not specified by user.
+    executor_hints: |
+      GMAIL: Use artifact title as email subject if user did not specify one. Include
+      artifact URL in the email body. Use send_gmail_message with to, subject, body params.
+      Do NOT ask the user for subject or body if they can be inferred from artifacts and context.
 
   google_docs:
     tool_names:
@@ -212,6 +222,13 @@ integrations:
     request_patterns:
       - '\b(doc|document|google\s*doc|write)\b'
       - '\b(create|edit|comment|review)\b.*\b(doc|document)\b'
+    planner_hints: |
+      GOOGLE DOCS: When creating a document, include the desired title in the step
+      description. If content comes from a previous step, reference the step number.
+    executor_hints: |
+      GOOGLE DOCS: Always report the document URL and ID in your response after
+      creating or modifying a document. For content from web search, synthesize a
+      well-structured document with clear headings and sections.
 
   google_sheets:
     tool_names:
@@ -268,6 +285,10 @@ integrations:
       - '\b(sheet|spreadsheet|google\s*sheets)\b'
       - '\b(read|write|update|modify)\b.*\b(cell|range|row|column|data)\b'
       - '\b(create)\b.*\b(spreadsheet|sheet)\b'
+    planner_hints: ""
+    executor_hints: |
+      GOOGLE SHEETS: Always report the spreadsheet URL and ID in your response after
+      creating a spreadsheet.
 
   google_slides:
     tool_names:
@@ -307,6 +328,10 @@ integrations:
     request_patterns:
       - '\b(slide|slides|presentation|deck|ppt)\b'
       - '\b(create|add|update|edit)\b.*\b(slide|presentation)\b'
+    planner_hints: ""
+    executor_hints: |
+      GOOGLE SLIDES: Always report the presentation URL and ID in your response after
+      creating a presentation.
 
   google_calendar:
     tool_names:
@@ -372,6 +397,10 @@ integrations:
     request_patterns:
       - '\b(calendar|schedule|meeting|event|appointment|book)\b'
       - '\b(next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b'
+    planner_hints: ""
+    executor_hints: |
+      GOOGLE CALENDAR: Always report the event link (htmlLink) in your response after
+      creating or modifying an event.
 
   google_drive:
     tool_names:
@@ -435,6 +464,12 @@ integrations:
     request_patterns:
       - '\b(drive|file|upload|download|folder)\b'
       - '\b(create|read|search)\b.*\b(file|document)\b'
+    planner_hints: |
+      GOOGLE DRIVE: When user says "share this", check AVAILABLE ARTIFACTS for the
+      resource to share and include its URL or ID in the step description.
+    executor_hints: |
+      GOOGLE DRIVE: Always report the file URL (webViewLink) in your response after
+      uploading or creating a file.
 
   notion:
     tool_names:
@@ -525,6 +560,15 @@ integrations:
 
       # Workspace & identity
       - '\b(team|teamspace|users?|workspace|profile|who\s+am\s+i)\b'
+    planner_hints: ""
+    executor_hints: |
+      NOTION: To create a page at the workspace top level, use API-post-page with
+      parent: {"type": "workspace", "workspace": true}. To create under an existing
+      page, use parent: {"type": "page_id", "page_id": "<id>"}. Include content in
+      "children" as block objects. Use "properties" with "title" for page title:
+      properties: {"title": [{"text": {"content": "Page Title"}}]}. Do NOT ask for
+      parent page ID if user doesn't specify one — use workspace parent. To search
+      for pages, use API-post-search.
 
   vercel:
     tool_names:
@@ -615,3 +659,5 @@ integrations:
       # CLI usage
       - '\b(vercel\s+cli|cli)\b'
       - '\b(deploy)\b.*\b(using\s+cli)\b'
+    planner_hints: ""
+    executor_hints: ""

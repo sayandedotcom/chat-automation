@@ -10,6 +10,15 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
 
+def add_artifacts(existing: List[dict], new: List[dict]) -> List[dict]:
+    """Reducer for artifacts: appends new artifacts to existing ones across turns.
+
+    Without this, passing artifacts=[] in initial_state would overwrite
+    accumulated artifacts from previous turns (same problem add_messages solves).
+    """
+    return (existing or []) + (new or [])
+
+
 class SearchResultItem(BaseModel):
     """Structured search result from Tavily or similar."""
     title: str = Field(..., description="Title of the search result")
@@ -25,6 +34,18 @@ class IntegrationInfo(BaseModel):
     display_name: str = Field(..., description="Human-readable name (e.g., 'Web Search', 'Gmail')")
     tools_count: int = Field(..., description="Number of tools in this integration")
     icon: str = Field(default="default", description="Icon identifier for frontend")
+
+
+class Artifact(BaseModel):
+    """A structured artifact produced by a workflow step (document, email, event, etc.)."""
+    type: str = Field(..., description="Artifact type: document, email, page, file, event, spreadsheet, presentation")
+    name: str = Field(..., description="Human-readable name (e.g., document title)")
+    url: Optional[str] = Field(default=None, description="Resource URL")
+    id: Optional[str] = Field(default=None, description="Resource identifier")
+    integration: str = Field(..., description="Source integration (e.g., google_docs, gmail)")
+    step_number: int = Field(..., description="Step that produced this artifact")
+    turn_number: int = Field(default=1, description="Conversation turn number")
+    metadata: dict = Field(default_factory=dict, description="Extra context (recipients, content preview)")
 
 
 # -------------------
@@ -105,6 +126,9 @@ class WorkflowState(TypedDict):
     incremental_load_events: List[dict]  # Queue for incremental load notifications
     # Multi-turn conversation context
     conversation_summary: Optional[str]  # Summary of previous turns for planner/executor
+    # Structured artifacts from completed steps (dicts for checkpointer serialization)
+    # Uses add_artifacts reducer so initial_state artifacts=[] doesn't overwrite previous turns
+    artifacts: Annotated[List[dict], add_artifacts]
     # Executor tool-loop state (enables multi-hop tool calling within a step)
     _executor_chat: Optional[list]  # Executor's scoped conversation for current step
     _step_tool_calls: int  # Tool call count for current step (prevents infinite loops)

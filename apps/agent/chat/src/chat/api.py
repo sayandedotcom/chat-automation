@@ -1,5 +1,9 @@
 from contextlib import asynccontextmanager
 import os
+import logging
+
+# Configure logging so diagnostic messages from nodes.py appear in console
+logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

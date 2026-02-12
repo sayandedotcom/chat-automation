@@ -82,6 +82,6 @@ export const integrations: Integration[] = [
     id: "web-search",
     name: "Web Search",
     description: "Search the web for information",
-    icon: "/integrations/web_search.svg",
+    icon: "/integrations/web_search.png",
   },
 ];

@@ -125,6 +125,7 @@ class ChatService:
             "plan": None,
             "current_step_index": -1,  # -1 indicates planning phase
             "conversation_summary": None,  # Computed by planner_node from accumulated messages
+            "artifacts": [],  # Structured artifacts from completed steps
             "_executor_chat": None,
             "_step_tool_calls": 0,
         }
@@ -144,6 +145,7 @@ class ChatService:
             "messages": [],
             "final_response": "",
             "is_complete": False,
+            "artifacts": result.get("artifacts", []),
         }
         
         # Extract plan info
@@ -220,6 +222,8 @@ class ChatService:
             "incremental_load_events": [],
             # Multi-turn conversation context
             "conversation_summary": None,  # Computed by planner_node from accumulated messages
+            # Structured artifacts from completed steps
+            "artifacts": [],
             # Executor tool-loop state
             "_executor_chat": None,
             "_step_tool_calls": 0,
@@ -368,6 +372,7 @@ class ChatService:
                         "thread_id": thread_id,
                         "current_step": current_step_index,
                         "total_steps": len(plan.steps),
+                        "artifacts": output.get("artifacts", []),
                         "plan": {
                             "thinking": plan.thinking,  # Include thinking in plan
                             "steps": [

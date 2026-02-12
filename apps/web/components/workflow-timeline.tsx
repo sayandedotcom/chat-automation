@@ -96,7 +96,7 @@ interface WorkflowTimelineProps {
 
 // Map tool IDs to integration icons
 const toolIconMap: Record<string, string> = {
-  "web-search": "/integrations/web_search.svg",
+  "web-search": "/integrations/web_search_white.svg",
   notion: "/integrations/notion.svg",
   slack: "/integrations/slack.svg",
   gmail: "/integrations/gmail.svg",
@@ -397,7 +397,7 @@ export function WorkflowTimeline({
                             alt={primaryTool}
                             width={12}
                             height={12}
-                            className="object-contain opacity-70"
+                            className="object-contain"
                           />
                         ) : (
                           <Check className="w-3 h-3 text-white/50" />

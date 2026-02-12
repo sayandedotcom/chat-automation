@@ -133,91 +133,110 @@ export default function ChatPage() {
     } catch {
       // Storage full — ignore
     }
-  }, [workflowStatus, completedTurns, originalRequest, steps, planThinking, statusMessages, loadedIntegrations, error]);
+  }, [
+    workflowStatus,
+    completedTurns,
+    originalRequest,
+    steps,
+    planThinking,
+    statusMessages,
+    loadedIntegrations,
+    error,
+  ]);
 
-  const executeWorkflow = useCallback(async (request: string) => {
-    // Archive the current completed turn before starting a new one
-    if (workflowStatus === "complete" && steps.length > 0) {
-      setCompletedTurns((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          userMessage: originalRequest,
-          steps: [...steps],
-          planThinking,
-          statusMessages: [...statusMessages],
-          loadedIntegrations: [...loadedIntegrations],
-          error: null,
-        },
-      ]);
-    }
-
-    // Reset current turn state (but NOT threadIdRef — keep the same thread)
-    setOriginalRequest(request);
-    setWorkflowStatus("planning");
-    setSteps([]);
-    setCurrentStep(0);
-    setError(null);
-    setPlanThinking(null);
-    setStatusMessages([]);
-    setLoadedIntegrations([]);
-
-    try {
-      // Use streaming endpoint for real-time updates
-      const response = await fetch("/api/chat/stream", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          request,
-          thread_id: threadIdRef.current,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to start workflow");
+  const executeWorkflow = useCallback(
+    async (request: string) => {
+      // Archive the current completed turn before starting a new one
+      if (workflowStatus === "complete" && steps.length > 0) {
+        setCompletedTurns((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            userMessage: originalRequest,
+            steps: [...steps],
+            planThinking,
+            statusMessages: [...statusMessages],
+            loadedIntegrations: [...loadedIntegrations],
+            error: null,
+          },
+        ]);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No response body");
-      }
+      // Reset current turn state (but NOT threadIdRef — keep the same thread)
+      setOriginalRequest(request);
+      setWorkflowStatus("planning");
+      setSteps([]);
+      setCurrentStep(0);
+      setError(null);
+      setPlanThinking(null);
+      setStatusMessages([]);
+      setLoadedIntegrations([]);
 
-      const decoder = new TextDecoder();
-      let buffer = "";
+      try {
+        // Use streaming endpoint for real-time updates
+        const response = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            request,
+            thread_id: threadIdRef.current,
+          }),
+        });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        if (!response.ok) {
+          throw new Error("Failed to start workflow");
+        }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("No response body");
+        }
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              console.log("📥 SSE RECEIVED:", data.type, data);
-              handleStreamEvent(data);
-            } catch (e) {
-              // Ignore parse errors for incomplete JSON
-              console.log("⚠️ Failed to parse SSE:", line);
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                console.log("📥 SSE RECEIVED:", data.type, data);
+                handleStreamEvent(data);
+              } catch (e) {
+                // Ignore parse errors for incomplete JSON
+                console.log("⚠️ Failed to parse SSE:", line);
+              }
             }
           }
         }
-      }
 
-      // Note: Don't set workflowStatus to complete here
-      // The status is managed by handleStreamEvent based on actual events
-      // This allows the workflow to stay in "executing" state while waiting for approval
-    } catch (err) {
-      console.error("Workflow error:", err);
-      setError(err instanceof Error ? err.message : "Workflow failed");
-      setWorkflowStatus("error");
-    }
-  }, [workflowStatus, steps, originalRequest, planThinking, statusMessages, loadedIntegrations]);
+        // Note: Don't set workflowStatus to complete here
+        // The status is managed by handleStreamEvent based on actual events
+        // This allows the workflow to stay in "executing" state while waiting for approval
+      } catch (err) {
+        console.error("Workflow error:", err);
+        setError(err instanceof Error ? err.message : "Workflow failed");
+        setWorkflowStatus("error");
+      }
+    },
+    [
+      workflowStatus,
+      steps,
+      originalRequest,
+      planThinking,
+      statusMessages,
+      loadedIntegrations,
+    ],
+  );
 
   const handleStreamEvent = (event: {
     type: string;
@@ -669,16 +688,20 @@ export default function ChatPage() {
         {isChatActive && (
           <>
             {/* Scrollable content area - takes remaining space */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-6 pb-4">
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto px-4 pt-6 pb-4"
+            >
               <div className="max-w-3xl mx-auto space-y-6">
-
                 {/* Completed previous turns */}
                 {completedTurns.map((turn) => (
-                  <div key={turn.id} className="space-y-4 opacity-70">
+                  <div key={turn.id} className="space-y-4">
                     {/* Previous turn: user message bubble */}
                     <div className="flex justify-end">
                       <div className="bg-[#1f1f1f] rounded-2xl px-4 py-3 max-w-md">
-                        <p className="text-white/90 text-sm">{turn.userMessage}</p>
+                        <p className="text-white/90 text-sm">
+                          {turn.userMessage}
+                        </p>
                       </div>
                     </div>
 
@@ -731,9 +754,11 @@ export default function ChatPage() {
             <div className="flex-shrink-0 px-4 pb-6 pt-2 bg-[#0a0a0a] border-t border-white/5">
               <ChatInputWithMentions
                 onSubmit={executeWorkflow}
-                placeholder={workflowStatus === "complete"
-                  ? "Send a follow-up message..."
-                  : "Send a message..."}
+                placeholder={
+                  workflowStatus === "complete"
+                    ? "Send a follow-up message..."
+                    : "Send a message..."
+                }
               />
             </div>
           </>

@@ -30,6 +30,8 @@ class IntegrationConfig:
         self.requires_auth = config.get("requires_auth", False)
         self.mcp_server = config.get("mcp_server")
         self.request_patterns = config.get("request_patterns", [])
+        self.planner_hints = config.get("planner_hints", "")
+        self.executor_hints = config.get("executor_hints", "")
 
 
 class IntegrationRegistry:
@@ -208,6 +210,30 @@ class IntegrationRegistry:
     def get_integration_config(self, name: str) -> Optional[IntegrationConfig]:
         """Get configuration for an integration by name."""
         return self._integrations.get(name)
+
+    def get_hints(self, integrations: list[str], hint_type: str = "planner") -> str:
+        """
+        Get combined hints for active integrations.
+
+        Args:
+            integrations: List of active integration names
+            hint_type: "planner" or "executor"
+
+        Returns:
+            Combined hints string (empty string if no hints configured)
+        """
+        parts = []
+        for name in integrations:
+            config = self._integrations.get(name)
+            if not config:
+                continue
+            hint = config.planner_hints if hint_type == "planner" else config.executor_hints
+            if hint and hint.strip():
+                parts.append(hint.strip())
+
+        if not parts:
+            return ""
+        return "INTEGRATION-SPECIFIC GUIDELINES:\n" + "\n\n".join(parts) + "\n"
 
     def get_all_tools(self) -> list[BaseTool]:
         """Get all loaded tools."""
