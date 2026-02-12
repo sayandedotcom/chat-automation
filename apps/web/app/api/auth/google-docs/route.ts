@@ -29,6 +29,7 @@ export async function GET() {
   authUrl.searchParams.set("scope", GOOGLE_DOCS_SCOPES);
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
+  authUrl.searchParams.set("include_granted_scopes", "true"); // Incremental auth: inherit previously granted scopes
 
   return NextResponse.redirect(authUrl.toString());
 }

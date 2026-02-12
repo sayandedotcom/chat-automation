@@ -18,6 +18,7 @@ from chat.nodes import (
     route_to_executor,
     should_continue,
     should_execute_next_step,
+    route_after_tools,
 )
 
 if TYPE_CHECKING:
@@ -54,8 +55,8 @@ class DynamicWorkflow:
     The LLM decides during planning which steps need human approval.
     Steps are routed to the appropriate executor based on this classification.
     
-    Graph:
-    
+    Graph (with multi-hop tool calling):
+
     ┌─────────┐
     │  START  │
     └────┬────┘
@@ -77,20 +78,20 @@ class DynamicWorkflow:
     │                           │
     ▼                           ▼
 ┌──────────┐            ┌────────────────────────┐
-│ EXECUTOR │            │ EXECUTOR_WITH_APPROVAL │
-│ (auto)   │            │ (uses interrupt())     │
-└────┬─────┘            └───────────┬────────────┘
-     │                              │
-     │ should_continue              │ should_continue
-     ▼                              ▼
-┌────────┐                     ┌────────┐
-│ TOOLS  │◄────────────────────│ TOOLS  │
-└───┬────┘                     └───┬────┘
-    │                              │
-    └──────────┬───────────────────┘
-               ▼
+│ EXECUTOR │◄───┐       │ EXECUTOR_WITH_APPROVAL │◄───┐
+│ (auto)   │    │       │ (state-based HITL)     │    │
+└────┬─────┘    │       └───────────┬────────────┘    │
+     │          │                   │                  │
+     │ should_  │                   │ should_          │
+     │ continue │                   │ continue         │
+     ▼          │                   ▼                  │
+┌────────┐     │              ┌────────┐              │
+│ TOOLS  │─────┘              │ TOOLS  │──────────────┘
+└────────┘ route_after_tools  └────────┘ route_after_tools
+     │ (no more tool calls)        │
+     ▼                             ▼
     ┌───────────────────┐
-    │   STEP_COMPLETE   │
+    │   STEP_COMPLETE   │ ← Clears executor state
     └─────────┬─────────┘
               │
     ┌─────────▼────────────┐
@@ -188,9 +189,17 @@ class DynamicWorkflow:
         else:
             workflow.add_edge("executor_with_approval", "step_complete")
         
-        # After tools, go to step_complete
+        # After tools, route BACK to executor for multi-hop tool calling.
+        # The executor sees tool results and decides: more tool calls or finish.
         if self.tools:
-            workflow.add_edge("tools", "step_complete")
+            workflow.add_conditional_edges(
+                "tools",
+                route_after_tools,
+                {
+                    "executor": "executor",
+                    "executor_with_approval": "executor_with_approval",
+                }
+            )
         
         # After step complete, either continue to next step or end
         # We use route_to_executor again for proper HITL routing on next step

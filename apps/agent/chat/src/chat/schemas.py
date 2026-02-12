@@ -103,12 +103,17 @@ class WorkflowState(TypedDict):
     total_tool_count: int  # Total tools bound to executor
     initial_integrations: Optional[List[str]]  # For tracking incremental loads
     incremental_load_events: List[dict]  # Queue for incremental load notifications
+    # Multi-turn conversation context
+    conversation_summary: Optional[str]  # Summary of previous turns for planner/executor
+    # Executor tool-loop state (enables multi-hop tool calling within a step)
+    _executor_chat: Optional[list]  # Executor's scoped conversation for current step
+    _step_tool_calls: int  # Tool call count for current step (prevents infinite loops)
 
 
 class GmailCredentialsSyncSchema(BaseModel):
     """Schema for syncing Gmail OAuth credentials to MCP."""
     access_token: str = Field(..., description="Google OAuth access token")
-    refresh_token: str = Field(..., description="Google OAuth refresh token")
+    refresh_token: str = Field(default="", description="Google OAuth refresh token (empty preserves existing)")
     token_uri: str = Field(default="https://oauth2.googleapis.com/token", description="OAuth token URI")
     client_id: str = Field(..., description="Google OAuth client ID")
     client_secret: str = Field(..., description="Google OAuth client secret")

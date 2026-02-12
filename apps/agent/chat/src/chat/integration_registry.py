@@ -114,6 +114,69 @@ class IntegrationRegistry:
             f"{len(self._tools_by_integration)} integrations"
         )
 
+    async def load_missing_servers(self, tokens: dict) -> None:
+        """
+        Incrementally load MCP servers for tokens that weren't available at startup.
+
+        OAuth tokens (e.g. notion_token) arrive per-request via cookies, but the
+        registry is pre-warmed at startup with only env-var tokens.  This method
+        detects which servers are missing and spins them up on demand.
+        """
+        from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
+
+        # Map token keys → integration names that should exist in the registry
+        token_to_integration = {
+            "notion_token": "notion",
+            "vercel_token": "vercel",
+        }
+
+        missing_tokens: dict[str, str] = {}
+        for token_key, integration_name in token_to_integration.items():
+            token_value = tokens.get(token_key)
+            if token_value and integration_name not in self._tools_by_integration:
+                missing_tokens[token_key] = token_value
+
+        if not missing_tokens:
+            return
+
+        missing_names = [token_to_integration[k] for k in missing_tokens]
+        logger.info(f"Incrementally loading MCP servers: {missing_names}")
+
+        # Only pass the missing tokens — explicitly None-out everything else
+        # so create_mcp_client doesn't re-create servers from env vars.
+        all_keys = {
+            "gmail_token", "vercel_token", "notion_token",
+            "tavily_api_key", "google_client_id", "google_client_secret",
+        }
+        call_args = {k: None for k in all_keys}
+        call_args.update(missing_tokens)
+
+        client = create_mcp_client(**call_args)
+        new_tools = await load_mcp_tools(client)
+
+        # Deduplicate: skip tools already in the registry
+        existing_tool_names = {t.name for t in self._all_tools}
+
+        # Index the new tools into the existing registry
+        for tool in new_tools:
+            if tool.name in existing_tool_names:
+                continue  # already loaded
+
+            integration_name = self._tool_name_to_integration.get(tool.name)
+            if integration_name:
+                self._tools_by_integration.setdefault(integration_name, []).append(tool)
+                self._tool_to_integration[tool.name] = integration_name
+            else:
+                logger.warning(f"Tool '{tool.name}' not listed in any integration config")
+
+            self._all_tools.append(tool)
+            existing_tool_names.add(tool.name)
+
+        logger.info(
+            f"Incrementally loaded {len(new_tools)} tools from {missing_names}. "
+            f"Total tools: {len(self._all_tools)}"
+        )
+
     def get_toolset(self, integrations: list[str]) -> list[BaseTool]:
         """
         Get filtered tools for specified integrations (instant).

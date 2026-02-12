@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { PlanetaryBackground } from "@/components/planetary-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { StarsBackground } from "@workspace/ui/components/stars-background";
@@ -12,6 +12,22 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
 
+const SESSION_STORAGE_PREFIX = "chat_session_";
+
+interface PersistedSession {
+  threadId: string;
+  completedTurns: ConversationTurn[];
+  currentTurn: {
+    userMessage: string;
+    steps: WorkflowStep[];
+    planThinking: string | null;
+    statusMessages: Array<{ text: string; icon?: string; type?: string }>;
+    loadedIntegrations: IntegrationInfo[];
+    workflowStatus: WorkflowStatus;
+    error: string | null;
+  } | null;
+}
+
 type WorkflowStatus = "idle" | "planning" | "executing" | "complete" | "error";
 
 interface IntegrationInfo {
@@ -19,6 +35,16 @@ interface IntegrationInfo {
   display_name: string;
   tools_count: number;
   icon: string;
+}
+
+interface ConversationTurn {
+  id: string;
+  userMessage: string;
+  steps: WorkflowStep[];
+  planThinking: string | null;
+  statusMessages: Array<{ text: string; icon?: string; type?: string }>;
+  loadedIntegrations: IntegrationInfo[];
+  error: string | null;
 }
 
 export default function ChatPage() {
@@ -35,8 +61,98 @@ export default function ChatPage() {
     IntegrationInfo[]
   >([]);
   const threadIdRef = useRef<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Multi-turn: completed previous turns
+  const [completedTurns, setCompletedTurns] = useState<ConversationTurn[]>([]);
+
+  // Auto-scroll to bottom when new content arrives
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [completedTurns.length, steps, workflowStatus]);
+
+  // Restore session from URL param + sessionStorage on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlThreadId = params.get("t");
+    if (!urlThreadId) return;
+
+    try {
+      const raw = sessionStorage.getItem(SESSION_STORAGE_PREFIX + urlThreadId);
+      if (!raw) return;
+
+      const session: PersistedSession = JSON.parse(raw);
+      threadIdRef.current = session.threadId;
+      setCompletedTurns(session.completedTurns);
+
+      if (session.currentTurn) {
+        setOriginalRequest(session.currentTurn.userMessage);
+        setSteps(session.currentTurn.steps);
+        setPlanThinking(session.currentTurn.planThinking);
+        setStatusMessages(session.currentTurn.statusMessages);
+        setLoadedIntegrations(session.currentTurn.loadedIntegrations);
+        setWorkflowStatus(session.currentTurn.workflowStatus);
+        setError(session.currentTurn.error);
+      }
+    } catch {
+      // Corrupted storage — ignore
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist session to sessionStorage when a workflow completes or turns are archived
+  useEffect(() => {
+    const tid = threadIdRef.current;
+    if (!tid) return;
+    // Only persist when there's something meaningful to save
+    if (workflowStatus !== "complete" && completedTurns.length === 0) return;
+
+    const session: PersistedSession = {
+      threadId: tid,
+      completedTurns,
+      currentTurn:
+        workflowStatus === "complete" || workflowStatus === "error"
+          ? {
+              userMessage: originalRequest,
+              steps,
+              planThinking,
+              statusMessages,
+              loadedIntegrations,
+              workflowStatus,
+              error,
+            }
+          : null,
+    };
+
+    try {
+      sessionStorage.setItem(
+        SESSION_STORAGE_PREFIX + tid,
+        JSON.stringify(session),
+      );
+    } catch {
+      // Storage full — ignore
+    }
+  }, [workflowStatus, completedTurns, originalRequest, steps, planThinking, statusMessages, loadedIntegrations, error]);
 
   const executeWorkflow = useCallback(async (request: string) => {
+    // Archive the current completed turn before starting a new one
+    if (workflowStatus === "complete" && steps.length > 0) {
+      setCompletedTurns((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          userMessage: originalRequest,
+          steps: [...steps],
+          planThinking,
+          statusMessages: [...statusMessages],
+          loadedIntegrations: [...loadedIntegrations],
+          error: null,
+        },
+      ]);
+    }
+
+    // Reset current turn state (but NOT threadIdRef — keep the same thread)
     setOriginalRequest(request);
     setWorkflowStatus("planning");
     setSteps([]);
@@ -101,7 +217,7 @@ export default function ChatPage() {
       setError(err instanceof Error ? err.message : "Workflow failed");
       setWorkflowStatus("error");
     }
-  }, []);
+  }, [workflowStatus, steps, originalRequest, planThinking, statusMessages, loadedIntegrations]);
 
   const handleStreamEvent = (event: {
     type: string;
@@ -146,8 +262,6 @@ export default function ChatPage() {
     step_number?: number;
     thinking?: string;
     duration_ms?: number;
-    // Token streaming
-    content?: string;
   }) => {
     switch (event.type) {
       case "integrations_ready":
@@ -235,6 +349,12 @@ export default function ChatPage() {
       case "progress":
         if (event.thread_id) {
           threadIdRef.current = event.thread_id;
+          // Persist thread_id in URL so it survives page reload
+          const url = new URL(window.location.href);
+          if (url.searchParams.get("t") !== event.thread_id) {
+            url.searchParams.set("t", event.thread_id);
+            window.history.replaceState(null, "", url.toString());
+          }
         }
 
         // Extract thinking from plan if available
@@ -304,6 +424,11 @@ export default function ChatPage() {
         console.log("🔐 Received approval_required event:", event);
         if (event.thread_id) {
           threadIdRef.current = event.thread_id;
+          const approvalUrl = new URL(window.location.href);
+          if (approvalUrl.searchParams.get("t") !== event.thread_id) {
+            approvalUrl.searchParams.set("t", event.thread_id);
+            window.history.replaceState(null, "", approvalUrl.toString());
+          }
         }
         // Update the step status to pending_approval
         if (event.interrupt?.step_number) {
@@ -475,6 +600,15 @@ export default function ChatPage() {
   );
 
   const handleNewWorkflow = useCallback(() => {
+    // Clear persisted session
+    if (threadIdRef.current) {
+      sessionStorage.removeItem(SESSION_STORAGE_PREFIX + threadIdRef.current);
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("t");
+    window.history.replaceState(null, "", url.toString());
+
+    setCompletedTurns([]);
     setWorkflowStatus("idle");
     setSteps([]);
     setCurrentStep(0);
@@ -535,16 +669,39 @@ export default function ChatPage() {
         {isChatActive && (
           <>
             {/* Scrollable content area - takes remaining space */}
-            <div className="flex-1 overflow-y-auto px-4 pt-6 pb-4">
-              <div className="max-w-3xl mx-auto space-y-4">
-                {/* User message - displayed on the right like a chat bubble */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-6 pb-4">
+              <div className="max-w-3xl mx-auto space-y-6">
+
+                {/* Completed previous turns */}
+                {completedTurns.map((turn) => (
+                  <div key={turn.id} className="space-y-4 opacity-70">
+                    {/* Previous turn: user message bubble */}
+                    <div className="flex justify-end">
+                      <div className="bg-[#1f1f1f] rounded-2xl px-4 py-3 max-w-md">
+                        <p className="text-white/90 text-sm">{turn.userMessage}</p>
+                      </div>
+                    </div>
+
+                    {/* Previous turn: completed workflow timeline */}
+                    <WorkflowTimeline
+                      steps={turn.steps}
+                      currentStep={turn.steps.length}
+                      planThinking={turn.planThinking || undefined}
+                      statusMessages={turn.statusMessages}
+                      loadedIntegrations={turn.loadedIntegrations}
+                      isComplete={true}
+                    />
+                  </div>
+                ))}
+
+                {/* Current turn: user message bubble */}
                 <div className="flex justify-end">
                   <div className="bg-[#1f1f1f] rounded-2xl px-4 py-3 max-w-md">
                     <p className="text-white/90 text-sm">{originalRequest}</p>
                   </div>
                 </div>
 
-                {/* Timeline/Workflow steps */}
+                {/* Current turn: active workflow timeline */}
                 <WorkflowTimeline
                   steps={steps}
                   currentStep={currentStep}
@@ -574,7 +731,9 @@ export default function ChatPage() {
             <div className="flex-shrink-0 px-4 pb-6 pt-2 bg-[#0a0a0a] border-t border-white/5">
               <ChatInputWithMentions
                 onSubmit={executeWorkflow}
-                placeholder="Send a message..."
+                placeholder={workflowStatus === "complete"
+                  ? "Send a follow-up message..."
+                  : "Send a message..."}
               />
             </div>
           </>

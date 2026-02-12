@@ -76,7 +76,7 @@ def create_mcp_client(
         servers["notion"] = {
             "transport": "stdio",
             "command": "npx",
-            "args": ["-y", "@notionhq/notion-mcp-server"],
+            "args": ["-y", "@notionhq/notion-mcp-server@2.1.0"],
             "env": {"NOTION_TOKEN": notion_token},
         }
 
@@ -195,15 +195,22 @@ async def load_mcp_tools(client: MultiServerMCPClient) -> list[BaseTool]:
     """
     from langchain_core.tools import StructuredTool
     
+    # workspace-mcp internal tools that should never be exposed to the LLM.
+    # Auth is handled by frontend OAuth, not workspace-mcp's built-in flows.
+    _BLOCKED_TOOLS = {"start_google_auth"}
+
     try:
         print("Loading MCP tools...")
         tools = await client.get_tools()
-        
+
         # Process tools and sanitize schemas for Gemini compatibility
         safe_tools = []
         problematic_tools = []
-        
+
         for tool in tools:
+            if tool.name in _BLOCKED_TOOLS:
+                print(f"Filtered out internal tool: {tool.name}")
+                continue
             try:
                 # Get the schema (handle both dict and Pydantic model formats)
                 if hasattr(tool, 'args_schema') and tool.args_schema:

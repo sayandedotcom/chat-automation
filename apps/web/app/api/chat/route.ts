@@ -1,55 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getRefreshedTokens } from "@/lib/token-refresh";
 
 const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8000";
-
-// Refresh Gmail access token using refresh token
-async function refreshGmailToken(refreshToken: string): Promise<string | null> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    console.error("Missing Google OAuth credentials for token refresh");
-    return null;
-  }
-
-  try {
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to refresh Gmail token:", await response.text());
-      return null;
-    }
-
-    const data = await response.json();
-
-    // Update the access token cookie
-    const cookieStore = await cookies();
-    cookieStore.set("gmail_access_token", data.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: data.expires_in,
-    });
-
-    console.log("✅ Gmail access token refreshed successfully");
-    return data.access_token;
-  } catch (error) {
-    console.error("Error refreshing Gmail token:", error);
-    return null;
-  }
-}
 
 /**
  * Execute a dynamic workflow
@@ -67,21 +19,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get auth tokens from cookies
-    const cookieStore = await cookies();
-    let gmailToken = cookieStore.get("gmail_access_token")?.value;
-    const gmailRefreshToken = cookieStore.get("gmail_refresh_token")?.value;
-    const notionToken = cookieStore.get("notion_access_token")?.value;
-    const slackToken = cookieStore.get("slack_access_token")?.value;
-
-    // Refresh Gmail token if available
-    if (gmailRefreshToken) {
-      console.log("🔄 Refreshing Gmail access token for workflow...");
-      const freshToken = await refreshGmailToken(gmailRefreshToken);
-      if (freshToken) {
-        gmailToken = freshToken;
-      }
-    }
+    const { gmailToken, notionToken, slackToken } =
+      await getRefreshedTokens();
 
     // Call the FastAPI workflow endpoint
     const response = await fetch(`${AGENT_API_URL}/chat`, {

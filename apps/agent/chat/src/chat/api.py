@@ -46,6 +46,8 @@ async def lifespan(app: FastAPI):
         "notion_token": os.getenv("NOTION_TOKEN"),
         "vercel_token": os.getenv("VERCEL_TOKEN"),
         "tavily_api_key": TAVILY_API_KEY,
+        "google_client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
+        "google_client_secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
     }
 
     try:
@@ -109,36 +111,49 @@ MCP_CREDENTIALS_DIR = Path.home() / ".google_workspace_mcp" / "credentials"
 async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
     """
     Sync Gmail OAuth credentials from frontend to MCP's credential store.
-    This allows the MCP server to use frontend-obtained tokens without prompting again.
+    Called ONLY from the OAuth callback — not during token refresh.
+    The token and scopes must come from the same OAuth flow.
     """
     try:
-        # Ensure credentials directory exists
         MCP_CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
-        
-        # Create credentials in the format MCP expects
-        # MCP creates files like: user_<email_hash>.json
-        # For simplicity, we'll use a standard filename that single-user mode will find
+
+        cred_file = MCP_CREDENTIALS_DIR / "user_frontend_oauth.json"
+
+        # Load existing to preserve refresh_token if incoming is empty
+        existing = {}
+        if cred_file.exists():
+            try:
+                with open(cred_file) as f:
+                    existing = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                existing = {}
+
+        # Merge scopes: keep existing scopes + add incoming scopes.
+        # This prevents losing scopes when a different Google service is re-authorized.
+        # With include_granted_scopes=true on the frontend, the incoming scopes should
+        # already include previously granted ones, but this is a safety net.
+        existing_scopes = set(existing.get("scopes", []))
+        incoming_scopes = set(data.scopes) if data.scopes else set()
+        merged_scopes = sorted(existing_scopes | incoming_scopes)
+
         credentials = {
             "token": data.access_token,
-            "refresh_token": data.refresh_token,
+            "refresh_token": data.refresh_token or existing.get("refresh_token", ""),
             "token_uri": data.token_uri,
             "client_id": data.client_id,
             "client_secret": data.client_secret,
-            "scopes": data.scopes,
+            "scopes": merged_scopes,
         }
-        
+
         if data.expiry:
             credentials["expiry"] = data.expiry
-        
-        # Write to a user credentials file
-        # MCP looks for files matching user_*.json pattern
-        cred_file = MCP_CREDENTIALS_DIR / "user_frontend_oauth.json"
+
         with open(cred_file, "w") as f:
             json.dump(credentials, f, indent=2)
-        
-        print(f"✅ Gmail credentials synced to {cred_file}")
+
+        print(f"Gmail credentials synced to {cred_file}")
         return {"status": "success", "message": "Gmail credentials synced to MCP"}
-        
+
     except Exception as e:
         print(f"Error syncing Gmail credentials: {e}")
         import traceback

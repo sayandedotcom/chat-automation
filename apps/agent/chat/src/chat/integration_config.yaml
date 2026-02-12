@@ -9,6 +9,7 @@ integrations:
     display_name: "Web Search"
     icon: "web_search"
     description: "Web search and research: finding information, answering questions, comparing options, discovering latest content online."
+    identity_keywords: []
     keywords:
       - search
       - find
@@ -68,11 +69,16 @@ integrations:
       - "list_gmail_filters"
       - "create_gmail_filter"
       - "delete_gmail_filter"
+      - "start_google_auth"
     display_name: "Gmail"
     icon: "gmail"
     requires_auth: true
     mcp_server: "google_workspace"
     description: "Email operations via Gmail: sending, drafting, reading, searching, labeling, filtering, and managing email messages and threads."
+    identity_keywords:
+      - "gmail"
+      - "email"
+      - "mail"
     keywords:
       - email
       - emails
@@ -152,6 +158,11 @@ integrations:
     requires_auth: true
     mcp_server: "google_workspace"
     description: "Document creation and editing via Google Docs: creating, writing, editing, commenting, exporting, and formatting documents."
+    identity_keywords:
+      - "google doc"
+      - "google docs"
+      - "gdoc"
+      - "gdocs"
     keywords:
       - doc
       - docs
@@ -214,6 +225,10 @@ integrations:
     requires_auth: true
     mcp_server: "google_workspace"
     description: "Spreadsheet operations via Google Sheets: creating, reading, writing, and modifying spreadsheet data, cells, and ranges."
+    identity_keywords:
+      - "google sheet"
+      - "google sheets"
+      - "spreadsheet"
     keywords:
       - sheet
       - sheets
@@ -265,6 +280,9 @@ integrations:
     requires_auth: true
     mcp_server: "google_workspace"
     description: "Presentation operations via Google Slides: creating, editing, and managing slide presentations."
+    identity_keywords:
+      - "google slides"
+      - "presentation"
     keywords:
       - slide
       - slides
@@ -303,6 +321,9 @@ integrations:
     requires_auth: true
     mcp_server: "google_workspace"
     description: "Calendar management via Google Calendar: scheduling meetings, creating events, checking availability, and managing appointments."
+    identity_keywords:
+      - "google calendar"
+      - "calendar"
     keywords:
       - calendar
       - calendars
@@ -375,6 +396,9 @@ integrations:
     requires_auth: true
     mcp_server: "google_workspace"
     description: "File management via Google Drive: uploading, downloading, sharing, organizing, and managing files and folders."
+    identity_keywords:
+      - "google drive"
+      - "gdrive"
     keywords:
       - drive
       - file
@@ -414,25 +438,35 @@ integrations:
 
   notion:
     tool_names:
-      - "notion-search"
-      - "notion-fetch"
-      - "notion-create-pages"
-      - "notion-update-page"
-      - "notion-move-pages"
-      - "notion-duplicate-page"
-      - "notion-create-database"
-      - "notion-update-database"
-      - "notion-query-data-sources"
-      - "notion-create-comment"
-      - "notion-get-comments"
-      - "notion-get-teams"
-      - "notion-get-users"
-      - "notion-get-user"
-      - "notion-get-self"
+      - "API-post-search"
+      - "API-get-block-children"
+      - "API-patch-block-children"
+      - "API-retrieve-a-block"
+      - "API-update-a-block"
+      - "API-delete-a-block"
+      - "API-retrieve-a-page"
+      - "API-patch-page"
+      - "API-post-page"
+      - "API-retrieve-a-page-property"
+      - "API-move-page"
+      - "API-retrieve-a-comment"
+      - "API-create-a-comment"
+      - "API-query-data-source"
+      - "API-retrieve-a-data-source"
+      - "API-update-a-data-source"
+      - "API-create-a-data-source"
+      - "API-list-data-source-templates"
+      - "API-retrieve-a-database"
+      - "API-get-user"
+      - "API-get-users"
+      - "API-get-self"
     display_name: "Notion"
     icon: "notion"
     requires_auth: true
+    mcp_server: "notion"
     description: "Workspace and knowledge management via Notion: creating pages, managing databases, searching content, commenting, and organizing workspace."
+    identity_keywords:
+      - "notion"
     keywords:
       - notion
       - page
@@ -523,6 +557,8 @@ integrations:
     icon: "vercel"
     requires_auth: true
     description: "Deployment and hosting via Vercel: deploying apps, managing domains, viewing build logs, and managing projects."
+    identity_keywords:
+      - "vercel"
     keywords:
       - vercel
       - deploy

@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+MAX_TOOL_CALLS_PER_STEP = 10  # Prevent infinite tool-call loops within a single step
+
 load_dotenv()
 
 # -------------------
@@ -128,22 +130,118 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
     return None if not search_results else search_results
 
 
+def build_conversation_summary(messages: List[BaseMessage]) -> Optional[str]:
+    """
+    Build a condensed summary of previous conversation turns from accumulated messages.
+
+    The messages list contains ALL messages from all turns (due to add_messages reducer).
+    We identify turn boundaries by HumanMessage entries. For each previous turn, we extract
+    the user request and the final workflow summary.
+
+    Returns None if this is the first turn (only one HumanMessage).
+    """
+    # Find all HumanMessage indices
+    human_indices = []
+    for i, msg in enumerate(messages):
+        if isinstance(msg, HumanMessage):
+            human_indices.append(i)
+
+    # If only one HumanMessage (the current request), no prior history
+    if len(human_indices) <= 1:
+        return None
+
+    # Build summaries for each PREVIOUS turn (exclude the last HumanMessage = current request)
+    turn_summaries = []
+    for turn_idx in range(len(human_indices) - 1):
+        start_idx = human_indices[turn_idx]
+        end_idx = human_indices[turn_idx + 1]
+
+        user_msg = messages[start_idx].content
+
+        # Find the workflow completion summary in this turn's messages
+        turn_result = ""
+        for msg in reversed(messages[start_idx:end_idx]):
+            if isinstance(msg, AIMessage) and msg.content:
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                if "Workflow Complete" in content:
+                    turn_result = content[:1500]
+                    break
+                # Fall back to the last substantial AIMessage
+                if len(content) > 50 and not turn_result:
+                    turn_result = content[:1500]
+
+        # Also extract URLs / artifact references from all AIMessages in this turn
+        artifacts = []
+        for msg in messages[start_idx:end_idx]:
+            if isinstance(msg, AIMessage) and msg.content:
+                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                # Extract URLs (document links, etc.)
+                urls = re.findall(r'https?://[^\s\)\"\'>\]]+', content)
+                for url in urls:
+                    if url not in artifacts:
+                        artifacts.append(url)
+
+        if not turn_result:
+            turn_result = "(Workflow completed)"
+
+        success = "FAILED" if any(
+            kw in turn_result.lower()
+            for kw in ["can't", "cannot", "failed", "error", "unable"]
+        ) else "SUCCESS"
+
+        summary = f"Turn {turn_idx + 1} [{success}]:\n  User request: {user_msg}\n  Outcome: {turn_result}"
+        if artifacts:
+            summary += "\n  Artifacts/URLs: " + ", ".join(artifacts[:5])
+        turn_summaries.append(summary)
+
+    if not turn_summaries:
+        return None
+
+    return "PREVIOUS CONVERSATION:\n" + "\n\n".join(turn_summaries)
+
+
+# -------------------
+# Helpers
+# -------------------
+def format_integration_context(integrations: list[str] | None) -> str:
+    """Build an integration-awareness section for LLM system prompts."""
+    if not integrations:
+        return ""
+    return (
+        f"AVAILABLE INTEGRATIONS: {', '.join(integrations)}\n"
+        "Use ONLY tools from these integrations to fulfill the request. "
+        "Do NOT substitute one service for another "
+        "(e.g., do NOT use Google Docs when the user asked for Notion).\n"
+    )
+
+
 # -------------------
 # Prompts
 # -------------------
 PLANNER_SYSTEM_PROMPT = """You are a workflow planner. Analyze the user's request and create a step-by-step execution plan.
-
+{conversation_context}
+{integration_context}
 RULES:
 1. Each step should be a single, atomic action
 2. Steps should be in correct execution order (dependencies first)
 3. Be specific about what tools/actions each step requires
 4. Keep steps concise but clear
+5. IMPORTANT - Resolving references and filling in implicit details:
+   - When the user says "it", "that", "the document", "send it", "mail this", etc., look across ALL previous turns to find the most relevant successful artifact.
+   - If the most recent turn FAILED, the user almost certainly refers to an artifact from an EARLIER successful turn. Do NOT say "nothing to send" just because the last turn failed.
+   - Use the [SUCCESS]/[FAILED] markers and Artifacts/URLs in the conversation history to identify what the user means.
+   - Include specific URLs or identifiers from previous turns in your step descriptions so the executor knows exactly what to act on.
+   - NEVER plan a step that asks the user for information you can infer from context. For example:
+     * "mail this to X" → compose an appropriate subject and body from the conversation context (e.g., document title as subject, document link in body). Do NOT ask the user for subject/body.
+     * "share this with X" → infer what to share from previous turns.
+     * "save this" → infer what content to save from the conversation.
+   - Be proactive: generate sensible defaults for any missing details based on the conversation history rather than blocking on the user.
 
 For EACH step, you MUST determine if it requires human approval:
 
 **REQUIRES HUMAN APPROVAL (requires_human_approval: true):**
 - Creating documents, pages, files, or records
-- Sending emails, messages, or notifications  
+- Sending emails, messages, or notifications
 - Updating, editing, or modifying existing content
 - Deleting or archiving anything
 - Publishing or sharing content
@@ -160,7 +258,8 @@ Be thoughtful about your approval decisions - only require approval when the act
 """
 
 EXECUTOR_SYSTEM_PROMPT = """You are a workflow executor. Execute the specific step given to you.
-
+{conversation_context}
+{integration_context}
 CURRENT STEP: {current_step}
 STEP {step_number} OF {total_steps}
 
@@ -169,6 +268,18 @@ PREVIOUS STEPS COMPLETED:
 
 YOUR TASK:
 Execute ONLY this step using the available tools. Be thorough but focused on just this step.
+If the step references items from previous conversation turns (e.g., a document URL, an email address), use the conversation context above.
+
+NOTION TOOL GUIDE (if using Notion tools):
+- To create a page at the workspace top level, use API-post-page with:
+  parent: {{"type": "workspace", "workspace": true}}
+- To create a page under an existing page, use parent: {{"type": "page_id", "page_id": "<id>"}}
+- Include content directly in the "children" parameter as block objects, e.g.:
+  children: [{{"object": "block", "type": "paragraph", "paragraph": {{"rich_text": [{{"type": "text", "text": {{"content": "Your text here"}}}}]}}}}]
+- Use "properties" with "title" to set the page title:
+  properties: {{"title": [{{"text": {{"content": "Page Title"}}}}]}}
+- Do NOT ask for a parent page ID if the user doesn't specify one — just use workspace parent.
+- To search for pages, use API-post-search.
 
 After completing the step:
 1. Report what you accomplished
@@ -261,19 +372,37 @@ class WorkflowNodes:
         """
         Analyze the user request and create a step-by-step plan.
         Uses structured output for type-safe planning with HITL classification.
+        Includes conversation context from previous turns for multi-turn support.
         """
         messages = state["messages"]
-        
+
         # Get the original user request
         user_request = ""
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 user_request = msg.content
                 break
-        
+
+        # Build conversation context from accumulated messages
+        conversation_summary = build_conversation_summary(messages)
+
+        # Format the system prompt with conversation context
+        if conversation_summary:
+            context_section = f"\n{conversation_summary}\n"
+        else:
+            context_section = ""
+
+        initial_integrations = state.get("initial_integrations") or []
+        integration_context = format_integration_context(initial_integrations)
+
+        system_prompt = PLANNER_SYSTEM_PROMPT.format(
+            conversation_context=context_section,
+            integration_context=integration_context,
+        )
+
         # Get structured plan from LLM - no JSON parsing needed!
         plan_output: WorkflowPlanOutput = await self.planner_llm.ainvoke([
-            SystemMessage(content=PLANNER_SYSTEM_PROMPT),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=f"Create a plan for: {user_request}")
         ])
         
@@ -311,40 +440,47 @@ class WorkflowNodes:
             "messages": [AIMessage(content=plan_message)],
             "plan": plan,
             "current_step_index": 0,
+            "conversation_summary": conversation_summary,
         }
 
     async def executor_node(self, state: WorkflowState) -> dict:
         """
         Execute the current step automatically (for steps not requiring approval).
-        Includes thinking capture and incremental tool loading fallback.
+        Supports multi-hop tool calling: after ToolNode runs, this node is
+        re-entered so the LLM can see tool results and decide whether to
+        make more tool calls or finish.
         """
         plan = state["plan"]
         current_index = state["current_step_index"]
-        initial_integrations = state.get("initial_integrations", [])
 
         if not plan or current_index >= len(plan.steps):
             return {"messages": [AIMessage(content="Workflow complete!")]}
 
         current_step = plan.steps[current_index]
+
+        # CONTINUATION: re-entered after tool results
+        if state.get("_executor_chat") and state["messages"] and isinstance(state["messages"][-1], ToolMessage):
+            return await self._continue_after_tools(state)
+
+        # FRESH START for this step
         current_step.status = "in_progress"
+        initial_integrations = state.get("initial_integrations", [])
+        conversation_summary = state.get("conversation_summary", "")
 
         logger.debug(f"Executing step {current_step.step_number}: {current_step.description}")
 
-        # Build context from previous steps
         previous_results = self._get_previous_results(plan, current_index)
-
-        # Track thinking time
         start_time = time.time()
-
-        # Try to execute, with incremental loading fallback
         incremental_load_events = state.get("incremental_load_events", [])
 
         try:
-            result = await self._execute_step(current_step, plan, previous_results)
+            response, executor_chat = await self._start_step_execution(
+                current_step, plan, previous_results, conversation_summary, initial_integrations
+            )
         except Exception as e:
             error_msg = str(e).lower()
 
-            # Check if error is due to missing tool
+            # Check if error is due to missing tool - attempt incremental loading
             if self.registry and "tool" in error_msg and ("not found" in error_msg or "unknown" in error_msg):
                 missing_tool = self._extract_tool_name_from_error(str(e))
 
@@ -362,15 +498,11 @@ class WorkflowNodes:
                             }
                         )
 
-                        # Load additional tools
                         new_tools = self.registry.get_toolset([missing_integration])
                         self.tools.extend(new_tools)
-
-                        # Re-bind executor with expanded toolset
                         self.executor_with_tools = self.executor_llm.bind_tools(self.tools)
                         self.tool_node = ToolNode(self.tools, handle_tool_errors=True)
 
-                        # Queue incremental load event
                         config = self.registry.get_integration_config(missing_integration)
                         incremental_load_events.append({
                             "integration": missing_integration,
@@ -379,10 +511,10 @@ class WorkflowNodes:
                             "triggered_by_tool": missing_tool,
                         })
 
-                        # Retry
-                        result = await self._execute_step(current_step, plan, previous_results)
+                        response, executor_chat = await self._start_step_execution(
+                            current_step, plan, previous_results, conversation_summary, initial_integrations
+                        )
 
-                        # Update initial_integrations
                         initial_integrations = list(initial_integrations)
                         initial_integrations.append(missing_integration)
                     else:
@@ -392,13 +524,16 @@ class WorkflowNodes:
             else:
                 raise
 
-        # Capture thinking duration
         thinking_duration_ms = int((time.time() - start_time) * 1000)
-
-        # Update step with thinking info
         current_step.thinking_duration_ms = thinking_duration_ms
 
-        # Add incremental load events to result
+        result = {
+            "messages": [response],
+            "_executor_chat": executor_chat,
+            "_step_tool_calls": 0,
+            "plan": plan,
+        }
+
         if incremental_load_events:
             result["incremental_load_events"] = incremental_load_events
             result["initial_integrations"] = initial_integrations
@@ -421,28 +556,32 @@ class WorkflowNodes:
     async def executor_with_approval_node(self, state: WorkflowState) -> dict:
         """
         Handle step that requires human approval using STATE-BASED HITL.
-        
-        Instead of using interrupt(), this node:
-        1. Sets awaiting_approval=True in state
-        2. Stores step info in approval_step_info
-        3. Returns - graph ends at this node
-        4. Streaming code detects this and sends approval_required event
-        5. On resume, approval_decision is in state and we continue
+
+        Flow:
+        1. First entry: Sets awaiting_approval=True, graph ends
+        2. Resume with approval_decision: Executes the step
+        3. Re-entry after tools: Continues multi-hop tool calling (same as executor_node)
         """
         plan = state["plan"]
         current_index = state["current_step_index"]
-        
+
         if not plan or current_index >= len(plan.steps):
             return {"messages": [AIMessage(content="Workflow complete!")]}
-        
+
         current_step = plan.steps[current_index]
-        
+
+        # CONTINUATION: re-entered after tool results (during approved execution)
+        if state.get("_executor_chat") and state["messages"] and isinstance(state["messages"][-1], ToolMessage):
+            return await self._continue_after_tools(state)
+
+        conversation_summary = state.get("conversation_summary", "")
+        initial_integrations = state.get("initial_integrations", [])
+
         # Check if we're resuming after approval
         approval_decision = state.get("approval_decision")
         if approval_decision:
-            # We're resuming - handle the decision
             action = approval_decision.get("action", "approve")
-            
+
             if action == "skip":
                 logger.debug(f"Step {current_step.step_number} skipped by user")
                 current_step.status = "skipped"
@@ -452,34 +591,41 @@ class WorkflowNodes:
                     "plan": plan,
                     "awaiting_approval": False,
                     "approval_step_info": None,
-                    "approval_decision": None,  # Clear for next step
+                    "approval_decision": None,
+                    "_executor_chat": None,
+                    "_step_tool_calls": 0,
                 }
-            
+
             logger.debug(f"Step {current_step.step_number} approved by user")
             current_step.status = "in_progress"
-
-            # Execute the step
             previous_results = self._get_previous_results(plan, current_index)
 
             if action == "edit":
                 edited_content = approval_decision.get("content", {})
                 logger.debug(f"Step {current_step.step_number} content edited by user")
-                result = await self._execute_step_with_content(current_step, plan, previous_results, edited_content)
+                response, executor_chat = await self._start_step_execution(
+                    current_step, plan, previous_results, conversation_summary, initial_integrations,
+                    approved_content=edited_content,
+                )
             else:
-                result = await self._execute_step(current_step, plan, previous_results)
-            
-            # Clear approval state
-            result["awaiting_approval"] = False
-            result["approval_step_info"] = None
-            result["approval_decision"] = None
-            return result
-        
+                response, executor_chat = await self._start_step_execution(
+                    current_step, plan, previous_results, conversation_summary, initial_integrations,
+                )
+
+            return {
+                "messages": [response],
+                "_executor_chat": executor_chat,
+                "_step_tool_calls": 0,
+                "plan": plan,
+                "awaiting_approval": False,
+                "approval_step_info": None,
+                "approval_decision": None,
+            }
+
         # First time entering - request approval
         current_step.status = "awaiting_approval"
         logger.debug(f"Approval required for step {current_step.step_number}: {current_step.description}")
-        
-        # Set state to signal we need approval and return
-        # The graph will END here, streaming code will detect awaiting_approval
+
         return {
             "plan": plan,
             "awaiting_approval": True,
@@ -490,6 +636,8 @@ class WorkflowNodes:
                 "reason": current_step.approval_reason,
                 "actions": ["approve", "edit", "skip"]
             },
+            "_executor_chat": None,
+            "_step_tool_calls": 0,
         }
 
     def _get_previous_results(self, plan: WorkflowPlan, current_index: int) -> str:
@@ -542,59 +690,75 @@ Respond with JSON only.
         except:
             return {"content": response.content, "title": step.description}
 
-    async def _execute_step(
-        self, 
-        step: WorkflowStep, 
-        plan: WorkflowPlan, 
-        previous_results: str
-    ) -> dict:
-        """Execute a step using the LLM with tools."""
-        system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
-            current_step=step.description,
-            step_number=step.step_number,
-            total_steps=len(plan.steps),
-            previous_results=previous_results,
-        )
-        
-        executor_messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"Execute step {step.step_number}: {step.description}")
-        ]
-        
-        response = await self.executor_with_tools.ainvoke(executor_messages)
-        
-        return {
-            "messages": [response], 
-            "plan": plan,
-        }
-
-    async def _execute_step_with_content(
-        self, 
-        step: WorkflowStep, 
-        plan: WorkflowPlan, 
+    async def _start_step_execution(
+        self,
+        step: WorkflowStep,
+        plan: WorkflowPlan,
         previous_results: str,
-        approved_content: dict
-    ) -> dict:
-        """Execute a step with pre-approved content."""
+        conversation_summary: str = "",
+        initial_integrations: list[str] | None = None,
+        approved_content: dict = None,
+    ) -> tuple:
+        """
+        Initialize executor conversation for a step and invoke LLM.
+        Returns (response, executor_chat) so the caller can store executor_chat in state
+        for multi-hop tool calling.
+        """
+        context_section = f"\nCONVERSATION HISTORY:\n{conversation_summary}\n" if conversation_summary else ""
+        integration_context = format_integration_context(initial_integrations)
+
         system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
+            conversation_context=context_section,
+            integration_context=integration_context,
             current_step=step.description,
             step_number=step.step_number,
             total_steps=len(plan.steps),
             previous_results=previous_results,
         )
-        
-        content_str = json.dumps(approved_content, indent=2) if isinstance(approved_content, dict) else str(approved_content)
-        
-        executor_messages = [
+
+        human_content = f"Execute step {step.step_number}: {step.description}"
+        if approved_content:
+            content_str = json.dumps(approved_content, indent=2) if isinstance(approved_content, dict) else str(approved_content)
+            human_content += f"\n\nUse this approved content:\n{content_str}"
+
+        executor_chat = [
             SystemMessage(content=system_prompt),
-            HumanMessage(content=f"Execute step {step.step_number}: {step.description}\n\nUse this approved content:\n{content_str}")
+            HumanMessage(content=human_content),
         ]
-        
-        response = await self.executor_with_tools.ainvoke(executor_messages)
-        
+
+        response = await self.executor_with_tools.ainvoke(executor_chat)
+        executor_chat.append(response)
+
+        return response, executor_chat
+
+    async def _continue_after_tools(self, state: WorkflowState) -> dict:
+        """
+        Continue executor after tool results (multi-hop tool calling).
+        Called when the executor is re-entered after ToolNode has run.
+        Appends tool result messages to the executor's conversation and re-invokes the LLM.
+        """
+        executor_chat = list(state["_executor_chat"])
+
+        # Extract new tool messages from the tail of state messages
+        new_tool_msgs = []
+        for msg in reversed(state["messages"]):
+            if isinstance(msg, ToolMessage):
+                new_tool_msgs.insert(0, msg)
+            else:
+                break
+
+        executor_chat.extend(new_tool_msgs)
+
+        response = await self.executor_with_tools.ainvoke(executor_chat)
+        executor_chat.append(response)
+
+        step_tool_calls = state.get("_step_tool_calls", 0) + len(new_tool_msgs)
+
         return {
-            "messages": [response], 
-            "plan": plan,
+            "messages": [response],
+            "_executor_chat": executor_chat,
+            "_step_tool_calls": step_tool_calls,
+            "plan": state["plan"],
         }
 
     async def step_complete_node(self, state: WorkflowState) -> dict:
@@ -656,16 +820,20 @@ Respond with JSON only.
                 "messages": [AIMessage(content=summary)],
                 "plan": plan,
                 "current_step_index": next_index,
+                "_executor_chat": None,
+                "_step_tool_calls": 0,
             }
-        
+
         # Continue to next step
         next_step = plan.steps[next_index]
         progress = f"✓ Step {current_index + 1} complete. Moving to step {next_index + 1}: {next_step.description}\n"
-        
+
         return {
             "messages": [AIMessage(content=progress)],
             "plan": plan,
             "current_step_index": next_index,
+            "_executor_chat": None,
+            "_step_tool_calls": 0,
         }
 
     def get_tool_node(self) -> ToolNode:
@@ -711,16 +879,32 @@ def should_continue(state: WorkflowState) -> Literal["tools", "step_complete", "
     
     # Check if the last message has tool calls
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-        # Count tool messages to prevent infinite loops
-        tool_message_count = sum(1 for m in messages if isinstance(m, ToolMessage))
-        
-        if tool_message_count >= 10:
-            logger.warning("Tool call limit (10) reached, completing step")
+        # Per-step tool call limit to prevent infinite loops
+        step_tool_calls = state.get("_step_tool_calls", 0)
+
+        if step_tool_calls >= MAX_TOOL_CALLS_PER_STEP:
+            logger.warning(f"Tool call limit ({MAX_TOOL_CALLS_PER_STEP}) reached for step, completing")
             return "step_complete"
-        
+
         return "tools"
     
     return "step_complete"
+
+
+def route_after_tools(state: WorkflowState) -> Literal["executor", "executor_with_approval"]:
+    """
+    After ToolNode runs, route back to the correct executor for multi-hop tool calling.
+    The executor will see the tool results and decide whether to make more calls or finish.
+    """
+    plan = state.get("plan")
+    current_index = state.get("current_step_index", 0)
+
+    if plan and 0 <= current_index < len(plan.steps):
+        step = plan.steps[current_index]
+        if step.requires_human_approval:
+            return "executor_with_approval"
+
+    return "executor"
 
 
 def should_execute_next_step(state: WorkflowState) -> Literal["executor", "executor_with_approval", "end"]:

@@ -314,3 +314,70 @@ class TestRegressions:
             assert expected_integration in result2.integrations, (
                 f"Plural '{plural_req}' missing '{expected_integration}': {result2.integrations}"
             )
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Identity Keyword Suppression Tests
+# ────────────────────────────────────────────────────────────────────────────
+class TestIdentityKeywordSuppression:
+    """Test identity-keyword competitive suppression logic."""
+
+    def test_notion_document_excludes_unrelated_integrations(self, classifier):
+        """
+        Bug: "Create a Notion Document..." selected Notion + Google Docs + Google Drive.
+        Fix: identity keyword "notion" suppresses unrelated integrations (Drive, etc.).
+        Note: google_docs may still be selected due to shared vocabulary (document, write)
+        but the planner will use Notion tools since the user explicitly said "Notion".
+        """
+        result = classifier.classify(
+            "Create a Notion Document with title 'Chat Workflow' and write 'Testing MCP server' in it"
+        )
+        assert "notion" in result.integrations
+        assert "google_drive" not in result.integrations, (
+            f"google_drive should be suppressed, got: {result.integrations}"
+        )
+
+    def test_no_identity_uses_normal_scoring(self, classifier):
+        """Without identity keywords, normal scoring applies (backward compat)."""
+        result = classifier.classify("create a document about Python")
+        # "document" matches google_docs keywords, no identity keyword present
+        assert "google_docs" in result.integrations
+
+    def test_multiple_identity_matches(self, classifier):
+        """Multiple identity keywords should select all matching integrations."""
+        result = classifier.classify("search Gmail and create a Google Doc about meetings")
+        assert "gmail" in result.integrations, f"gmail missing: {result.integrations}"
+        assert "google_docs" in result.integrations, f"google_docs missing: {result.integrations}"
+
+    def test_cross_integration_with_identity(self, classifier):
+        """Cross-integration request with different identity keywords should select both."""
+        result = classifier.classify("send the Notion page summary via email")
+        assert "notion" in result.integrations, f"notion missing: {result.integrations}"
+        assert "gmail" in result.integrations, f"gmail missing: {result.integrations}"
+
+    def test_identity_boost_score(self, classifier):
+        """Identity-matched integrations should receive the IDENTITY_BOOST in their score."""
+        result = classifier.classify("create a Notion page")
+        # Notion's score should include the identity boost
+        assert result.scores["notion"] >= classifier.IDENTITY_BOOST
+
+    def test_calendar_identity(self, classifier):
+        """Calendar identity keyword should select google_calendar."""
+        result = classifier.classify("check my calendar for tomorrow")
+        assert "google_calendar" in result.integrations
+
+    def test_research_and_google_docs_selects_web_search(self, classifier):
+        """
+        Regression: "Research best full stack framework and create a google docs about it"
+        must select BOTH web_search and google_docs. Identity boost for google_docs must
+        not suppress web_search which has strong independent signals (research, best).
+        """
+        result = classifier.classify(
+            "Research best full stack framework and create a google docs about it"
+        )
+        assert "web_search" in result.integrations, (
+            f"web_search should be selected for 'research' keyword, got: {result.integrations}"
+        )
+        assert "google_docs" in result.integrations, (
+            f"google_docs should be selected for 'google docs' identity, got: {result.integrations}"
+        )

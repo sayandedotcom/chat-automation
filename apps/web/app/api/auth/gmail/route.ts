@@ -30,6 +30,7 @@ export async function GET() {
   authUrl.searchParams.set("scope", GMAIL_SCOPES);
   authUrl.searchParams.set("access_type", "offline"); // Get refresh token
   authUrl.searchParams.set("prompt", "consent"); // Force consent to get refresh token
+  authUrl.searchParams.set("include_granted_scopes", "true"); // Incremental auth: inherit previously granted scopes
 
   return NextResponse.redirect(authUrl.toString());
 }

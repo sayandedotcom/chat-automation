@@ -69,6 +69,11 @@ class ChatService:
         if global_registry and global_registry.is_initialized:
             logger.info("Using pre-warmed global registry (fast path)")
             self._registry = global_registry
+            # Load any MCP servers for OAuth tokens that weren't available at startup
+            await self._registry.load_missing_servers({
+                "notion_token": self.notion_token,
+                "vercel_token": self.vercel_token,
+            })
         else:
             # Fallback: Create new registry (slow path - 5-15s)
             logger.info("Global registry not available, creating new one (slow path)")
@@ -119,6 +124,9 @@ class ChatService:
             "messages": [HumanMessage(content=request)],
             "plan": None,
             "current_step_index": -1,  # -1 indicates planning phase
+            "conversation_summary": None,  # Computed by planner_node from accumulated messages
+            "_executor_chat": None,
+            "_step_tool_calls": 0,
         }
         
         # Execute the workflow
@@ -210,6 +218,11 @@ class ChatService:
             "total_tool_count": 0,
             "initial_integrations": None,
             "incremental_load_events": [],
+            # Multi-turn conversation context
+            "conversation_summary": None,  # Computed by planner_node from accumulated messages
+            # Executor tool-loop state
+            "_executor_chat": None,
+            "_step_tool_calls": 0,
         }
 
         # Stream the workflow execution with both updates and messages for token-level streaming

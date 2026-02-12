@@ -76,7 +76,12 @@ interface WorkflowTimelineProps {
   steps: WorkflowStep[];
   currentStep: number;
   thinkingEvents?: ThinkingEvent[];
-  statusMessages?: Array<{ text: string; icon?: string; timestamp?: number; type?: string }>;
+  statusMessages?: Array<{
+    text: string;
+    icon?: string;
+    timestamp?: number;
+    type?: string;
+  }>;
   planThinking?: string; // Initial thinking from the planner
   loadedIntegrations?: IntegrationInfo[]; // Integrations loaded by smart router
   onRetry?: (stepNumber: number) => void;
@@ -314,7 +319,8 @@ export function WorkflowTimeline({
               <div className="flex-1 min-w-0 pt-0.5">
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-emerald-400">
-                    Added {loadedIntegrations.length} integration{loadedIntegrations.length !== 1 ? 's' : ''} successfully
+                    Added {loadedIntegrations.length} integration
+                    {loadedIntegrations.length !== 1 ? "s" : ""} successfully
                   </span>
                   <div className="flex gap-1.5">
                     {loadedIntegrations.map((integration) => (
@@ -558,7 +564,9 @@ export function WorkflowTimeline({
                                             step.result || "",
                                           );
                                           return parsed.length > 0 ? (
-                                            <SearchResultsList results={parsed} />
+                                            <SearchResultsList
+                                              results={parsed}
+                                            />
                                           ) : (
                                             <div className="text-sm text-white/70 whitespace-pre-wrap">
                                               {step.result}
@@ -581,7 +589,9 @@ export function WorkflowTimeline({
                         {step.thinking && (
                           <ThinkingIndicator
                             content={step.thinking}
-                            duration={Math.round((step.thinking_duration_ms || 2000) / 1000)}
+                            duration={Math.round(
+                              (step.thinking_duration_ms || 2000) / 1000,
+                            )}
                             defaultExpanded={false}
                           />
                         )}
@@ -604,9 +614,10 @@ export function WorkflowTimeline({
                               step.result &&
                               !isRichCard && (
                                 <span className="text-white/30 ml-1">
-                                  {step.result.length > 50
+                                  {step.result}
+                                  {/* {step.result.length > 50
                                     ? ` - ${step.result.substring(0, 50)}...`
-                                    : ` - ${step.result}`}
+                                    : ` - ${step.result}`} */}
                                 </span>
                               )}
                           </p>
@@ -616,7 +627,9 @@ export function WorkflowTimeline({
                           <div className="ml-7">
                             <ThinkingIndicator
                               content={step.thinking}
-                              duration={Math.round((step.thinking_duration_ms || 2000) / 1000)}
+                              duration={Math.round(
+                                (step.thinking_duration_ms || 2000) / 1000,
+                              )}
                               defaultExpanded={false}
                             />
                           </div>

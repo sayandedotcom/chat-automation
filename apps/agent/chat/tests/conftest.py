@@ -17,6 +17,8 @@ def test_config():
                 "latest",
                 "current",
                 "compare",
+                "best",
+                "top",
             ],
             "phrases": [
                 "search the web",
@@ -28,6 +30,7 @@ def test_config():
                 r"\b(what|who|when|where|why|how)\s+(is|are|was|were)\b",
             ],
             "description": "Web search and research",
+            "identity_keywords": [],
         },
         "gmail": {
             "keywords": [
@@ -51,6 +54,7 @@ def test_config():
                 r"\b(email|mail|gmail|send|inbox)\b",
             ],
             "description": "Email operations via Gmail",
+            "identity_keywords": ["gmail", "email", "mail"],
         },
         "google_docs": {
             "keywords": [
@@ -74,6 +78,7 @@ def test_config():
                 r"\b(doc|document|write)\b",
             ],
             "description": "Document creation and editing via Google Docs",
+            "identity_keywords": ["google doc", "google docs", "gdoc", "gdocs"],
         },
         "google_calendar": {
             "keywords": [
@@ -93,6 +98,58 @@ def test_config():
                 r"\b(calendar|schedule|meeting|event)\b",
             ],
             "description": "Calendar management via Google Calendar",
+            "identity_keywords": ["google calendar", "calendar"],
+        },
+        "google_drive": {
+            "keywords": [
+                "drive",
+                "file",
+                "files",
+                "upload",
+                "download",
+                "folder",
+                "folders",
+                "share",
+            ],
+            "phrases": [
+                "upload a file",
+                "share the document",
+                "find files in drive",
+            ],
+            "request_patterns": [
+                r"\b(drive|file|upload|download|folder)\b",
+            ],
+            "description": "File management via Google Drive",
+            "identity_keywords": ["google drive", "gdrive"],
+        },
+        "notion": {
+            "keywords": [
+                "notion",
+                "page",
+                "pages",
+                "note",
+                "notes",
+                "database",
+                "workspace",
+                "wiki",
+                "knowledge",
+                "kanban",
+                "board",
+                "task",
+                "tasks",
+                "project",
+                "projects",
+            ],
+            "phrases": [
+                "create a Notion page",
+                "search in Notion",
+                "organize in Notion",
+            ],
+            "request_patterns": [
+                r"\b(create|add|make)\b.*\b(page|note|doc|database)\b",
+            ],
+            "description": "Workspace and knowledge management via Notion",
+            "identity_keywords": ["notion"],
         },
     }
 

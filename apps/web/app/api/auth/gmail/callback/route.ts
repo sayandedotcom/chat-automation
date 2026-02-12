@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
           },
           body: JSON.stringify({
             access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token || "",
+            refresh_token: tokens.refresh_token ?? "",
             client_id: clientId,
             client_secret: clientSecret,
             scopes: tokens.scope.split(" "),

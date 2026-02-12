@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
+import { getRefreshedTokens } from "@/lib/token-refresh";
 
 const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8000";
 
@@ -19,11 +19,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get auth tokens from cookies
-    const cookieStore = await cookies();
-    const gmailToken = cookieStore.get("gmail_access_token")?.value;
-    const notionToken = cookieStore.get("notion_access_token")?.value;
-    const slackToken = cookieStore.get("slack_access_token")?.value;
+    const { gmailToken, notionToken, slackToken } =
+      await getRefreshedTokens();
 
     // Call the FastAPI workflow stream endpoint
     const response = await fetch(`${AGENT_API_URL}/chat/stream`, {

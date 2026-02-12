@@ -80,6 +80,7 @@ class IntegrationIndex:
     phrases: list[str]
     regex_patterns: list[re.Pattern]
     description: str
+    identity_keywords: list[str]  # brand names / unique identifiers
 
 
 @dataclass
@@ -108,6 +109,11 @@ class IntegrationClassifier:
     MIN_ABSOLUTE_SCORE = 1.5  # Raw score above this → included (1 exact keyword match)
     AMBIGUITY_RATIO = 0.8  # Top-2 scores within this ratio → ambiguous
     MIN_FUZZY_SCORE = 75  # rapidfuzz partial_ratio cut-off (0–100)
+
+    # Identity-keyword competitive suppression
+    IDENTITY_BOOST = 5.0  # Score bonus for identity-matched integrations
+    SUPPRESSED_NORM_THRESHOLD = 0.6  # Non-identity integrations must exceed this normalised score
+    SUPPRESSED_RAW_THRESHOLD = 3.0  # Non-identity integrations must exceed this raw score
 
     def __init__(self) -> None:
         self._indexes: dict[str, IntegrationIndex] = {}
@@ -146,6 +152,7 @@ class IntegrationClassifier:
                     for p in config.get("request_patterns", [])
                 ],
                 description=config.get("description", config.get("display_name", name)),
+                identity_keywords=[kw.lower() for kw in config.get("identity_keywords", [])],
             )
 
         self._initialized = True
@@ -206,6 +213,21 @@ class IntegrationClassifier:
             if score > 0:
                 scores[name] = score
 
+        # Detect identity keyword matches
+        identity_matches: dict[str, bool] = {}
+        any_identity_found = False
+        for name, index in self._indexes.items():
+            has_identity = any(ik in request_lower for ik in index.identity_keywords)
+            identity_matches[name] = has_identity
+            if has_identity and name in scores:
+                any_identity_found = True
+
+        # Apply identity boost
+        if any_identity_found:
+            for name in scores:
+                if identity_matches.get(name):
+                    scores[name] += self.IDENTITY_BOOST
+
         # Normalise and select
         max_score = max(scores.values()) if scores else 0.0
         if max_score > 0:
@@ -213,11 +235,24 @@ class IntegrationClassifier:
         else:
             normalised = {}
 
-        selected = [
-            name
-            for name, norm in normalised.items()
-            if norm >= self.HIGH_CONFIDENCE or scores[name] >= self.MIN_ABSOLUTE_SCORE
-        ]
+        if any_identity_found:
+            selected = []
+            for name, norm in normalised.items():
+                if identity_matches.get(name):
+                    # Identity-matched: normal thresholds
+                    if norm >= self.HIGH_CONFIDENCE or scores[name] >= self.MIN_ABSOLUTE_SCORE:
+                        selected.append(name)
+                else:
+                    # Non-identity: must pass BOTH stricter thresholds
+                    if norm >= self.SUPPRESSED_NORM_THRESHOLD and scores[name] >= self.SUPPRESSED_RAW_THRESHOLD:
+                        selected.append(name)
+        else:
+            # No identity keywords → normal scoring (unchanged)
+            selected = [
+                name
+                for name, norm in normalised.items()
+                if norm >= self.HIGH_CONFIDENCE or scores[name] >= self.MIN_ABSOLUTE_SCORE
+            ]
 
         confidence = min(max_score / 5.0, 1.0)
 
