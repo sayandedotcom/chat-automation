@@ -749,6 +749,17 @@ class WorkflowNodes:
         # Classify integrations (Phase 1: instant NLP, Phase 2: LLM fallback if ambiguous)
         integrations = await classify_integrations(user_request, self.registry)
 
+        # Artifact-aware injection: auto-include integrations from prior-turn artifacts
+        artifacts = state.get("artifacts", [])
+        if artifacts:
+            artifact_integrations = {
+                a.get("integration") for a in artifacts if a.get("integration")
+            }
+            for name in artifact_integrations:
+                if name not in integrations and self.registry.get_integration_config(name):
+                    integrations.append(name)
+                    logger.info(f"Smart router: auto-included '{name}' from prior-turn artifact")
+
         # Get filtered tools from registry
         tools = self.registry.get_toolset(integrations)
 
