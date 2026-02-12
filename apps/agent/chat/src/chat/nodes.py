@@ -689,8 +689,13 @@ PREVIOUS STEPS COMPLETED:
 
 YOUR TASK:
 Execute ONLY this step using the available tools. Be thorough but focused on just this step.
-If the step references a resource, use the exact URL or ID from AVAILABLE ARTIFACTS. Do NOT ask the user for information available in artifacts.
 If the step references items from previous conversation turns (e.g., a document URL, an email address), use the conversation context above.
+
+CRITICAL — RESOURCE ID HANDLING:
+- NEVER manually copy document IDs or URLs from text. Long alphanumeric IDs are easily corrupted during copying.
+- ALWAYS use the exact ID or URL from "EXACT RESOURCE IDs" annotations in PREVIOUS STEPS or from the AVAILABLE ARTIFACTS section above.
+- These are extracted directly from tool responses and are guaranteed correct.
+- Do NOT ask the user for information available in artifacts.
 
 After completing the step:
 1. Report what you accomplished
@@ -910,7 +915,7 @@ class WorkflowNodes:
 
         logger.debug(f"Executing step {current_step.step_number}: {current_step.description}")
 
-        previous_results = self._get_previous_results(plan, current_index)
+        previous_results = self._get_previous_results(plan, current_index, artifacts=step_artifacts)
         start_time = time.time()
         incremental_load_events = state.get("incremental_load_events", [])
 
@@ -1042,7 +1047,7 @@ class WorkflowNodes:
 
             logger.debug(f"Step {current_step.step_number} approved by user")
             current_step.status = "in_progress"
-            previous_results = self._get_previous_results(plan, current_index)
+            previous_results = self._get_previous_results(plan, current_index, artifacts=step_artifacts)
 
             if action == "edit":
                 edited_content = approval_decision.get("content", {})
@@ -1085,13 +1090,25 @@ class WorkflowNodes:
             "_step_tool_calls": 0,
         }
 
-    def _get_previous_results(self, plan: WorkflowPlan, current_index: int) -> str:
+    def _get_previous_results(self, plan: WorkflowPlan, current_index: int, artifacts: list[dict] = None) -> str:
         """Build context string from previous step results."""
         previous_results = ""
         for step in plan.steps[:current_index]:
             if step.result:
                 previous_results += f"Step {step.step_number}: {step.result}\n"
-        
+                # Append exact artifact IDs for this step to prevent LLM hallucination
+                if artifacts:
+                    step_artifacts = [a for a in artifacts if a.get("step_number") == step.step_number]
+                    if step_artifacts:
+                        previous_results += "  ↳ EXACT RESOURCE IDs (authoritative — use these, not IDs from text above):\n"
+                        for a in step_artifacts:
+                            line = f"    [{a.get('type', 'resource')}] {a.get('name', 'Untitled')}"
+                            if a.get("id"):
+                                line += f" — ID: {a['id']}"
+                            if a.get("url"):
+                                line += f" — URL: {a['url']}"
+                            previous_results += line + "\n"
+
         return previous_results if previous_results else "None yet - this is the first step."
 
     async def _generate_preview_content(

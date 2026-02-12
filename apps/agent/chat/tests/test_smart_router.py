@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from langchain_core.messages import HumanMessage
 
 from chat.nodes import WorkflowNodes
+from chat.schemas import WorkflowPlan, WorkflowStep
 from chat.integration_registry import IntegrationConfig
 
 
@@ -151,3 +152,72 @@ class TestSmartRouterArtifactInjection:
 
         call_args = registry.get_toolset.call_args[0][0]
         assert call_args == ["notion"]
+
+
+# ---------------------------------------------------------------------------
+# Tests for _get_previous_results artifact enrichment
+# ---------------------------------------------------------------------------
+
+def _make_plan_with_completed_steps(n_steps: int, results: dict[int, str] | None = None) -> WorkflowPlan:
+    """Build a WorkflowPlan with n_steps, optionally setting results by step_number."""
+    steps = []
+    for i in range(1, n_steps + 1):
+        step = WorkflowStep(step_number=i, description=f"Step {i} description")
+        if results and i in results:
+            step.result = results[i]
+            step.status = "completed"
+        steps.append(step)
+    return WorkflowPlan(original_request="test request", steps=steps)
+
+
+@patch("chat.nodes.ToolNode", MagicMock)
+class TestGetPreviousResultsArtifactEnrichment:
+    """Test that _get_previous_results appends EXACT RESOURCE IDs from artifacts."""
+
+    def test_no_artifacts_unchanged(self):
+        """No artifacts passed → output is the same as before (backward compat)."""
+        registry = _make_registry("notion")
+        nodes = _make_nodes(registry)
+        plan = _make_plan_with_completed_steps(2, results={1: "Created document."})
+
+        result = nodes._get_previous_results(plan, current_index=2)
+        assert "Step 1: Created document." in result
+        assert "EXACT RESOURCE" not in result
+
+    def test_matching_artifacts_appended(self):
+        """Artifacts whose step_number matches a completed step are appended."""
+        registry = _make_registry("google_docs")
+        nodes = _make_nodes(registry)
+        plan = _make_plan_with_completed_steps(3, results={1: "Created doc.", 2: "Wrote content."})
+
+        artifacts = [
+            {"step_number": 1, "type": "document", "name": "Test Doc", "id": "1hK-LoFzab_xZZK", "url": "https://docs.google.com/1hK-LoFzab_xZZK"},
+            {"step_number": 2, "type": "document", "name": "Another", "id": "abc123"},
+        ]
+        result = nodes._get_previous_results(plan, current_index=3, artifacts=artifacts)
+
+        # Step 1 artifact
+        assert "EXACT RESOURCE IDs" in result
+        assert "1hK-LoFzab_xZZK" in result
+        assert "https://docs.google.com/1hK-LoFzab_xZZK" in result
+        assert "[document] Test Doc" in result
+
+        # Step 2 artifact
+        assert "[document] Another" in result
+        assert "abc123" in result
+
+    def test_non_matching_artifacts_not_shown(self):
+        """Artifacts from a different step_number are not appended to earlier steps."""
+        registry = _make_registry("google_docs")
+        nodes = _make_nodes(registry)
+        plan = _make_plan_with_completed_steps(3, results={1: "Searched the web."})
+
+        # Artifact belongs to step 2, but we're only looking at steps up to index 2 (step 1)
+        artifacts = [
+            {"step_number": 2, "type": "document", "name": "Future Doc", "id": "xyz789"},
+        ]
+        result = nodes._get_previous_results(plan, current_index=2, artifacts=artifacts)
+
+        assert "Step 1: Searched the web." in result
+        assert "EXACT RESOURCE" not in result
+        assert "xyz789" not in result
