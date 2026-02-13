@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
+import {
+  toolIconMap as configToolIconMap,
+  toolNameMap as configToolNameMap,
+} from "@/config/integrations";
 import { SearchResultsList, parseSearchResults } from "./search-results-list";
 import { ThinkingIndicator } from "./thinking-indicator";
 import { DocumentPreviewCard } from "./document-preview-card";
@@ -94,36 +98,14 @@ interface WorkflowTimelineProps {
   className?: string;
 }
 
-// Map tool IDs to integration icons
+// Derived from config — override web-search icon for dark timeline UI
 const toolIconMap: Record<string, string> = {
+  ...configToolIconMap,
   "web-search": "/integrations/web_search_white.svg",
-  notion: "/integrations/notion.svg",
-  slack: "/integrations/slack.svg",
-  gmail: "/integrations/gmail.svg",
-  "google-drive": "/integrations/drive.svg",
-  "google-docs": "/integrations/google_docs.svg",
-  "google-calendar": "/integrations/google_calendar.svg",
-  github: "/integrations/github_dark.svg",
-  linear: "/integrations/linear.svg",
-  vercel: "/integrations/vercel_dark.svg",
-  supabase: "/integrations/supabase.svg",
-  sentry: "/integrations/sentry.svg",
 };
 
-// Map tool IDs to display names
 const toolNameMap: Record<string, string> = {
-  "web-search": "Web Search",
-  notion: "Notion",
-  slack: "Slack",
-  gmail: "Gmail",
-  "google-drive": "Google Drive",
-  "google-docs": "Google Docs",
-  "google-calendar": "Google Calendar",
-  github: "GitHub",
-  linear: "Linear",
-  vercel: "Vercel",
-  supabase: "Supabase",
-  sentry: "Sentry",
+  ...configToolNameMap,
   general: "General",
 };
 

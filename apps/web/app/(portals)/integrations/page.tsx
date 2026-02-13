@@ -5,19 +5,9 @@ import Image from "next/image";
 import { Search, Check, Loader2 } from "lucide-react";
 import { Input } from "@workspace/ui/components/input";
 import { Button } from "@workspace/ui/components/button";
-import { integrations, type Integration } from "@/config/integrations";
+import { oauthIntegrations, type Integration } from "@/config/integrations";
 
 type ConnectionStatus = Record<string, boolean>;
-
-// OAuth-supported integrations
-const OAUTH_INTEGRATIONS = [
-  "gmail",
-  "google-docs",
-  "google-drive",
-  "google-calendar",
-  "vercel",
-  "notion",
-];
 
 function IntegrationCard({
   integration,
@@ -32,8 +22,6 @@ function IntegrationCard({
   onConnect: () => void;
   onDisconnect: () => void;
 }) {
-  const hasOAuth = OAUTH_INTEGRATIONS.includes(integration.id);
-
   return (
     <div className="flex items-center gap-4 px-5 py-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/60 transition-all duration-300 cursor-pointer group">
       {/* Icon Container */}
@@ -58,7 +46,7 @@ function IntegrationCard({
       </div>
 
       {/* Connect/Disconnect Button */}
-      {hasOAuth ? (
+      {integration.isLive ? (
         isConnected ? (
           <Button
             variant="outline"
@@ -108,10 +96,10 @@ function IntegrationCard({
 export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
-    {}
+    {},
   );
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
-    {}
+    {},
   );
 
   // Fetch connection status on mount
@@ -173,12 +161,12 @@ export default function IntegrationsPage() {
   };
 
   const filteredIntegrations = useMemo(() => {
-    if (!searchQuery.trim()) return integrations;
+    if (!searchQuery.trim()) return oauthIntegrations;
 
-    return integrations.filter(
+    return oauthIntegrations.filter(
       (i) =>
         i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.description.toLowerCase().includes(searchQuery.toLowerCase())
+        i.description.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [searchQuery]);
 
