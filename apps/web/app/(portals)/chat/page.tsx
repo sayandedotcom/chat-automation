@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useAuth } from "@/components/auth-provider";
 import { PlanetaryBackground } from "@/components/planetary-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { StarsBackground } from "@workspace/ui/components/stars-background";
@@ -48,6 +49,7 @@ interface ConversationTurn {
 }
 
 export default function ChatPage() {
+  const { user } = useAuth();
   const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>("idle");
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
@@ -674,7 +676,7 @@ export default function ChatPage() {
         {isIdle && (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <ChatGreeting
-              userName="Sayan"
+              userName={user?.name?.split(" ")[0] || "there"}
               subtitle="Describe your workflow and I'll execute it step by step"
             />
             <ChatInputWithMentions

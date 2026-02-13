@@ -13,11 +13,17 @@ export function SignOutButton() {
   }
 
   const handleSignOut = async () => {
-    await signOut();
+    await signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          window.location.href = "/";
+        },
+      },
+    });
   };
 
   return (
-    <Button onClick={handleSignOut} variant="ghost" size="sm">
+    <Button onClick={handleSignOut} variant="destructive" size="sm">
       <LogOut className="mr-2 h-4 w-4" />
       Sign out
     </Button>

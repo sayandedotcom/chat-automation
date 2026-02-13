@@ -69,11 +69,6 @@ const navItems = [
 const chats = [
   {
     id: "1",
-    title: "Onboarding Sayan",
-    url: "/chat/1",
-  },
-  {
-    id: "2",
     title: "New Chat",
     url: "/chat/2",
   },

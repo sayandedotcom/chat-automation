@@ -1,18 +1,41 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import { AppSidebar } from "@/components/app-sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb";
-import { Separator } from "@workspace/ui/components/separator";
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isPending && !session?.user) {
+      router.replace("/");
+    }
+  }, [isPending, session, router]);
+
+  if (isPending) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-white" />
+          <p className="text-sm text-zinc-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
 
 export default function PortalLayout({
   children,
@@ -20,33 +43,13 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        {/* <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Building Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header> */}
-        <div className="flex flex-1 flex-col gap-4 pt-0">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+    <AuthGuard>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <div className="flex flex-1 flex-col gap-4 pt-0">{children}</div>
+        </SidebarInset>
+      </SidebarProvider>
+    </AuthGuard>
   );
 }
