@@ -1,0 +1,56 @@
+# ─── Version control ───
+.git
+.gitignore
+.github/
+
+# ─── IDE / Editor ───
+.vscode/
+.idea/
+*.swp
+
+# ─── Dependencies (rebuilt in Docker) ───
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+
+# ─── Build outputs (rebuilt in Docker) ───
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+**/.sst/
+
+# ─── Environment files (injected via docker-compose env_file) ───
+**/.env
+**/.env.*
+!**/.env.example
+
+# ─── Docker files themselves ───
+docker-compose.yml
+docker-compose*.yml
+.dockerignore
+
+# ─── Documentation / non-essential ───
+*.md
+!README.md
+LICENSE
+docs/
+
+# ─── Generated / cache files ───
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/coverage/
+**/.coverage
+**/htmlcov/
+
+# ─── OS files ───
+.DS_Store
+Thumbs.db
+
+# ─── Claude / Gemini agent files ───
+.claude/
+.gemini/
+CLAUDE.md
