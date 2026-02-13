@@ -8,6 +8,8 @@ export async function POST(request: NextRequest) {
   const cookieNames: Record<string, string> = {
     gmail: "gmail_access_token",
     "google-docs": "google_docs_access_token",
+    "google-sheets": "google_sheets_access_token",
+    "google-slides": "google_slides_access_token",
     "google-drive": "google_drive_access_token",
     "google-calendar": "google_calendar_access_token",
     vercel: "vercel_access_token",
@@ -17,6 +19,8 @@ export async function POST(request: NextRequest) {
   const refreshCookieNames: Record<string, string> = {
     gmail: "gmail_refresh_token",
     "google-docs": "google_docs_refresh_token",
+    "google-sheets": "google_sheets_refresh_token",
+    "google-slides": "google_slides_refresh_token",
     "google-drive": "google_drive_refresh_token",
     "google-calendar": "google_calendar_refresh_token",
   };

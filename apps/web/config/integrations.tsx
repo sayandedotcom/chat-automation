@@ -22,7 +22,7 @@ export const integrations: Integration[] = [
     description: "Access and manage Google Sheets files",
     icon: "/integrations/google_sheets.svg",
     oauth: true,
-    isLive: false,
+    isLive: true,
   },
   {
     id: "google-slides",
@@ -30,7 +30,7 @@ export const integrations: Integration[] = [
     description: "Manage Google Slides presentations",
     icon: "/integrations/google_slides.svg",
     oauth: true,
-    isLive: false,
+    isLive: true,
   },
   {
     id: "google-docs",
