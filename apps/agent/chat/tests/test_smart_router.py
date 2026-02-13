@@ -3,11 +3,12 @@ Tests for artifact-aware integration injection in the smart router node.
 
 Covers:
 - No artifacts → classifier output unchanged
-- Artifact integration auto-included alongside classifier result
+- Artifact integration injected only when request references it
 - Duplicate prevention when classifier already selected the integration
 - Unknown integration in artifact filtered out
-- Multiple artifacts from different integrations all injected
+- Unreferenced artifact integrations NOT injected
 - Artifact with None/missing integration safely ignored
+- Reference by identity keyword, integration name, or artifact name
 """
 
 import pytest
@@ -17,6 +18,30 @@ from langchain_core.messages import HumanMessage
 from chat.nodes import WorkflowNodes
 from chat.schemas import WorkflowPlan, WorkflowStep
 from chat.integration_registry import IntegrationConfig
+
+
+# Identity keywords used in integration_config.yaml (subset needed for tests)
+_IDENTITY_KEYWORDS = {
+    "notion": ["notion"],
+    "google_docs": ["google doc", "google docs", "gdoc", "gdocs"],
+    "gmail": ["gmail", "email", "mail"],
+    "google_drive": ["google drive", "gdrive"],
+    "google_sheets": ["google sheet", "google sheets", "spreadsheet"],
+    "google_slides": ["google slides", "presentation"],
+    "google_calendar": ["google calendar", "calendar"],
+}
+
+
+def _make_classifier_mock(*known_names: str) -> MagicMock:
+    """Build a mock classifier with identity keywords for the given integrations."""
+    classifier = MagicMock()
+    indexes = {}
+    for name in known_names:
+        idx = MagicMock()
+        idx.identity_keywords = _IDENTITY_KEYWORDS.get(name, [])
+        indexes[name] = idx
+    classifier._indexes = indexes
+    return classifier
 
 
 def _make_registry(*known_names: str) -> MagicMock:
@@ -78,19 +103,39 @@ class TestSmartRouterArtifactInjection:
         registry.get_toolset.assert_called_once_with(["notion"])
         assert result["initial_integrations"] == ["notion"]
 
+    @patch("chat.classifier.get_classifier")
     @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
-    async def test_artifact_integration_injected(self, mock_classify):
-        """Artifact with google_docs integration auto-included alongside classifier's notion."""
+    async def test_artifact_injected_when_referenced_by_identity_keyword(self, mock_classify, mock_get_classifier):
+        """Artifact integration injected when request contains its identity keyword."""
         mock_classify.return_value = ["notion"]
+        mock_get_classifier.return_value = _make_classifier_mock("notion", "google_docs")
         registry = _make_registry("notion", "google_docs")
         nodes = _make_nodes(registry)
 
+        # "google doc" identity keyword appears in "update the google doc too"
+        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        result = await nodes.smart_router_node(_make_state("update the google doc too", artifacts))
+
+        call_args = registry.get_toolset.call_args[0][0]
+        assert "notion" in call_args
+        assert "google_docs" in call_args
+
+    @patch("chat.classifier.get_classifier")
+    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    async def test_artifact_not_injected_when_not_referenced(self, mock_classify, mock_get_classifier):
+        """Artifact integration NOT injected when request doesn't reference it."""
+        mock_classify.return_value = ["notion"]
+        mock_get_classifier.return_value = _make_classifier_mock("notion", "google_docs")
+        registry = _make_registry("notion", "google_docs")
+        nodes = _make_nodes(registry)
+
+        # Request mentions only "notion doc", no reference to google_docs
         artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
         result = await nodes.smart_router_node(_make_state("also build a notion doc", artifacts))
 
         call_args = registry.get_toolset.call_args[0][0]
         assert "notion" in call_args
-        assert "google_docs" in call_args
+        assert "google_docs" not in call_args
 
     @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
     async def test_no_duplicate_if_already_classified(self, mock_classify):
@@ -119,23 +164,47 @@ class TestSmartRouterArtifactInjection:
         assert "unknown_service" not in call_args
         assert call_args == ["notion"]
 
+    @patch("chat.classifier.get_classifier")
     @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
-    async def test_multiple_artifact_integrations_injected(self, mock_classify):
-        """Multiple artifacts from different integrations are all injected."""
-        mock_classify.return_value = ["notion"]
-        registry = _make_registry("notion", "google_docs", "gmail")
+    async def test_only_referenced_artifacts_injected(self, mock_classify, mock_get_classifier):
+        """When multiple artifact integrations exist, only referenced ones are injected."""
+        mock_classify.return_value = ["gmail"]
+        mock_get_classifier.return_value = _make_classifier_mock("gmail", "google_docs", "notion")
+        registry = _make_registry("gmail", "google_docs", "notion")
         nodes = _make_nodes(registry)
 
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Doc"},
-            {"integration": "gmail", "type": "email", "name": "Email"},
+            {"integration": "notion", "type": "page", "name": "Notes"},
         ]
-        result = await nodes.smart_router_node(_make_state("summarize everything", artifacts))
+        # Request mentions "notion" but NOT "google doc"
+        result = await nodes.smart_router_node(
+            _make_state("send the notion document to test@example.com", artifacts)
+        )
 
         call_args = registry.get_toolset.call_args[0][0]
-        assert "notion" in call_args
-        assert "google_docs" in call_args
         assert "gmail" in call_args
+        assert "notion" in call_args
+        assert "google_docs" not in call_args
+
+    @patch("chat.classifier.get_classifier")
+    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    async def test_artifact_injected_by_name_match(self, mock_classify, mock_get_classifier):
+        """Artifact injected when its name appears in the request."""
+        mock_classify.return_value = ["gmail"]
+        mock_get_classifier.return_value = _make_classifier_mock("gmail", "google_docs")
+        registry = _make_registry("gmail", "google_docs")
+        nodes = _make_nodes(registry)
+
+        # Artifact name "Backend Languages Report" appears in the request
+        artifacts = [{"integration": "google_docs", "type": "document", "name": "Backend Languages Report"}]
+        result = await nodes.smart_router_node(
+            _make_state("email the backend languages report to test@example.com", artifacts)
+        )
+
+        call_args = registry.get_toolset.call_args[0][0]
+        assert "gmail" in call_args
+        assert "google_docs" in call_args
 
     @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
     async def test_none_integration_ignored(self, mock_classify):
@@ -152,6 +221,75 @@ class TestSmartRouterArtifactInjection:
 
         call_args = registry.get_toolset.call_args[0][0]
         assert call_args == ["notion"]
+
+    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    async def test_continuation_keyword_injects_all_artifacts(self, mock_classify):
+        """'similar' keyword triggers injection of ALL artifact integrations."""
+        mock_classify.return_value = ["notion"]
+        registry = _make_registry("notion", "google_docs")
+        nodes = _make_nodes(registry)
+
+        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        result = await nodes.smart_router_node(
+            _make_state("Create a similar Notion Document also", artifacts)
+        )
+
+        call_args = registry.get_toolset.call_args[0][0]
+        assert "notion" in call_args
+        assert "google_docs" in call_args
+
+    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    async def test_continuation_keyword_same(self, mock_classify):
+        """'same' keyword triggers injection of artifact integrations."""
+        mock_classify.return_value = ["notion"]
+        registry = _make_registry("notion", "google_docs")
+        nodes = _make_nodes(registry)
+
+        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        result = await nodes.smart_router_node(
+            _make_state("create the same thing in Notion", artifacts)
+        )
+
+        call_args = registry.get_toolset.call_args[0][0]
+        assert "google_docs" in call_args
+
+    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    async def test_continuation_keyword_based_on(self, mock_classify):
+        """'based on' keyword triggers injection of artifact integrations."""
+        mock_classify.return_value = ["notion"]
+        registry = _make_registry("notion", "google_docs")
+        nodes = _make_nodes(registry)
+
+        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        result = await nodes.smart_router_node(
+            _make_state("create a Notion page based on the previous document", artifacts)
+        )
+
+        call_args = registry.get_toolset.call_args[0][0]
+        assert "google_docs" in call_args
+
+    @patch("chat.classifier.get_classifier")
+    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    async def test_no_continuation_keyword_no_blanket_injection(self, mock_classify, mock_get_classifier):
+        """Without continuation keywords, non-referenced artifacts are NOT injected."""
+        mock_classify.return_value = ["gmail"]
+        mock_get_classifier.return_value = _make_classifier_mock("gmail", "google_docs", "notion")
+        registry = _make_registry("gmail", "google_docs", "notion")
+        nodes = _make_nodes(registry)
+
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Doc"},
+            {"integration": "notion", "type": "page", "name": "Notes"},
+        ]
+        # "send" is not a continuation keyword — only notion is referenced
+        result = await nodes.smart_router_node(
+            _make_state("send the notion document to test@example.com", artifacts)
+        )
+
+        call_args = registry.get_toolset.call_args[0][0]
+        assert "gmail" in call_args
+        assert "notion" in call_args
+        assert "google_docs" not in call_args
 
 
 # ---------------------------------------------------------------------------

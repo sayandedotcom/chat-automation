@@ -754,16 +754,70 @@ class WorkflowNodes:
         # Classify integrations (Phase 1: instant NLP, Phase 2: LLM fallback if ambiguous)
         integrations = await classify_integrations(user_request, self.registry)
 
-        # Artifact-aware injection: auto-include integrations from prior-turn artifacts
+        # Artifact-aware injection: auto-include integrations from prior-turn
+        # artifacts, but only when relevant to the current request.
+        # - Continuation requests ("similar", "same", "copy") → inject ALL artifact integrations
+        #   because the user is referencing prior work broadly.
+        # - Otherwise → only inject explicitly referenced ones (by identity keyword,
+        #   integration name, or artifact name) to avoid loading unnecessary tools.
         artifacts = state.get("artifacts", [])
         if artifacts:
+            from chat.classifier import get_classifier
+
+            classifier = get_classifier()
+            request_lower = user_request.lower()
+
+            # Detect continuation keywords that imply referencing prior artifacts
+            is_continuation = bool(re.search(
+                r'\b(similar|same|copy|duplicate|replicate|like\s+(?:that|the|this)|'
+                r'based\s+on|from\s+(?:the\s+)?(?:previous|earlier|last|above))\b',
+                request_lower,
+            ))
+
             artifact_integrations = {
                 a.get("integration") for a in artifacts if a.get("integration")
             }
             for name in artifact_integrations:
-                if name not in integrations and self.registry.get_integration_config(name):
+                if name in integrations:
+                    continue
+                if not self.registry.get_integration_config(name):
+                    continue
+
+                if is_continuation:
                     integrations.append(name)
-                    logger.info(f"Smart router: auto-included '{name}' from prior-turn artifact")
+                    logger.info(f"Smart router: auto-included '{name}' from prior-turn artifact (continuation request)")
+                    continue
+
+                # Check if the request explicitly references this integration:
+                # 1. Identity keywords (e.g. "google doc", "notion", "gmail")
+                # 2. Integration name (e.g. "notion" in text)
+                # 3. Artifact name/title (e.g. "Test Doc" in text)
+                referenced = False
+
+                idx = classifier._indexes.get(name)
+                if idx and any(ik in request_lower for ik in idx.identity_keywords):
+                    referenced = True
+
+                if not referenced and name.replace("_", " ") in request_lower:
+                    referenced = True
+
+                if not referenced:
+                    # Check if any artifact name appears in the request (word-boundary match
+                    # to avoid "Doc" matching inside "document")
+                    for a in artifacts:
+                        if a.get("integration") == name and a.get("name"):
+                            artifact_name = a["name"].lower()
+                            if len(artifact_name) > 3 and re.search(
+                                r'\b' + re.escape(artifact_name) + r'\b', request_lower
+                            ):
+                                referenced = True
+                                break
+
+                if referenced:
+                    integrations.append(name)
+                    logger.info(f"Smart router: auto-included '{name}' from prior-turn artifact (referenced in request)")
+                else:
+                    logger.debug(f"Smart router: skipped artifact integration '{name}' (not referenced in request)")
 
         # Get filtered tools from registry
         tools = self.registry.get_toolset(integrations)
