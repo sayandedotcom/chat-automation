@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "Agent API",
   "scripts": {
-    "dev": "cd chat/src/chat && uv run fastapi run --host 0.0.0.0 --port 8000"
+    "dev": "uv run fastapi dev chat/src/chat/api.py --host 0.0.0.0 --port 8001"
   }
 }
