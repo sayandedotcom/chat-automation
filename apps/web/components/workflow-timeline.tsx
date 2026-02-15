@@ -28,6 +28,8 @@ import {
 import { SearchResultsList, parseSearchResults } from "./search-results-list";
 import { ThinkingIndicator } from "./thinking-indicator";
 import { DocumentPreviewCard } from "./document-preview-card";
+import { EmailComposer } from "./email-composer";
+import { DocumentEditor } from "./document-editor";
 
 // Thinking event from the backend
 export interface ThinkingEvent {
@@ -43,6 +45,14 @@ export interface SearchResultData {
   domain: string;
   favicon?: string;
   date?: string;
+}
+
+// Structured tool call data for rich approval UI
+export interface ToolCallPreview {
+  id: string;
+  tool_name: string;
+  integration: string;
+  arguments: Record<string, unknown>;
 }
 
 export interface WorkflowStep {
@@ -61,6 +71,7 @@ export interface WorkflowStep {
   requires_human_approval?: boolean;
   approval_reason?: string;
   preview?: Record<string, unknown>; // Preview content for approval
+  tool_calls?: ToolCallPreview[]; // Tool call data for rich approval UI
   // Structured search results from Tavily
   search_results?: SearchResultData[];
   // Per-step thinking
@@ -364,9 +375,28 @@ export function WorkflowTimeline({
                         <Loader2 className="w-3 h-3 animate-spin text-white/60" />
                       </div>
                     ) : step.status === "awaiting_approval" ? (
-                      <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-amber-500/50 flex items-center justify-center animate-pulse">
-                        <Shield className="w-3 h-3 text-amber-400" />
-                      </div>
+                      (() => {
+                        const integration = step.tool_calls?.[0]?.integration;
+                        if (integration === "gmail") {
+                          return (
+                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
+                              <Image src="/integrations/gmail.svg" alt="Gmail" width={12} height={12} className="object-contain" />
+                            </div>
+                          );
+                        }
+                        if (integration === "google_docs") {
+                          return (
+                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
+                              <Image src="/integrations/google_docs.svg" alt="Google Docs" width={12} height={12} className="object-contain" />
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-amber-500/50 flex items-center justify-center animate-pulse">
+                            <Shield className="w-3 h-3 text-amber-400" />
+                          </div>
+                        );
+                      })()
                     ) : step.status === "failed" ? (
                       <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-red-500/50 flex items-center justify-center">
                         <X className="w-3 h-3 text-red-400" />
@@ -394,8 +424,103 @@ export function WorkflowTimeline({
 
                   {/* Right side - content */}
                   <div className="flex-1 min-w-0">
-                    {/* APPROVAL CARD */}
-                    {step.status === "awaiting_approval" ? (
+                    {/* TOOL-SPECIFIC CARD — for steps with tool_calls (active or completed) */}
+                    {step.tool_calls && step.tool_calls.length > 0 &&
+                     (step.status === "awaiting_approval" || step.status === "in_progress" || step.status === "completed" || step.status === "skipped") ? (
+                      (() => {
+                        const primaryToolCall = step.tool_calls![0];
+                        const integration = primaryToolCall?.integration;
+                        const isCompleted = step.status !== "awaiting_approval";
+
+                        // Gmail → EmailComposer
+                        if (integration === "gmail" && primaryToolCall && (onApprove || isCompleted)) {
+                          return (
+                            <div className="space-y-2">
+                              <EmailComposer
+                                toolCall={primaryToolCall}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={isCompleted}
+                              />
+                              {isCompleted && step.result && (
+                                <p className="text-sm text-white/50 pl-1">{step.result}</p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Google Docs → DocumentEditor
+                        if (integration === "google_docs" && primaryToolCall && (onApprove || isCompleted)) {
+                          return (
+                            <div className="space-y-2">
+                              <DocumentEditor
+                                toolCall={primaryToolCall}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={isCompleted}
+                              />
+                              {isCompleted && step.result && (
+                                <p className="text-sm text-white/50 pl-1">{step.result}</p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Fallback for awaiting_approval without tool-specific UI
+                        if (step.status === "awaiting_approval") {
+                          return (
+                            <div className="rounded-2xl bg-[#1a1a1a] border border-amber-500/30 overflow-hidden">
+                              <div className="px-4 py-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-amber-400" />
+                                    <span className="text-sm font-medium text-amber-300">
+                                      Awaiting Approval
+                                    </span>
+                                  </div>
+                                  {onApprove && (
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          onApprove(step.step_number, "approve")
+                                        }
+                                        className="h-7 px-3 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 bg-transparent"
+                                      >
+                                        Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          onApprove(step.step_number, "skip")
+                                        }
+                                        className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
+                                      >
+                                        Skip
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-sm text-white/60">
+                                  {step.description}
+                                </p>
+                                {step.approval_reason && (
+                                  <p className="text-xs text-amber-400/70 mt-1">
+                                    {step.approval_reason}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Completed steps with unknown tool_calls — don't render card
+                        return null;
+                      })()
+                    ) : step.status === "awaiting_approval" ? (
+                      // Generic approval card (no tool_calls)
                       <div className="rounded-2xl bg-[#1a1a1a] border border-amber-500/30 overflow-hidden">
                         <div className="px-4 py-3">
                           <div className="flex items-center justify-between mb-2">
@@ -415,7 +540,7 @@ export function WorkflowTimeline({
                                   }
                                   className="h-7 px-3 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 bg-transparent"
                                 >
-                                  ✓ Approve
+                                  Approve
                                 </Button>
                                 <Button
                                   size="sm"
@@ -437,28 +562,6 @@ export function WorkflowTimeline({
                             <p className="text-xs text-amber-400/70 mt-1">
                               {step.approval_reason}
                             </p>
-                          )}
-
-                          {/* Content preview */}
-                          {step.preview && (
-                            <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-                              {"title" in step.preview && step.preview.title ? (
-                                <div className="text-sm">
-                                  <span className="text-white/40">Title: </span>
-                                  <span className="text-white/80">
-                                    {String(step.preview.title)}
-                                  </span>
-                                </div>
-                              ) : null}
-                              {"content" in step.preview &&
-                              step.preview.content ? (
-                                <div className="text-sm text-white/60 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                                  {typeof step.preview.content === "string"
-                                    ? step.preview.content
-                                    : JSON.stringify(step.preview.content)}
-                                </div>
-                              ) : null}
-                            </div>
                           )}
                         </div>
                       </div>

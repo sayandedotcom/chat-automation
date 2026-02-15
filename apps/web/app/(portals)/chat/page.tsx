@@ -270,6 +270,12 @@ export default function ChatPage() {
       reason?: string;
       preview?: Record<string, unknown>;
       actions?: string[];
+      tool_calls?: Array<{
+        id: string;
+        tool_name: string;
+        integration: string;
+        arguments: Record<string, unknown>;
+      }>;
     };
     // Integration events
     integrations?: IntegrationInfo[];
@@ -385,7 +391,7 @@ export default function ChatPage() {
 
         if (event.plan?.steps) {
           setSteps((prev) => {
-            // Merge step data, preserving pending_approval status that was set locally
+            // Merge step data, preserving pending_approval status and tool_calls
             return event.plan!.steps.map((s) => {
               const existingStep = prev.find(
                 (p) => p.step_number === s.step_number,
@@ -408,6 +414,8 @@ export default function ChatPage() {
                 thinking: s.thinking || existingStep?.thinking,
                 thinking_duration_ms:
                   s.thinking_duration_ms || existingStep?.thinking_duration_ms,
+                // Preserve tool_calls so collapsed cards persist
+                tool_calls: existingStep?.tool_calls,
               };
             });
           });
@@ -466,6 +474,7 @@ export default function ChatPage() {
                     status: "awaiting_approval" as const,
                     approval_reason: event.interrupt!.reason,
                     preview: event.interrupt!.preview,
+                    tool_calls: event.interrupt!.tool_calls || [],
                   }
                 : step,
             ),
@@ -511,21 +520,28 @@ export default function ChatPage() {
       const data = await response.json();
 
       if (data.plan?.steps) {
-        setSteps(
-          data.plan.steps.map(
+        setSteps((prev) => {
+          const prevByNumber = new Map(
+            prev.map((s) => [s.step_number, s]),
+          );
+          return data.plan.steps.map(
             (s: {
               step_number: number;
               description: string;
               status: string;
               result?: string;
-            }) => ({
-              step_number: s.step_number,
-              description: s.description,
-              status: s.status as WorkflowStep["status"],
-              result: s.result,
-            }),
-          ),
-        );
+            }) => {
+              const existing = prevByNumber.get(s.step_number);
+              return {
+                step_number: s.step_number,
+                description: s.description,
+                status: s.status as WorkflowStep["status"],
+                result: s.result,
+                tool_calls: existing?.tool_calls,
+              };
+            },
+          );
+        });
       }
 
       if (data.is_complete) {
@@ -545,13 +561,13 @@ export default function ChatPage() {
       content?: Record<string, unknown>,
     ) => {
       try {
-        // First update UI optimistically
+        // First update UI optimistically — keep tool_calls for collapsed card view
         setSteps((prev) =>
           prev.map((step) =>
             step.step_number === stepNumber
               ? {
                   ...step,
-                  status: action === "skip" ? "completed" : "in_progress",
+                  status: action === "skip" ? ("skipped" as const) : ("in_progress" as const),
                 }
               : step,
           ),
@@ -576,10 +592,13 @@ export default function ChatPage() {
 
         const data = await response.json();
 
-        // Update steps from response
+        // Update steps from response — merge with existing to preserve tool_calls
         if (data.plan?.steps) {
-          setSteps(
-            data.plan.steps.map(
+          setSteps((prev) => {
+            const prevByNumber = new Map(
+              prev.map((s) => [s.step_number, s]),
+            );
+            return data.plan.steps.map(
               (s: {
                 step_number: number;
                 description: string;
@@ -588,17 +607,22 @@ export default function ChatPage() {
                 tools_used?: string[];
                 requires_human_approval?: boolean;
                 approval_reason?: string;
-              }) => ({
-                step_number: s.step_number,
-                description: s.description,
-                status: s.status as WorkflowStep["status"],
-                result: s.result,
-                tools_used: s.tools_used,
-                requires_human_approval: s.requires_human_approval,
-                approval_reason: s.approval_reason,
-              }),
-            ),
-          );
+              }) => {
+                const existing = prevByNumber.get(s.step_number);
+                return {
+                  step_number: s.step_number,
+                  description: s.description,
+                  status: s.status as WorkflowStep["status"],
+                  result: s.result,
+                  tools_used: s.tools_used,
+                  requires_human_approval: s.requires_human_approval,
+                  approval_reason: s.approval_reason,
+                  // Preserve tool_calls from previous state so collapsed cards persist
+                  tool_calls: existing?.tool_calls,
+                };
+              },
+            );
+          });
         }
 
         if (data.is_complete) {

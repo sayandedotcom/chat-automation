@@ -1097,10 +1097,38 @@ class WorkflowNodes:
                     "approval_decision": None,
                     "_executor_chat": None,
                     "_step_tool_calls": 0,
+                    "_pending_tool_calls_message": None,
                 }
 
             logger.debug(f"Step {current_step.step_number} approved by user")
             current_step.status = "in_progress"
+
+            # Check for pre-generated tool calls (new flow: LLM ran before approval)
+            pending_msg_data = state.get("_pending_tool_calls_message")
+
+            if pending_msg_data:
+                # Replay the pre-generated AIMessage with tool_calls
+                from langchain_core.messages import messages_from_dict
+                ai_message = messages_from_dict([pending_msg_data])[0]
+                executor_chat = state.get("_executor_chat") or []
+
+                if action == "edit":
+                    edited_content = approval_decision.get("content", {})
+                    logger.debug(f"Step {current_step.step_number} content edited by user")
+                    ai_message = self._apply_edited_args(ai_message, edited_content)
+
+                return {
+                    "messages": [ai_message],
+                    "_executor_chat": executor_chat,
+                    "_step_tool_calls": 0,
+                    "plan": plan,
+                    "awaiting_approval": False,
+                    "approval_step_info": None,
+                    "approval_decision": None,
+                    "_pending_tool_calls_message": None,
+                }
+
+            # Fallback: no pending message (legacy flow) - run executor from scratch
             previous_results = self._get_previous_results(plan, current_index, artifacts=step_artifacts)
 
             if action == "edit":
@@ -1124,11 +1152,47 @@ class WorkflowNodes:
                 "awaiting_approval": False,
                 "approval_step_info": None,
                 "approval_decision": None,
+                "_pending_tool_calls_message": None,
             }
 
-        # First time entering - request approval
+        # First time entering - run LLM to generate tool calls for preview, then request approval
         current_step.status = "awaiting_approval"
         logger.debug(f"Approval required for step {current_step.step_number}: {current_step.description}")
+
+        # Run executor LLM to capture tool calls BEFORE approval (for rich UI preview)
+        previous_results = self._get_previous_results(plan, current_index, artifacts=step_artifacts)
+        tool_calls_preview = []
+        pending_message = None
+        executor_chat = None
+
+        try:
+            start_time = time.time()
+            response, executor_chat = await self._start_step_execution(
+                current_step, plan, previous_results, conversation_summary, initial_integrations,
+                artifacts=step_artifacts,
+            )
+            thinking_duration_ms = int((time.time() - start_time) * 1000)
+            current_step.thinking_duration_ms = thinking_duration_ms
+
+            # Extract structured tool_calls for frontend preview
+            if hasattr(response, "tool_calls") and response.tool_calls:
+                for tc in response.tool_calls:
+                    tool_name = tc.get("name", "")
+                    integration = self._resolve_tool_integration(tool_name)
+                    tool_calls_preview.append({
+                        "id": tc.get("id", ""),
+                        "tool_name": tool_name,
+                        "integration": integration,
+                        "arguments": tc.get("args", {}),
+                    })
+
+                # Serialize AIMessage for replay after approval
+                from langchain_core.messages import message_to_dict
+                pending_message = message_to_dict(response)
+
+        except Exception as e:
+            logger.warning(f"Failed to generate preview for step {current_step.step_number}: {e}")
+            # Fallback to generic approval (no tool_calls preview)
 
         return {
             "plan": plan,
@@ -1138,11 +1202,73 @@ class WorkflowNodes:
                 "step_number": current_step.step_number,
                 "description": current_step.description,
                 "reason": current_step.approval_reason,
-                "actions": ["approve", "edit", "skip"]
+                "actions": ["approve", "edit", "skip"],
+                "tool_calls": tool_calls_preview,
             },
-            "_executor_chat": None,
+            "_executor_chat": executor_chat,
             "_step_tool_calls": 0,
+            "_pending_tool_calls_message": pending_message,
         }
+
+    def _resolve_tool_integration(self, tool_name: str) -> str:
+        """Resolve which integration a tool belongs to using the registry."""
+        if self.registry:
+            integration = self.registry.get_integration_for_tool(tool_name)
+            if integration:
+                return integration
+
+        # Fallback: infer from tool name
+        name_lower = tool_name.lower()
+        if "gmail" in name_lower:
+            return "gmail"
+        if "doc" in name_lower:
+            return "google_docs"
+        if "sheet" in name_lower or "spreadsheet" in name_lower:
+            return "google_sheets"
+        if "slide" in name_lower or "presentation" in name_lower:
+            return "google_slides"
+        if "calendar" in name_lower or "event" in name_lower:
+            return "google_calendar"
+        if "drive" in name_lower:
+            return "google_drive"
+        return "unknown"
+
+    def _apply_edited_args(self, ai_message: AIMessage, edited_content: dict) -> AIMessage:
+        """Apply user-edited arguments to an AIMessage's tool_calls.
+
+        Supports two formats:
+        - Structured: {"tool_calls": [{"id": "...", "arguments": {...}}]}
+        - Simplified: {"to": "...", "subject": "...", ...} (applied to first tool call)
+        """
+        if not hasattr(ai_message, "tool_calls") or not ai_message.tool_calls:
+            return ai_message
+
+        new_tool_calls = []
+
+        if "tool_calls" in edited_content:
+            edits_by_id = {tc["id"]: tc["arguments"] for tc in edited_content["tool_calls"]}
+        else:
+            edits_by_id = None
+
+        applied_simplified = False
+        for tc in ai_message.tool_calls:
+            new_tc = dict(tc)
+            if edits_by_id:
+                edited = edits_by_id.get(tc.get("id"))
+                if edited:
+                    new_tc["args"] = {**tc.get("args", {}), **edited}
+            elif not applied_simplified:
+                # Apply simplified format to first tool call only
+                new_tc["args"] = {**tc.get("args", {}), **edited_content}
+                applied_simplified = True
+
+            new_tool_calls.append(new_tc)
+
+        return AIMessage(
+            content=ai_message.content,
+            tool_calls=new_tool_calls,
+            id=ai_message.id,
+        )
 
     def _get_previous_results(self, plan: WorkflowPlan, current_index: int, artifacts: list[dict] = None) -> str:
         """Build context string from previous step results."""

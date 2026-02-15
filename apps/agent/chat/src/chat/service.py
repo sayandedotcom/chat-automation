@@ -227,6 +227,8 @@ class ChatService:
             # Executor tool-loop state
             "_executor_chat": None,
             "_step_tool_calls": 0,
+            # Tool-specific UI: pending AIMessage for approval preview
+            "_pending_tool_calls_message": None,
         }
 
         # Stream the workflow execution with both updates and messages for token-level streaming

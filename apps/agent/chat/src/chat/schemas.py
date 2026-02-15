@@ -132,6 +132,8 @@ class WorkflowState(TypedDict):
     # Executor tool-loop state (enables multi-hop tool calling within a step)
     _executor_chat: Optional[list]  # Executor's scoped conversation for current step
     _step_tool_calls: int  # Tool call count for current step (prevents infinite loops)
+    # Tool-specific UI: serialized AIMessage with tool_calls generated before approval
+    _pending_tool_calls_message: Optional[dict]
 
 
 class GmailCredentialsSyncSchema(BaseModel):
