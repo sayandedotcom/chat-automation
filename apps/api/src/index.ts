@@ -13,7 +13,7 @@ async function main() {
   // CORS configuration (BEFORE auth handler for preflight)
   app.use(
     cors({
-      origin: ["http://localhost:3000"],
+      origin: ["http://localhost:3000", "http://localhost:8080"],
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
       credentials: true,
     }),

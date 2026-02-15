@@ -5,7 +5,7 @@ FROM node:20-alpine AS base
 
 RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
-RUN pnpm add -g turbo@^2
+RUN npm install -g turbo@^2
 
 # ============================================
 # Stage 2: Prune monorepo for web
@@ -25,7 +25,7 @@ COPY --from=pruned /app/out/json/ .
 COPY --from=pruned /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=pruned /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
-RUN pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm install --prefer-offline --ignore-scripts
 
 # ============================================
 # Stage 4: Build
@@ -39,8 +39,14 @@ COPY --from=pruned /app/out/full/ .
 # Generate Prisma client (needed by trpc/database packages)
 RUN pnpm --filter @workspace/database run db:generate
 
-# Build the web app and all its dependencies
-RUN turbo build --filter=web...
+# NEXT_PUBLIC_* vars are inlined at build time by Next.js
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Build the web app directly (Next.js handles TS transpilation of workspace packages)
+RUN pnpm --filter web build
 
 # ============================================
 # Stage 5: Production runner (Next.js standalone)

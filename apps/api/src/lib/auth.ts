@@ -15,5 +15,5 @@ export const auth = betterAuth({
       accessType: "offline",
     },
   },
-  trustedOrigins: ["http://localhost:3000"],
+  trustedOrigins: ["http://localhost:3000", "http://localhost:8080"],
 });
