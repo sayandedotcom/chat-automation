@@ -30,6 +30,7 @@ import { ThinkingIndicator } from "./thinking-indicator";
 import { DocumentPreviewCard } from "./document-preview-card";
 import { EmailComposer } from "./email-composer";
 import { DocumentEditor } from "./document-editor";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 // Thinking event from the backend
 export interface ThinkingEvent {
@@ -112,7 +113,7 @@ interface WorkflowTimelineProps {
 // Derived from config — override web-search icon for dark timeline UI
 const toolIconMap: Record<string, string> = {
   ...configToolIconMap,
-  "web-search": "/integrations/web_search_white.svg",
+  "web-search": "/integrations/web_search.svg",
 };
 
 const toolNameMap: Record<string, string> = {
@@ -272,7 +273,7 @@ export function WorkflowTimeline({
   const lineHeight = visibleSteps.length > 0 ? `calc(100% - 12px)` : "0px";
 
   return (
-    <div className={cn("w-full max-w-3xl mx-auto py-4", className)}>
+    <div className={cn("w-full max-w-5xl mx-auto py-4", className)}>
       {/* Timeline with vertical line */}
       <div className="relative" ref={timelineRef}>
         {/* Animated vertical timeline line */}
@@ -282,13 +283,13 @@ export function WorkflowTimeline({
         />
 
         {/* Timeline items: thinking blocks, status messages, and steps */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Initial thinking from planner */}
           {planThinking && (
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 relative z-10">
                 <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#9b7fdb]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
                 </div>
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
@@ -305,13 +306,13 @@ export function WorkflowTimeline({
           {loadedIntegrations && loadedIntegrations.length > 0 && (
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 relative z-10">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <Check className="w-3 h-3 text-emerald-400" />
+                <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center">
+                  <Check className="w-3 h-3 text-white/80" />
                 </div>
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-emerald-400">
+                  <span className="text-sm text-white/70">
                     Added {loadedIntegrations.length} integration
                     {loadedIntegrations.length !== 1 ? "s" : ""} successfully
                   </span>
@@ -323,7 +324,7 @@ export function WorkflowTimeline({
                         alt={integration.display_name}
                         width={16}
                         height={16}
-                        className="opacity-60"
+                        className="opacity-70"
                       />
                     ))}
                   </div>
@@ -380,20 +381,32 @@ export function WorkflowTimeline({
                         if (integration === "gmail") {
                           return (
                             <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
-                              <Image src="/integrations/gmail.svg" alt="Gmail" width={12} height={12} className="object-contain" />
+                              <Image
+                                src="/integrations/gmail.svg"
+                                alt="Gmail"
+                                width={12}
+                                height={12}
+                                className="object-contain grayscale"
+                              />
                             </div>
                           );
                         }
                         if (integration === "google_docs") {
                           return (
                             <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
-                              <Image src="/integrations/google_docs.svg" alt="Google Docs" width={12} height={12} className="object-contain" />
+                              <Image
+                                src="/integrations/google_docs.svg"
+                                alt="Google Docs"
+                                width={12}
+                                height={12}
+                                className="object-contain grayscale"
+                              />
                             </div>
                           );
                         }
                         return (
-                          <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-amber-500/50 flex items-center justify-center animate-pulse">
-                            <Shield className="w-3 h-3 text-amber-400" />
+                          <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/40 flex items-center justify-center animate-pulse">
+                            <Shield className="w-3 h-3 text-white/70" />
                           </div>
                         );
                       })()
@@ -409,7 +422,7 @@ export function WorkflowTimeline({
                             alt={primaryTool}
                             width={12}
                             height={12}
-                            className="object-contain"
+                            className="object-contain grayscale opacity-70"
                           />
                         ) : (
                           <Check className="w-3 h-3 text-white/50" />
@@ -425,15 +438,23 @@ export function WorkflowTimeline({
                   {/* Right side - content */}
                   <div className="flex-1 min-w-0">
                     {/* TOOL-SPECIFIC CARD — for steps with tool_calls (active or completed) */}
-                    {step.tool_calls && step.tool_calls.length > 0 &&
-                     (step.status === "awaiting_approval" || step.status === "in_progress" || step.status === "completed" || step.status === "skipped") ? (
+                    {step.tool_calls &&
+                    step.tool_calls.length > 0 &&
+                    (step.status === "awaiting_approval" ||
+                      step.status === "in_progress" ||
+                      step.status === "completed" ||
+                      step.status === "skipped") ? (
                       (() => {
                         const primaryToolCall = step.tool_calls![0];
                         const integration = primaryToolCall?.integration;
                         const isCompleted = step.status !== "awaiting_approval";
 
                         // Gmail → EmailComposer
-                        if (integration === "gmail" && primaryToolCall && (onApprove || isCompleted)) {
+                        if (
+                          integration === "gmail" &&
+                          primaryToolCall &&
+                          (onApprove || isCompleted)
+                        ) {
                           return (
                             <div className="space-y-2">
                               <EmailComposer
@@ -443,14 +464,20 @@ export function WorkflowTimeline({
                                 completed={isCompleted}
                               />
                               {isCompleted && step.result && (
-                                <p className="text-sm text-white/50 pl-1">{step.result}</p>
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
                               )}
                             </div>
                           );
                         }
 
                         // Google Docs → DocumentEditor
-                        if (integration === "google_docs" && primaryToolCall && (onApprove || isCompleted)) {
+                        if (
+                          integration === "google_docs" &&
+                          primaryToolCall &&
+                          (onApprove || isCompleted)
+                        ) {
                           return (
                             <div className="space-y-2">
                               <DocumentEditor
@@ -460,7 +487,9 @@ export function WorkflowTimeline({
                                 completed={isCompleted}
                               />
                               {isCompleted && step.result && (
-                                <p className="text-sm text-white/50 pl-1">{step.result}</p>
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
                               )}
                             </div>
                           );
@@ -469,12 +498,12 @@ export function WorkflowTimeline({
                         // Fallback for awaiting_approval without tool-specific UI
                         if (step.status === "awaiting_approval") {
                           return (
-                            <div className="rounded-2xl bg-[#1a1a1a] border border-amber-500/30 overflow-hidden">
+                            <div className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden">
                               <div className="px-4 py-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
-                                    <Shield className="w-4 h-4 text-amber-400" />
-                                    <span className="text-sm font-medium text-amber-300">
+                                    <Shield className="w-4 h-4 text-white/70" />
+                                    <span className="text-sm font-medium text-white/80">
                                       Awaiting Approval
                                     </span>
                                   </div>
@@ -486,7 +515,7 @@ export function WorkflowTimeline({
                                         onClick={() =>
                                           onApprove(step.step_number, "approve")
                                         }
-                                        className="h-7 px-3 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 bg-transparent"
+                                        className="h-7 px-3 text-xs border-white/20 text-white hover:bg-white/10 bg-transparent"
                                       >
                                         Approve
                                       </Button>
@@ -507,7 +536,7 @@ export function WorkflowTimeline({
                                   {step.description}
                                 </p>
                                 {step.approval_reason && (
-                                  <p className="text-xs text-amber-400/70 mt-1">
+                                  <p className="text-xs text-white/40 mt-1">
                                     {step.approval_reason}
                                   </p>
                                 )}
@@ -521,12 +550,12 @@ export function WorkflowTimeline({
                       })()
                     ) : step.status === "awaiting_approval" ? (
                       // Generic approval card (no tool_calls)
-                      <div className="rounded-2xl bg-[#1a1a1a] border border-amber-500/30 overflow-hidden">
+                      <div className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden">
                         <div className="px-4 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <Shield className="w-4 h-4 text-amber-400" />
-                              <span className="text-sm font-medium text-amber-300">
+                              <Shield className="w-4 h-4 text-white/70" />
+                              <span className="text-sm font-medium text-white/80">
                                 Awaiting Approval
                               </span>
                             </div>
@@ -538,7 +567,7 @@ export function WorkflowTimeline({
                                   onClick={() =>
                                     onApprove(step.step_number, "approve")
                                   }
-                                  className="h-7 px-3 text-xs border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 bg-transparent"
+                                  className="h-7 px-3 text-xs border-white/20 text-white hover:bg-white/10 bg-transparent"
                                 >
                                   Approve
                                 </Button>
@@ -559,7 +588,7 @@ export function WorkflowTimeline({
                             {step.description}
                           </p>
                           {step.approval_reason && (
-                            <p className="text-xs text-amber-400/70 mt-1">
+                            <p className="text-xs text-white/40 mt-1">
                               {step.approval_reason}
                             </p>
                           )}
@@ -609,7 +638,7 @@ export function WorkflowTimeline({
                                     alt={primaryTool}
                                     width={14}
                                     height={14}
-                                    className="object-contain"
+                                    className="object-contain grayscale opacity-80"
                                   />
                                 </div>
                               )}
@@ -653,16 +682,14 @@ export function WorkflowTimeline({
                                               results={parsed}
                                             />
                                           ) : (
-                                            <div className="text-sm text-white/70 whitespace-pre-wrap">
-                                              {step.result}
-                                            </div>
+                                            <MarkdownRenderer
+                                              content={step.result}
+                                            />
                                           );
                                         })()
                                       )
                                     ) : (
-                                      <div className="text-sm text-white/70 whitespace-pre-wrap">
-                                        {step.result}
-                                      </div>
+                                      <MarkdownRenderer content={step.result} />
                                     )}
                                   </div>
                                 )}
@@ -685,8 +712,8 @@ export function WorkflowTimeline({
                       /* SIMPLE STATUS LINE (General messages - like image 3) */
                       <div className="space-y-2">
                         <div className="flex items-center gap-3 py-0.5">
-                          {getStatusIcon(primaryTool, step.description)}
-                          <p
+                          {/* {getStatusIcon(primaryTool, step.description)} */}
+                          <div
                             className={cn(
                               "text-sm",
                               step.status === "in_progress" && "text-white/60",
@@ -694,18 +721,15 @@ export function WorkflowTimeline({
                               step.status === "skipped" && "text-white/40",
                             )}
                           >
-                            {step.description}
+                            <span>{step.description}</span>
                             {step.status === "completed" &&
                               step.result &&
                               !isRichCard && (
-                                <span className="text-white/30 ml-1">
-                                  {step.result}
-                                  {/* {step.result.length > 50
-                                    ? ` - ${step.result.substring(0, 50)}...`
-                                    : ` - ${step.result}`} */}
-                                </span>
+                                <div className="mt-2 text-gray-400">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
                               )}
-                          </p>
+                          </div>
                         </div>
                         {/* Per-step thinking */}
                         {step.thinking && (

@@ -8,6 +8,7 @@ import { StarsBackground } from "@workspace/ui/components/stars-background";
 import { ChatGreeting } from "@/components/chat-greeting";
 import { ChatInputWithMentions } from "@/components/chat-input";
 import { WorkflowTimeline, WorkflowStep } from "@/components/workflow-timeline";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -521,9 +522,7 @@ export default function ChatPage() {
 
       if (data.plan?.steps) {
         setSteps((prev) => {
-          const prevByNumber = new Map(
-            prev.map((s) => [s.step_number, s]),
-          );
+          const prevByNumber = new Map(prev.map((s) => [s.step_number, s]));
           return data.plan.steps.map(
             (s: {
               step_number: number;
@@ -567,7 +566,10 @@ export default function ChatPage() {
             step.step_number === stepNumber
               ? {
                   ...step,
-                  status: action === "skip" ? ("skipped" as const) : ("in_progress" as const),
+                  status:
+                    action === "skip"
+                      ? ("skipped" as const)
+                      : ("in_progress" as const),
                 }
               : step,
           ),
@@ -595,9 +597,7 @@ export default function ChatPage() {
         // Update steps from response — merge with existing to preserve tool_calls
         if (data.plan?.steps) {
           setSteps((prev) => {
-            const prevByNumber = new Map(
-              prev.map((s) => [s.step_number, s]),
-            );
+            const prevByNumber = new Map(prev.map((s) => [s.step_number, s]));
             return data.plan.steps.map(
               (s: {
                 step_number: number;
@@ -716,18 +716,16 @@ export default function ChatPage() {
             {/* Scrollable content area - takes remaining space */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto px-4 pt-6 pb-4"
+              className="flex-1 overflow-y-auto px-4 pt-6 pb-4 scroll-smooth"
             >
-              <div className="max-w-3xl mx-auto space-y-6">
+              <div className="max-w-5xl mx-auto space-y-6">
                 {/* Completed previous turns */}
                 {completedTurns.map((turn) => (
                   <div key={turn.id} className="space-y-4">
                     {/* Previous turn: user message bubble */}
                     <div className="flex justify-end">
-                      <div className="bg-[#1f1f1f] rounded-2xl px-4 py-3 max-w-md">
-                        <p className="text-white/90 text-sm">
-                          {turn.userMessage}
-                        </p>
+                      <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
+                        <MarkdownRenderer content={turn.userMessage} />
                       </div>
                     </div>
 
@@ -745,8 +743,8 @@ export default function ChatPage() {
 
                 {/* Current turn: user message bubble */}
                 <div className="flex justify-end">
-                  <div className="bg-[#1f1f1f] rounded-2xl px-4 py-3 max-w-md">
-                    <p className="text-white/90 text-sm">{originalRequest}</p>
+                  <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
+                    <MarkdownRenderer content={originalRequest} />
                   </div>
                 </div>
 
