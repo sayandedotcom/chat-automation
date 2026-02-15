@@ -31,6 +31,19 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-4">
           <SignInButton />
+          <Link href="/auth/sign-in">
+            <Button
+              variant="ghost"
+              className="text-neutral-400 hover:text-white"
+            >
+              Sign In
+            </Button>
+          </Link>
+          <Link href="/auth/sign-up">
+            <Button className="bg-white text-black hover:bg-neutral-200">
+              Sign Up
+            </Button>
+          </Link>
         </div>
       </div>
     </header>
