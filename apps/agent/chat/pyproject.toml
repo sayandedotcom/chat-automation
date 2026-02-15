@@ -12,10 +12,8 @@ dependencies = [
     "langchain>=1.2.0",
     "langchain-mcp-adapters>=0.2.1",
     "langgraph>=1.0.5",
-    "langgraph-checkpoint-postgres>=2.0.0",
     "python-dotenv>=1.2.1",
     "langchain-google-genai>=2.0.0",
-    "psycopg[binary]>=3.0.0",
     "mangum>=0.20.0",
     "rapidfuzz>=3.0.0",
 ]

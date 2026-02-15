@@ -8,9 +8,7 @@ Implements: Plan → Route → Execute (Auto/Approval) → Loop pattern
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import BaseTool
-from typing import List, Optional, TYPE_CHECKING
-from dotenv import load_dotenv
-import os
+from typing import List, TYPE_CHECKING
 
 from chat.schemas import WorkflowState
 from chat.nodes import (
@@ -23,8 +21,6 @@ from chat.nodes import (
 
 if TYPE_CHECKING:
     from chat.integration_registry import IntegrationRegistry
-
-load_dotenv()
 
 
 _checkpointer = None  # Module-level singleton — shared across all DynamicWorkflow instances
@@ -41,23 +37,6 @@ def get_checkpointer():
     if _checkpointer is not None:
         return _checkpointer
 
-    database_url = os.getenv("DATABASE_URL")
-
-    if database_url:
-        try:
-            from langgraph.checkpoint.postgres import PostgresSaver
-            import psycopg
-
-            conn = psycopg.connect(database_url)
-            checkpointer = PostgresSaver(conn)
-            checkpointer.setup()
-            print("✅ Workflow: Using PostgreSQL checkpointer")
-            _checkpointer = checkpointer
-            return _checkpointer
-        except Exception as e:
-            print(f"⚠️ Workflow: Failed to connect to PostgreSQL: {e}")
-
-    print("📝 Workflow: Using MemorySaver")
     _checkpointer = MemorySaver()
     return _checkpointer
 
