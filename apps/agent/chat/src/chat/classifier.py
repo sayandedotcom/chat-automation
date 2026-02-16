@@ -1,70 +1,15 @@
 """
-Integration Classifier — two-phase routing for user requests.
+Integration Classifier — LLM-based routing for user requests.
 
-Phase 1 (instant): Stemmed keyword matching + fuzzy phrase matching
-Phase 2 (fallback): LLM classification for ambiguous / low-confidence cases
+Uses Gemini Flash to classify which integrations are needed for a given request.
 """
 
 import json
 import logging
-import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
-from rapidfuzz import fuzz
-
 logger = logging.getLogger(__name__)
-
-# ──────────────────────────────────────────────
-# Lightweight suffix-stripping stemmer
-# ──────────────────────────────────────────────
-_MAIN_SUFFIXES: list[tuple[str, str, int]] = [
-    # Only inflectional suffixes — derivational ones (-ment, -tion, -ness,
-    # -able, -ful, -ous, -ive, -ally, etc.) are intentionally excluded
-    # because they cause singular/plural stems to diverge:
-    #   stem("document") = "docu"  vs  stem("documents") = "document"
-    # (suffix, replacement, min_stem_length)
-    ("ing", "", 5),  # min_len=5 to avoid stripping nouns like "meeting" (4 chars stem)
-    ("ed", "", 3),
-    ("ly", "", 3),
-    # Note: -er removed because "folder"→"fold" vs "folders"→"folder" diverge
-]
-
-
-def stem(word: str) -> str:
-    """Simple suffix-stripping stemmer for keyword normalisation."""
-    word = word.lower().strip()
-    if len(word) <= 3:
-        return word
-
-    # "ies" -> "y"  (e.g. "puppies" -> "puppy")
-    if word.endswith("ies") and len(word) > 4:
-        return word[:-3] + "y"
-
-    # "ied" -> "y"  (e.g. "replied" -> "reply")
-    if word.endswith("ied") and len(word) > 4:
-        return word[:-3] + "y"
-
-    # "sses" -> "ss"  (e.g. "addresses" -> "address")
-    if word.endswith("sses"):
-        return word[:-2]
-
-    # "es" only after sibilants: s, x, z, sh, ch  (e.g. "boxes" -> "box")
-    if word.endswith("es") and len(word) > 4:
-        pre = word[:-2]
-        if pre.endswith(("s", "x", "z", "sh", "ch")):
-            return pre
-
-    # Main suffix rules
-    for suffix, replacement, min_len in _MAIN_SUFFIXES:
-        if word.endswith(suffix) and len(word) - len(suffix) >= min_len:
-            return word[: -len(suffix)] + replacement
-
-    # Generic plural "s" (last resort, avoids stripping "es" from "file+s")
-    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
-        return word[:-1]
-
-    return word
 
 
 # ──────────────────────────────────────────────
@@ -72,15 +17,11 @@ def stem(word: str) -> str:
 # ──────────────────────────────────────────────
 @dataclass
 class IntegrationIndex:
-    """Pre-computed search index for one integration."""
+    """Metadata for one integration (used in LLM prompt construction)."""
 
     name: str
-    stemmed_keywords: set[str]
-    raw_keywords: set[str]
-    phrases: list[str]
-    regex_patterns: list[re.Pattern]
     description: str
-    identity_keywords: list[str]  # brand names / unique identifiers
+    identity_keywords: list[str]  # brand names / unique identifiers (used by nodes.py)
 
 
 @dataclass
@@ -89,7 +30,7 @@ class ClassificationResult:
 
     integrations: list[str]
     scores: dict[str, float]
-    method: str  # "nlp" | "llm_fallback" | "fallback_default"
+    method: str  # "llm" | "fallback_default"
     confidence: float  # 0.0 – 1.0
 
 
@@ -98,201 +39,41 @@ class ClassificationResult:
 # ──────────────────────────────────────────────
 class IntegrationClassifier:
     """
-    Two-phase integration classifier.
+    LLM-based integration classifier.
 
-    Phase 1 (instant):  stemmed keyword + fuzzy phrase scoring
-    Phase 2 (fallback): Gemini Flash structured classification
+    Uses Gemini Flash to determine which integrations are needed
+    for a given user request.
     """
-
-    # Tunable thresholds
-    HIGH_CONFIDENCE = 0.35  # Phase-1 normalised score above this → included
-    MIN_ABSOLUTE_SCORE = 1.5  # Raw score above this → included (1 exact keyword match)
-    AMBIGUITY_RATIO = 0.8  # Top-2 scores within this ratio → ambiguous
-    MIN_FUZZY_SCORE = 75  # rapidfuzz partial_ratio cut-off (0–100)
-
-    # Identity-keyword competitive suppression
-    IDENTITY_BOOST = 5.0  # Score bonus for identity-matched integrations
-    SUPPRESSED_NORM_THRESHOLD = 0.6  # Non-identity integrations must exceed this normalised score
-    SUPPRESSED_RAW_THRESHOLD = 3.0  # Non-identity integrations must exceed this raw score
 
     def __init__(self) -> None:
         self._indexes: dict[str, IntegrationIndex] = {}
-        self._all_stems: dict[str, list[str]] = {}  # stem → [integration_names]
         self._llm = None  # lazy
         self._initialized = False
 
     # ── index building ────────────────────────
 
     def build_index(self, integrations_config: dict) -> None:
-        """Build search index from the YAML config (called once at startup)."""
+        """Build integration metadata from the YAML config (called once at startup)."""
         self._indexes.clear()
-        self._all_stems.clear()
 
         for name, config in integrations_config.items():
-            raw_keywords = set(config.get("keywords", []))
-
-            # Backward compat: extract keywords from legacy regex patterns
-            if not raw_keywords:
-                raw_keywords = self._extract_keywords_from_patterns(
-                    config.get("request_patterns", [])
-                )
-
-            stemmed = {stem(kw) for kw in raw_keywords}
-
-            for s in stemmed:
-                self._all_stems.setdefault(s, []).append(name)
-
             self._indexes[name] = IntegrationIndex(
                 name=name,
-                stemmed_keywords=stemmed,
-                raw_keywords={kw.lower() for kw in raw_keywords},
-                phrases=config.get("phrases", []),
-                regex_patterns=[
-                    re.compile(p, re.IGNORECASE)
-                    for p in config.get("request_patterns", [])
-                ],
                 description=config.get("description", config.get("display_name", name)),
                 identity_keywords=[kw.lower() for kw in config.get("identity_keywords", [])],
             )
 
         self._initialized = True
-        total_kw = sum(len(idx.stemmed_keywords) for idx in self._indexes.values())
         logger.info(
-            f"Classifier index built: {len(self._indexes)} integrations, {total_kw} stemmed keywords"
+            f"Classifier index built: {len(self._indexes)} integrations"
         )
 
-    @staticmethod
-    def _extract_keywords_from_patterns(patterns: list[str]) -> set[str]:
-        """Pull individual words from regex alternations (backward compat)."""
-        noise = {"is", "are", "was", "were", "for", "in", "about", "the", "and", "or"}
-        keywords: set[str] = set()
-        for pattern in patterns:
-            words = re.findall(r"[a-zA-Z]{2,}", pattern)
-            keywords.update(w.lower() for w in words if w.lower() not in noise)
-        return keywords
-
-    # ── Phase 1: NLP classification ───────────
-
-    def classify(self, request: str) -> ClassificationResult:
-        """Phase 1 — instant NLP-based scoring."""
-        request_lower = request.lower()
-        tokens = re.findall(r"[a-zA-Z]+", request_lower)
-        token_set = set(tokens)
-        stemmed_tokens = {stem(t) for t in tokens}
-
-        scores: dict[str, float] = {}
-
-        for name, index in self._indexes.items():
-            score = 0.0
-
-            # 1. Exact keyword match (strongest signal)
-            exact_matches = index.raw_keywords & token_set
-            score += len(exact_matches) * 1.5
-
-            # 2. Stemmed keyword match (catches morphological variants)
-            stem_matches = index.stemmed_keywords & stemmed_tokens
-            already_counted = {stem(w) for w in exact_matches}
-            new_stem_matches = stem_matches - already_counted
-            score += len(new_stem_matches) * 1.0
-
-            # 3. Legacy regex patterns (backward compat, additive signal)
-            for pattern in index.regex_patterns:
-                if pattern.search(request_lower):
-                    score += 1.0
-                    break
-
-            # 4. Fuzzy phrase matching
-            if index.phrases:
-                best = max(
-                    (fuzz.partial_ratio(phrase.lower(), request_lower) for phrase in index.phrases),
-                    default=0,
-                )
-                if best >= self.MIN_FUZZY_SCORE:
-                    score += (best / 100.0) * 1.5
-
-            if score > 0:
-                scores[name] = score
-
-        # Detect identity keyword matches
-        identity_matches: dict[str, bool] = {}
-        any_identity_found = False
-        for name, index in self._indexes.items():
-            has_identity = any(ik in request_lower for ik in index.identity_keywords)
-            identity_matches[name] = has_identity
-            if has_identity and name in scores:
-                any_identity_found = True
-
-        # Apply identity boost
-        if any_identity_found:
-            for name in scores:
-                if identity_matches.get(name):
-                    scores[name] += self.IDENTITY_BOOST
-
-        # Normalise and select
-        max_score = max(scores.values()) if scores else 0.0
-        if max_score > 0:
-            normalised = {k: v / max_score for k, v in scores.items()}
-        else:
-            normalised = {}
-
-        if any_identity_found:
-            selected = []
-            for name, norm in normalised.items():
-                if identity_matches.get(name):
-                    # Identity-matched: normal thresholds
-                    if norm >= self.HIGH_CONFIDENCE or scores[name] >= self.MIN_ABSOLUTE_SCORE:
-                        selected.append(name)
-                else:
-                    # Non-identity: must pass BOTH stricter thresholds
-                    if norm >= self.SUPPRESSED_NORM_THRESHOLD and scores[name] >= self.SUPPRESSED_RAW_THRESHOLD:
-                        selected.append(name)
-        else:
-            # No identity keywords → normal scoring (unchanged)
-            selected = [
-                name
-                for name, norm in normalised.items()
-                if norm >= self.HIGH_CONFIDENCE or scores[name] >= self.MIN_ABSOLUTE_SCORE
-            ]
-
-        confidence = min(max_score / 5.0, 1.0)
-
-        return ClassificationResult(
-            integrations=selected,
-            scores=scores,
-            method="nlp",
-            confidence=confidence,
-        )
-
-    # ── Phase 2: LLM fallback ────────────────
+    # ── Classification ────────────────────────
 
     async def classify_with_fallback(self, request: str) -> ClassificationResult:
-        """Full two-phase classification (async because Phase 2 needs an LLM call)."""
-        result = self.classify(request)
-
-        needs_fallback = (
-            not result.integrations
-            or result.confidence < 0.3
-            or self._is_ambiguous(result.scores)
-        )
-
-        if not needs_fallback:
-            logger.info(
-                f"Phase 1 classification: {result.integrations} "
-                f"(confidence={result.confidence:.2f})"
-            )
-            return result
-
-        logger.info(
-            f"Phase 1 low confidence ({result.confidence:.2f}), "
-            f"triggering LLM fallback for: {request[:80]!r}"
-        )
-
-        llm_result = await self._llm_classify(request)
-        if llm_result:
-            return llm_result
-
-        # LLM also failed — use Phase 1 result or ultimate default
-        if result.integrations:
+        """Classify which integrations are needed for the request."""
+        result = await self._llm_classify(request)
+        if result:
             return result
 
         return ClassificationResult(
@@ -302,16 +83,8 @@ class IntegrationClassifier:
             confidence=0.1,
         )
 
-    def _is_ambiguous(self, scores: dict[str, float]) -> bool:
-        if len(scores) < 2:
-            return False
-        top2 = sorted(scores.values(), reverse=True)[:2]
-        if top2[0] == 0:
-            return True
-        return top2[1] / top2[0] >= self.AMBIGUITY_RATIO
-
     async def _llm_classify(self, request: str) -> Optional[ClassificationResult]:
-        """Phase 2 — Gemini Flash classification."""
+        """Gemini Flash classification."""
         try:
             if self._llm is None:
                 import os
@@ -358,7 +131,7 @@ class IntegrationClassifier:
                     return ClassificationResult(
                         integrations=valid,
                         scores={i: 1.0 for i in valid},
-                        method="llm_fallback",
+                        method="llm",
                         confidence=0.9,
                     )
         except Exception as e:
