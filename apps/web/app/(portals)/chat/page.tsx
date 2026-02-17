@@ -594,6 +594,20 @@ export default function ChatPage() {
 
         const data = await response.json();
 
+        // Extract tool_calls for a new approval step from the resume response
+        const newApproval = data.approval_step_info as
+          | {
+              step_number: number;
+              tool_calls?: Array<{
+                id: string;
+                tool_name: string;
+                integration: string;
+                arguments: Record<string, unknown>;
+              }>;
+              reason?: string;
+            }
+          | undefined;
+
         // Update steps from response — merge with existing to preserve tool_calls
         if (data.plan?.steps) {
           setSteps((prev) => {
@@ -609,6 +623,9 @@ export default function ChatPage() {
                 approval_reason?: string;
               }) => {
                 const existing = prevByNumber.get(s.step_number);
+                // If this step is the new approval step, apply tool_calls from approval_step_info
+                const isNewApprovalStep =
+                  newApproval && s.step_number === newApproval.step_number;
                 return {
                   step_number: s.step_number,
                   description: s.description,
@@ -617,8 +634,11 @@ export default function ChatPage() {
                   tools_used: s.tools_used,
                   requires_human_approval: s.requires_human_approval,
                   approval_reason: s.approval_reason,
-                  // Preserve tool_calls from previous state so collapsed cards persist
-                  tool_calls: existing?.tool_calls,
+                  // New approval step gets tool_calls from approval_step_info;
+                  // existing steps preserve their tool_calls
+                  tool_calls: isNewApprovalStep
+                    ? newApproval.tool_calls || []
+                    : existing?.tool_calls,
                 };
               },
             );

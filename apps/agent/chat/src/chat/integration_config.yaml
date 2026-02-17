@@ -226,9 +226,13 @@ integrations:
       GOOGLE DOCS: When creating a document, include the desired title in the step
       description. If content comes from a previous step, reference the step number.
     executor_hints: |
-      GOOGLE DOCS: Always report the document URL and ID in your response after
-      creating or modifying a document. For content from web search, synthesize a
-      well-structured document with clear headings and sections.
+      GOOGLE DOCS CONTENT FORMAT: When calling create_doc, modify_doc_text, or insert_doc_elements,
+      the content/text parameter MUST be plain text only. Do NOT use markdown (no **, ##, -, ```).
+      Do NOT use HTML tags. Google Docs renders them as literal characters.
+      Instead: write natural prose, use blank lines between sections, and use the tool's native
+      formatting parameters for headings/bold if available (e.g., insert_doc_elements with
+      proper element types, or update_paragraph_style for headings).
+      Always report the document URL and ID in your response after creating or modifying a document.
 
   google_sheets:
     tool_names:

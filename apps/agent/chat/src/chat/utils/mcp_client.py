@@ -58,7 +58,7 @@ def create_mcp_client(
             "command": "uvx",
             # Use --single-user for simplified authentication flow
             # Credentials are pre-synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
-            "args": ["workspace-mcp", "--single-user", "--tools", "gmail", "drive", "calendar", "docs"],
+            "args": ["workspace-mcp@1.11.1", "--single-user", "--tools", "gmail", "drive", "calendar", "docs", "sheets", "slides"],
             "env": workspace_env,
         }
         print(f"🔐 Google Workspace MCP configured (single-user mode, stdio)")
