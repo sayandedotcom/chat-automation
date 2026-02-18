@@ -157,7 +157,6 @@ class ChatService:
                         "description": step.description,
                         "status": step.status,
                         "result": step.result,
-                        "structured_result": step.structured_result,
                         "error": step.error,
                         "tools_used": step.tools_used,
                         "requires_human_approval": step.requires_human_approval,
@@ -385,7 +384,6 @@ class ChatService:
                                     "status": s.status,
                                     "tools_used": s.tools_used,
                                     "result": s.result,
-                                    "structured_result": s.structured_result,
                                     "error": s.error,
                                     "requires_human_approval": s.requires_human_approval,
                                     "approval_reason": s.approval_reason,
@@ -508,7 +506,6 @@ class ChatService:
                         "description": step.description,
                         "status": step.status,
                         "result": step.result,
-                        "structured_result": step.structured_result,
                         "error": step.error,
                         "tools_used": step.tools_used,
                         "requires_human_approval": step.requires_human_approval,
@@ -609,7 +606,6 @@ class ChatService:
                         "description": step.description,
                         "status": step.status,
                         "result": step.result,
-                        "structured_result": step.structured_result,
                     }
                     for step in updated_plan.steps
                 ],

@@ -30,6 +30,8 @@ import { ThinkingIndicator } from "./thinking-indicator";
 import { DocumentPreviewCard } from "./document-preview-card";
 import { EmailComposer } from "./email-composer";
 import { DocumentEditor } from "./document-editor";
+import { NotionPageEditor } from "./notion-page-editor";
+import { CalendarEventEditor } from "./calendar-event-editor";
 import { MarkdownRenderer } from "./markdown-renderer";
 
 // Thinking event from the backend
@@ -404,6 +406,32 @@ export function WorkflowTimeline({
                             </div>
                           );
                         }
+                        if (integration === "notion") {
+                          return (
+                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
+                              <Image
+                                src="/integrations/notion.svg"
+                                alt="Notion"
+                                width={12}
+                                height={12}
+                                className="object-contain grayscale"
+                              />
+                            </div>
+                          );
+                        }
+                        if (integration === "google_calendar") {
+                          return (
+                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
+                              <Image
+                                src="/integrations/google_calendar.svg"
+                                alt="Google Calendar"
+                                width={12}
+                                height={12}
+                                className="object-contain grayscale"
+                              />
+                            </div>
+                          );
+                        }
                         return (
                           <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/40 flex items-center justify-center animate-pulse">
                             <Shield className="w-3 h-3 text-white/70" />
@@ -481,6 +509,29 @@ export function WorkflowTimeline({
                           return (
                             <div className="space-y-2">
                               <DocumentEditor
+                                toolCall={primaryToolCall}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={isCompleted}
+                              />
+                              {isCompleted && step.result && (
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Notion → NotionPageEditor
+                        if (
+                          integration === "notion" &&
+                          primaryToolCall &&
+                          (onApprove || isCompleted)
+                        ) {
+                          return (
+                            <div className="space-y-2">
+                              <NotionPageEditor
                                 toolCall={primaryToolCall}
                                 stepNumber={step.step_number}
                                 onApprove={onApprove || (() => {})}
