@@ -655,6 +655,7 @@ RULES:
    - Copy URLs and IDs exactly as shown — do NOT invent or guess resource identifiers.
    - NEVER plan a step that asks the user for information available in AVAILABLE ARTIFACTS or conversation context.
    - Be proactive: generate sensible defaults for any missing details based on artifacts and conversation history rather than blocking on the user.
+   - For Google Calendar create_event steps: always plan to call create_event directly — the frontend shows an editable form so the user can fill in missing details (title, time, etc.) before confirming. Never plan a clarification step.
 
 For EACH step, you MUST determine if it requires human approval:
 

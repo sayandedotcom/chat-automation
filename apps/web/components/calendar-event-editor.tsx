@@ -1,24 +1,397 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { z } from "zod";
 import {
   X,
   ChevronDown,
   ChevronUp,
-  ChevronLeft,
-  ChevronRight,
   RotateCcw,
   Check,
   Plus,
   Video,
+  CalendarIcon,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover";
+import { Calendar } from "@workspace/ui/components/calendar";
 import Image from "next/image";
 import type { ToolCallPreview } from "./workflow-timeline";
 
 /* ═══════════════════════════════════════════════════════════
-   Types & helpers
+   Zod schema
+   ═══════════════════════════════════════════════════════════ */
+
+const eventSchema = z
+  .object({
+    summary: z.string().min(1, "Event title is required"),
+    startDt: z.date(),
+    endDt: z.date(),
+    attendees: z.array(z.string()),
+  })
+  .refine((d) => d.endDt > d.startDt, {
+    message: "End time must be after start time",
+    path: ["endDt"],
+  });
+
+type FormErrors = { summary?: string; endDt?: string };
+
+/* ═══════════════════════════════════════════════════════════
+   Natural-language hint parser
+   ═══════════════════════════════════════════════════════════ */
+
+interface CalendarHint {
+  date?: Date;
+  startHour?: number;
+  startMinute?: number;
+  endHour?: number;
+  endMinute?: number;
+  isMeeting?: boolean;
+}
+
+export function parseCalendarHint(text: string): CalendarHint {
+  if (!text) return {};
+  const lower = text.toLowerCase();
+  const result: CalendarHint = {};
+
+  // ── Meeting detection ──────────────────────────────────
+  if (
+    /\b(meeting|sync|standup|stand.?up|video\s*call|team\s*call|catch.?up)\b/.test(
+      lower,
+    )
+  ) {
+    result.isMeeting = true;
+  }
+
+  // ── Month tables ───────────────────────────────────────
+  const MONTH_FULL = [
+    "january","february","march","april","may","june",
+    "july","august","september","october","november","december",
+  ];
+  const MONTH_SHORT = [
+    "jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec",
+  ];
+  function monthIdx(name: string) {
+    const i = MONTH_FULL.indexOf(name);
+    return i !== -1 ? i : MONTH_SHORT.indexOf(name);
+  }
+
+  // ── Date parsing ───────────────────────────────────────
+  let parsedDay: number | undefined;
+  let parsedMonth: number | undefined;
+
+  // "24th february" / "24 feb" / "24 of feb"
+  const dm = lower.match(
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)\b/,
+  );
+  if (dm?.[1] && dm?.[2]) {
+    const d = parseInt(dm[1]);
+    const mi = monthIdx(dm[2]);
+    if (mi !== -1 && d >= 1 && d <= 31) {
+      parsedDay = d;
+      parsedMonth = mi;
+    }
+  }
+
+  // "february 24th" / "feb 24"
+  if (parsedDay === undefined) {
+    const md = lower.match(/\b([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\b/);
+    if (md?.[1] && md?.[2]) {
+      const mi = monthIdx(md[1]);
+      const d = parseInt(md[2]);
+      if (mi !== -1 && d >= 1 && d <= 31) {
+        parsedDay = d;
+        parsedMonth = mi;
+      }
+    }
+  }
+
+  // Relative dates
+  if (parsedDay === undefined) {
+    const WEEKDAYS = [
+      "sunday","monday","tuesday","wednesday","thursday","friday","saturday",
+    ];
+    if (/\btomorrow\b/.test(lower)) {
+      const t = new Date();
+      t.setDate(t.getDate() + 1);
+      parsedDay = t.getDate();
+      parsedMonth = t.getMonth();
+    } else if (/\btoday\b/.test(lower)) {
+      const t = new Date();
+      parsedDay = t.getDate();
+      parsedMonth = t.getMonth();
+    } else {
+      const nd = lower.match(
+        /\bnext\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
+      );
+      if (nd?.[1]) {
+        const target = WEEKDAYS.indexOf(nd[1]);
+        const now = new Date();
+        const diff = ((target - now.getDay() + 7) % 7) || 7;
+        const d = new Date(now);
+        d.setDate(now.getDate() + diff);
+        parsedDay = d.getDate();
+        parsedMonth = d.getMonth();
+      }
+    }
+  }
+
+  if (parsedDay !== undefined && parsedMonth !== undefined) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const candidate = new Date(y, parsedMonth, parsedDay);
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    result.date =
+      candidate < yesterday
+        ? new Date(y + 1, parsedMonth, parsedDay)
+        : candidate;
+  }
+
+  // ── Time range: "2:30 to 4:30 pm", "2-4pm", "10am-12pm" ──
+  const rangeMatch = lower.match(
+    /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-|–)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/,
+  );
+  if (rangeMatch?.[1] && rangeMatch?.[4]) {
+    const [, sh, sm, sp, eh, em, ep] = rangeMatch;
+    let sH = parseInt(sh),
+      sM = parseInt(sm ?? "0");
+    let eH = parseInt(eh),
+      eM = parseInt(em ?? "0");
+
+    if (ep === "pm" && eH !== 12) eH += 12;
+    if (ep === "am" && eH === 12) eH = 0;
+
+    if (sp === "pm" && sH !== 12) sH += 12;
+    else if (sp === "am" && sH === 12) sH = 0;
+    else if (!sp && ep === "pm" && sH < eH && sH !== 12) sH += 12; // infer PM
+
+    result.startHour = sH;
+    result.startMinute = sM;
+    result.endHour = eH;
+    result.endMinute = eM;
+  }
+
+  // ── Single time: "at 2:30 pm", "around 3pm" ───────────
+  if (result.startHour === undefined) {
+    const single = lower.match(
+      /(?:at|around|@)?\s*\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/,
+    );
+    if (single?.[1] && single?.[3]) {
+      let h = parseInt(single[1]);
+      const m = parseInt(single[2] ?? "0");
+      const p = single[3];
+      if (p === "pm" && h !== 12) h += 12;
+      if (p === "am" && h === 12) h = 0;
+      result.startHour = h;
+      result.startMinute = m;
+    } else {
+      // Vague keywords
+      if (/\bmorning\b/.test(lower)) {
+        result.startHour = 9;
+        result.startMinute = 0;
+      } else if (/\bnoon\b/.test(lower)) {
+        result.startHour = 12;
+        result.startMinute = 0;
+      } else if (/\bafternoon\b/.test(lower)) {
+        result.startHour = 14;
+        result.startMinute = 0;
+      } else if (/\bevening\b/.test(lower)) {
+        result.startHour = 18;
+        result.startMinute = 0;
+      }
+    }
+  }
+
+  return result;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════ */
+
+function parseAttendees(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => {
+        if (typeof v === "string") return v;
+        if (v && typeof v === "object" && "email" in v)
+          return String((v as { email: string }).email);
+        return "";
+      })
+      .filter(Boolean);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function parseDateTimeArg(dtObj: unknown): Date {
+  if (!dtObj) return new Date();
+  if (typeof dtObj === "string") return new Date(dtObj);
+  if (
+    typeof dtObj === "object" &&
+    dtObj !== null &&
+    "dateTime" in dtObj
+  ) {
+    return new Date(String((dtObj as { dateTime: string }).dateTime));
+  }
+  return new Date();
+}
+
+function formatDatePill(d: Date): string {
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatTimePill(d: Date): string {
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function setTimeOnDate(d: Date, h: number, m: number): Date {
+  const n = new Date(d);
+  n.setHours(h, m, 0, 0);
+  return n;
+}
+
+/** Round a Date to the nearest 15-minute slot */
+function roundTo15(d: Date): Date {
+  const n = new Date(d);
+  const m = Math.round(n.getMinutes() / 15) * 15;
+  if (m === 60) {
+    n.setHours(n.getHours() + 1, 0, 0, 0);
+  } else {
+    n.setMinutes(m, 0, 0);
+  }
+  return n;
+}
+
+/** "HH:MM" value string from a Date (snapped to nearest 15 min) */
+function toTimeValue(d: Date): string {
+  const snapped = roundTo15(d);
+  return `${snapped.getHours().toString().padStart(2, "0")}:${snapped.getMinutes().toString().padStart(2, "0")}`;
+}
+
+/** Parse "HH:MM" back to { h, m } */
+function fromTimeValue(val: string): { h: number; m: number } {
+  const parts = val.split(":").map(Number);
+  return { h: parts[0] ?? 0, m: parts[1] ?? 0 };
+}
+
+/** Generate 15-min time slots */
+type TimeSlot = { value: string; label: string };
+function generateTimeSlots(): TimeSlot[] {
+  const slots: TimeSlot[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const d = new Date(2000, 0, 1, h, m);
+      slots.push({
+        value: `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`,
+        label: d.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      });
+    }
+  }
+  return slots;
+}
+
+const TIME_SLOTS = generateTimeSlots();
+
+/**
+ * Compute initial start/end dates by merging tool-call args with
+ * a parsed natural-language hint. The hint only applies when the
+ * current args look like synthetic defaults (whole-hour, within 3h).
+ */
+function computeInitialDates(
+  args: Record<string, unknown>,
+  userHint?: string,
+): { start: Date; end: Date } {
+  let start = parseDateTimeArg(args.start);
+  let end = parseDateTimeArg(args.end);
+
+  if (!userHint) return { start, end };
+
+  const hint = parseCalendarHint(userHint);
+
+  // Detect synthetic defaults: whole hour, in the future, within 3h from now
+  const now = new Date();
+  const isSynthetic =
+    start.getMinutes() === 0 &&
+    start.getSeconds() === 0 &&
+    start.getTime() > now.getTime() &&
+    start.getTime() - now.getTime() < 3 * 3_600_000;
+
+  if (!isSynthetic) return { start, end };
+
+  // Apply parsed date
+  if (hint.date) {
+    const y = hint.date.getFullYear();
+    const mo = hint.date.getMonth();
+    const day = hint.date.getDate();
+    start = new Date(y, mo, day, start.getHours(), start.getMinutes(), 0, 0);
+    end = new Date(y, mo, day, end.getHours(), end.getMinutes(), 0, 0);
+  }
+
+  // Apply parsed start time
+  if (hint.startHour !== undefined) {
+    start = new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+      hint.startHour,
+      hint.startMinute ?? 0,
+      0,
+      0,
+    );
+  }
+
+  // Apply parsed end time
+  if (hint.endHour !== undefined) {
+    end = new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+      hint.endHour,
+      hint.endMinute ?? 0,
+      0,
+      0,
+    );
+  } else if (hint.startHour !== undefined) {
+    // Default: end = start + 1 hour
+    end = new Date(start.getTime() + 3_600_000);
+  }
+
+  return { start, end };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Props
    ═══════════════════════════════════════════════════════════ */
 
 interface CalendarEventEditorProps {
@@ -31,272 +404,8 @@ interface CalendarEventEditorProps {
   ) => void;
   completed?: boolean;
   className?: string;
-}
-
-function parseAttendees(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((v) => {
-        if (typeof v === "string") return v;
-        if (v && typeof v === "object" && "email" in v) return String((v as { email: string }).email);
-        return "";
-      })
-      .filter(Boolean);
-  }
-  if (typeof value === "string" && value.trim()) {
-    return value.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
-  }
-  return [];
-}
-
-function parseDateTimeArg(dtObj: unknown): Date {
-  if (!dtObj) return new Date();
-  if (typeof dtObj === "string") return new Date(dtObj);
-  if (typeof dtObj === "object" && dtObj !== null && "dateTime" in dtObj) {
-    return new Date(String((dtObj as { dateTime: string }).dateTime));
-  }
-  return new Date();
-}
-
-function formatDatePill(d: Date): string {
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-}
-
-function formatTimePill(d: Date): string {
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-}
-
-function formatDateInput(d: Date): string {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function sameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function setTime(d: Date, hours: number, minutes: number): Date {
-  const n = new Date(d);
-  n.setHours(hours, minutes, 0, 0);
-  return n;
-}
-
-function setDateKeepTime(base: Date, newDate: Date): Date {
-  const n = new Date(newDate);
-  n.setHours(base.getHours(), base.getMinutes(), 0, 0);
-  return n;
-}
-
-/** Generate 15-min interval time slots */
-function generateTimeSlots(): { label: string; hours: number; minutes: number }[] {
-  const slots: { label: string; hours: number; minutes: number }[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const d = new Date(2000, 0, 1, h, m);
-      slots.push({
-        label: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
-        hours: h,
-        minutes: m,
-      });
-    }
-  }
-  return slots;
-}
-
-const TIME_SLOTS = generateTimeSlots();
-
-/* ═══════════════════════════════════════════════════════════
-   Sub-components: Calendar Picker & Time Dropdown
-   ═══════════════════════════════════════════════════════════ */
-
-function CalendarPicker({
-  selected,
-  onApply,
-  onCancel,
-}: {
-  selected: Date;
-  onApply: (d: Date) => void;
-  onCancel: () => void;
-}) {
-  const [viewing, setViewing] = useState(() => new Date(selected.getFullYear(), selected.getMonth(), 1));
-  const [picked, setPicked] = useState(selected);
-  const today = useMemo(() => new Date(), []);
-
-  const year = viewing.getFullYear();
-  const month = viewing.getMonth();
-  const monthName = viewing.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const prevMonth = () => setViewing(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewing(new Date(year, month + 1, 1));
-  const goToday = () => {
-    setPicked(today);
-    setViewing(new Date(today.getFullYear(), today.getMonth(), 1));
-  };
-
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  return (
-    <div className="w-[296px] bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl shadow-black/50 p-4 select-none">
-      {/* Header nav */}
-      <div className="flex items-center justify-between mb-3">
-        <button onClick={prevMonth} className="p-1 rounded-md hover:bg-white/10 transition-colors">
-          <ChevronLeft className="w-4 h-4 text-white/60" />
-        </button>
-        <span className="text-sm font-medium text-white/90">{monthName}</span>
-        <button onClick={nextMonth} className="p-1 rounded-md hover:bg-white/10 transition-colors">
-          <ChevronRight className="w-4 h-4 text-white/60" />
-        </button>
-      </div>
-
-      {/* Date input + Today */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-sm text-white/70">
-          {formatDateInput(picked)}
-        </div>
-        <button
-          onClick={goToday}
-          className="px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-sm text-white/70 hover:bg-white/10 transition-colors"
-        >
-          Today
-        </button>
-      </div>
-
-      {/* Day headers */}
-      <div className="grid grid-cols-7 mb-1">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <div key={d} className="text-center text-[11px] text-white/30 py-1 font-medium">{d}</div>
-        ))}
-      </div>
-
-      {/* Day grid */}
-      <div className="grid grid-cols-7 gap-y-0.5">
-        {cells.map((day, i) => {
-          if (day === null) return <div key={`e-${i}`} />;
-          const cellDate = new Date(year, month, day);
-          const isSelected = sameDay(cellDate, picked);
-          const isToday = sameDay(cellDate, today);
-
-          return (
-            <button
-              key={day}
-              onClick={() => setPicked(cellDate)}
-              className={cn(
-                "relative w-9 h-9 mx-auto rounded-full flex items-center justify-center text-sm transition-all",
-                isSelected
-                  ? "bg-purple-600 text-white font-medium"
-                  : "text-white/70 hover:bg-white/10",
-              )}
-            >
-              {day}
-              {isToday && !isSelected && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-purple-400" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-white/[0.06]">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          className="h-8 px-4 text-xs bg-transparent border-white/10 text-white/60 hover:bg-white/5"
-        >
-          Cancel
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => onApply(picked)}
-          className="h-8 px-4 text-xs bg-purple-600 hover:bg-purple-700 text-white gap-1.5"
-        >
-          Apply
-          <span className="flex items-center gap-0.5 text-[10px] text-white/50">
-            <span>⌘</span><span>↵</span>
-          </span>
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function TimeDropdown({
-  selected,
-  onSelect,
-  onClose,
-}: {
-  selected: Date;
-  onSelect: (hours: number, minutes: number) => void;
-  onClose: () => void;
-}) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [filter, setFilter] = useState("");
-  const selectedH = selected.getHours();
-  const selectedM = selected.getMinutes();
-
-  const filtered = filter.trim()
-    ? TIME_SLOTS.filter((s) => s.label.toLowerCase().includes(filter.toLowerCase()))
-    : TIME_SLOTS;
-
-  // Scroll to current selection on mount
-  useEffect(() => {
-    if (!listRef.current) return;
-    const idx = TIME_SLOTS.findIndex((s) => s.hours === selectedH && s.minutes === selectedM);
-    if (idx >= 0) {
-      const el = listRef.current.children[idx] as HTMLElement | undefined;
-      el?.scrollIntoView({ block: "center" });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div className="w-[220px] bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden select-none">
-      {/* Search input */}
-      <div className="p-2 border-b border-white/[0.06]">
-        <input
-          autoFocus
-          type="text"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Enter expression: 2pm, in 10 min"
-          className="w-full px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-sm text-white/80 placeholder:text-white/25 outline-none"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onClose();
-          }}
-        />
-      </div>
-
-      {/* Time list */}
-      <div ref={listRef} className="max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent py-1">
-        {filtered.map((slot) => {
-          const isActive = slot.hours === selectedH && slot.minutes === selectedM;
-          return (
-            <button
-              key={`${slot.hours}-${slot.minutes}`}
-              onClick={() => {
-                onSelect(slot.hours, slot.minutes);
-                onClose();
-              }}
-              className={cn(
-                "w-full px-4 py-2 text-left text-sm transition-colors",
-                isActive
-                  ? "bg-white/10 text-white font-medium"
-                  : "text-white/60 hover:bg-white/[0.06] hover:text-white/80",
-              )}
-            >
-              {slot.label}
-            </button>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="px-4 py-3 text-sm text-white/30 text-center">No matching times</div>
-        )}
-      </div>
-    </div>
-  );
+  /** Raw step description — parsed for NL date/time/meeting pre-fill */
+  userHint?: string;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -309,45 +418,55 @@ export function CalendarEventEditor({
   onApprove,
   completed = false,
   className,
+  userHint,
 }: CalendarEventEditorProps) {
   const args = toolCall.arguments;
 
-  // Parse initial values from tool call args
-  const [title, setTitle] = useState(() => String(args.summary ?? args.title ?? ""));
-  const [attendees, setAttendees] = useState<string[]>(() => parseAttendees(args.attendees));
+  // ── Initial values (hint-enhanced) ──────────────────────
+  const { start: initStart, end: initEnd } = computeInitialDates(
+    args,
+    userHint,
+  );
+
+  const initMeet = (() => {
+    if (args.conferenceData !== undefined && args.conferenceData !== null)
+      return true;
+    if (userHint) {
+      const hint = parseCalendarHint(userHint);
+      if (hint.isMeeting) return true;
+    }
+    return false;
+  })();
+
+  // ── State ────────────────────────────────────────────────
+  const [title, setTitle] = useState(
+    () => String(args.summary ?? args.title ?? ""),
+  );
+  const [attendees, setAttendees] = useState<string[]>(() =>
+    parseAttendees(args.attendees),
+  );
   const [attendeeInput, setAttendeeInput] = useState("");
-  const [startDt, setStartDt] = useState(() => parseDateTimeArg(args.start));
-  const [endDt, setEndDt] = useState(() => parseDateTimeArg(args.end));
-  const [description, setDescription] = useState(() => String(args.description ?? ""));
-  const [createMeet, setCreateMeet] = useState(() => {
-    const conf = args.conferenceData;
-    return conf !== undefined && conf !== null;
-  });
+  const [startDt, setStartDt] = useState(() => roundTo15(initStart));
+  const [endDt, setEndDt] = useState(() => roundTo15(initEnd));
+  const [description, setDescription] = useState(
+    () => String(args.description ?? ""),
+  );
+  const [createMeet, setCreateMeet] = useState(initMeet);
 
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
     completed ? "created" : null,
   );
+  const [errors, setErrors] = useState<FormErrors>({});
 
-  // Popup state
-  const [openPopup, setOpenPopup] = useState<
-    null | "startDate" | "endDate" | "startTime" | "endTime"
-  >(null);
-  const popupRef = useRef<HTMLDivElement>(null);
+  // Popover open states for date pickers
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
+
   const descRef = useRef<HTMLTextAreaElement>(null);
 
-  // Close popups on outside click
-  useEffect(() => {
-    if (!openPopup) return;
-    const handler = (e: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setOpenPopup(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [openPopup]);
+  // ── Effects ──────────────────────────────────────────────
 
   useEffect(() => {
     if (completed && !actionTaken) {
@@ -356,7 +475,7 @@ export function CalendarEventEditor({
     }
   }, [completed, actionTaken]);
 
-  // Auto-resize description
+  // Auto-resize description textarea
   useEffect(() => {
     const el = descRef.current;
     if (el) {
@@ -365,11 +484,12 @@ export function CalendarEventEditor({
     }
   }, [description]);
 
+  // ── Dirty check ──────────────────────────────────────────
   const isDirty = useCallback(() => {
     const origTitle = String(args.summary ?? args.title ?? "");
     const origAttendees = parseAttendees(args.attendees);
-    const origStart = parseDateTimeArg(args.start);
-    const origEnd = parseDateTimeArg(args.end);
+    const origStart = roundTo15(parseDateTimeArg(args.start));
+    const origEnd = roundTo15(parseDateTimeArg(args.end));
     const origDesc = String(args.description ?? "");
     if (title !== origTitle) return true;
     if (attendees.join(",") !== origAttendees.join(",")) return true;
@@ -379,8 +499,30 @@ export function CalendarEventEditor({
     return false;
   }, [title, attendees, startDt, endDt, description, args]);
 
+  // ── Actions ──────────────────────────────────────────────
   const handleCreate = useCallback(() => {
     if (isCreating || actionTaken) return;
+
+    // Validate with Zod
+    const validation = eventSchema.safeParse({
+      summary: title,
+      startDt,
+      endDt,
+      attendees,
+    });
+
+    if (!validation.success) {
+      const errs: FormErrors = {};
+      for (const e of validation.error.errors) {
+        const key = String(e.path[0]);
+        if (key === "summary") errs.summary = e.message;
+        if (key === "endDt") errs.endDt = e.message;
+      }
+      setErrors(errs);
+      return;
+    }
+
+    setErrors({});
     setIsCreating(true);
     setActionTaken("created");
     setIsCollapsed(true);
@@ -394,7 +536,9 @@ export function CalendarEventEditor({
         description,
       };
       if (createMeet) {
-        editedArgs.conferenceData = { createRequest: { requestId: crypto.randomUUID() } };
+        editedArgs.conferenceData = {
+          createRequest: { requestId: crypto.randomUUID() },
+        };
       }
       onApprove(stepNumber, "edit", {
         tool_calls: [{ id: toolCall.id, arguments: editedArgs }],
@@ -402,7 +546,20 @@ export function CalendarEventEditor({
     } else {
       onApprove(stepNumber, "approve");
     }
-  }, [title, attendees, startDt, endDt, description, createMeet, isDirty, isCreating, actionTaken, onApprove, stepNumber, toolCall.id]);
+  }, [
+    title,
+    attendees,
+    startDt,
+    endDt,
+    description,
+    createMeet,
+    isDirty,
+    isCreating,
+    actionTaken,
+    onApprove,
+    stepNumber,
+    toolCall.id,
+  ]);
 
   const handleCancel = useCallback(() => {
     if (actionTaken) return;
@@ -411,7 +568,7 @@ export function CalendarEventEditor({
     onApprove(stepNumber, "skip");
   }, [onApprove, stepNumber, actionTaken]);
 
-  // Cmd+Enter
+  // Cmd+Enter to submit
   useEffect(() => {
     if (actionTaken) return;
     const handler = (e: KeyboardEvent) => {
@@ -424,7 +581,7 @@ export function CalendarEventEditor({
     return () => window.removeEventListener("keydown", handler);
   }, [handleCreate, actionTaken]);
 
-  // Chip helpers
+  // ── Attendee chip helpers ─────────────────────────────────
   const addAttendee = (value: string) => {
     const trimmed = value.trim();
     if (trimmed && !attendees.includes(trimmed)) {
@@ -437,7 +594,9 @@ export function CalendarEventEditor({
     setAttendees(attendees.filter((_, i) => i !== index));
   };
 
-  const handleAttendeeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleAttendeeKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
       e.preventDefault();
       addAttendee(attendeeInput);
@@ -449,6 +608,7 @@ export function CalendarEventEditor({
 
   const readonly = !!actionTaken;
 
+  /* ── Render ─────────────────────────────────────────────── */
   return (
     <div
       className={cn(
@@ -465,7 +625,8 @@ export function CalendarEventEditor({
         className={cn(
           "px-4 py-3 flex items-center justify-between",
           !isCollapsed && "border-b border-white/5",
-          actionTaken && "cursor-pointer hover:bg-white/[0.02] transition-colors",
+          actionTaken &&
+            "cursor-pointer hover:bg-white/[0.02] transition-colors",
         )}
         onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}
       >
@@ -479,12 +640,16 @@ export function CalendarEventEditor({
               className="object-contain"
             />
           </div>
-          <span className="text-sm font-medium text-white/90">Create Event</span>
+          <span className="text-sm font-medium text-white/90">
+            Create Event
+          </span>
           {actionTaken && (
             <div
               className={cn(
                 "w-5 h-5 rounded-full flex items-center justify-center",
-                actionTaken === "created" ? "bg-emerald-500/20" : "bg-white/10",
+                actionTaken === "created"
+                  ? "bg-emerald-500/20"
+                  : "bg-white/10",
               )}
             >
               {actionTaken === "created" ? (
@@ -495,25 +660,32 @@ export function CalendarEventEditor({
             </div>
           )}
         </div>
-        {actionTaken ? (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">
-            {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-          </button>
-        ) : (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">
-            <span>Permissions</span>
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">
+          {actionTaken ? (
+            isCollapsed ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronUp className="w-3.5 h-3.5" />
+            )
+          ) : (
+            <>
+              <span>Permissions</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </>
+          )}
+        </button>
       </div>
 
       {/* ── Collapsible content ── */}
       {!isCollapsed && (
         <>
-          <div className="px-5 py-4 space-y-5 max-h-[520px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <div className="px-5 py-4 space-y-5 max-h-[540px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+
             {/* ── Title ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-2 tracking-wide">Title</label>
+              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+                Title
+              </label>
               {readonly ? (
                 <div className="px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/80">
                   {title}
@@ -522,16 +694,27 @@ export function CalendarEventEditor({
                 <input
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (errors.summary) setErrors((p) => ({ ...p, summary: undefined }));
+                  }}
                   placeholder="Event title"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/90 placeholder:text-white/25 outline-none focus:border-white/15 transition-colors"
+                  className={cn(
+                    "w-full px-3.5 py-2.5 rounded-lg bg-white/[0.04] border text-sm text-white/90 placeholder:text-white/25 outline-none focus:border-white/15 transition-colors",
+                    errors.summary ? "border-red-500/50" : "border-white/[0.06]",
+                  )}
                 />
+              )}
+              {errors.summary && (
+                <p className="text-xs text-red-400 mt-1">{errors.summary}</p>
               )}
             </div>
 
             {/* ── Attendees ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-2 tracking-wide">Attendees</label>
+              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+                Attendees
+              </label>
               <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] min-h-[40px]">
                 {attendees.map((email, i) => (
                   <span
@@ -559,8 +742,10 @@ export function CalendarEventEditor({
                       onBlur={() => {
                         if (attendeeInput.trim()) addAttendee(attendeeInput);
                       }}
-                      placeholder={attendees.length === 0 ? "Add attendee..." : ""}
-                      className="bg-transparent text-sm text-white/80 placeholder:text-white/25 outline-none min-w-[100px] flex-1 py-0.5"
+                      placeholder={
+                        attendees.length === 0 ? "Add attendee email..." : ""
+                      }
+                      className="bg-transparent text-sm text-white/80 placeholder:text-white/25 outline-none min-w-[120px] flex-1 py-0.5"
                     />
                     <button
                       onClick={() => {
@@ -575,131 +760,206 @@ export function CalendarEventEditor({
               </div>
             </div>
 
-            {/* ── Time ── */}
+            {/* ── Date & Time ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-2 tracking-wide">Time</label>
-              <div className="flex items-center gap-2 flex-wrap relative">
-                {/* Start date pill */}
-                <div className="relative">
-                  <button
-                    onClick={() => !readonly && setOpenPopup(openPopup === "startDate" ? null : "startDate")}
-                    className={cn(
-                      "px-3 py-2 rounded-lg text-sm transition-colors",
-                      readonly
-                        ? "bg-white/[0.04] border border-white/[0.06] text-white/70 cursor-default"
-                        : "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
-                      openPopup === "startDate" && "border-purple-500/50 bg-white/10",
-                    )}
-                  >
-                    {formatDatePill(startDt)}
-                  </button>
-                  {openPopup === "startDate" && (
-                    <div ref={popupRef} className="absolute top-full left-0 mt-2 z-50">
-                      <CalendarPicker
-                        selected={startDt}
-                        onApply={(d) => {
-                          setStartDt(setDateKeepTime(startDt, d));
-                          // If end is before start, shift end too
-                          if (setDateKeepTime(endDt, d) < setDateKeepTime(startDt, d)) {
-                            setEndDt(setDateKeepTime(endDt, d));
-                          }
-                          setOpenPopup(null);
-                        }}
-                        onCancel={() => setOpenPopup(null)}
-                      />
-                    </div>
-                  )}
-                </div>
+              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+                Date & Time
+              </label>
 
-                {/* Start time pill */}
-                <div className="relative">
-                  <button
-                    onClick={() => !readonly && setOpenPopup(openPopup === "startTime" ? null : "startTime")}
-                    className={cn(
-                      "px-3 py-2 rounded-lg text-sm transition-colors",
-                      readonly
-                        ? "bg-white/[0.04] border border-white/[0.06] text-white/70 cursor-default"
-                        : "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
-                      openPopup === "startTime" && "border-purple-500/50 bg-white/10",
-                    )}
-                  >
-                    {formatTimePill(startDt)}
-                  </button>
-                  {openPopup === "startTime" && (
-                    <div ref={popupRef} className="absolute top-full left-0 mt-2 z-50">
-                      <TimeDropdown
+              {/* Row 1: Start date + Start time */}
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                {/* Start date picker */}
+                {readonly ? (
+                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70 flex items-center gap-1.5">
+                    <CalendarIcon className="w-3.5 h-3.5 text-white/30" />
+                    {formatDatePill(startDt)}
+                  </div>
+                ) : (
+                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          "px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5",
+                          "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
+                          startDateOpen && "border-purple-500/50 bg-white/10",
+                        )}
+                      >
+                        <CalendarIcon className="w-3.5 h-3.5 text-white/40" />
+                        {formatDatePill(startDt)}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 border-white/10 bg-[#1e1e1e]"
+                      align="start"
+                    >
+                      <Calendar
+                        mode="single"
                         selected={startDt}
-                        onSelect={(h, m) => {
-                          setStartDt(setTime(startDt, h, m));
+                        onSelect={(d) => {
+                          if (!d) return;
+                          const updated = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate(),
+                            startDt.getHours(),
+                            startDt.getMinutes(),
+                            0,
+                            0,
+                          );
+                          setStartDt(updated);
+                          // Keep end on same day if it was
+                          const newEnd = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate(),
+                            endDt.getHours(),
+                            endDt.getMinutes(),
+                            0,
+                            0,
+                          );
+                          if (newEnd > updated) setEndDt(newEnd);
+                          setStartDateOpen(false);
                         }}
-                        onClose={() => setOpenPopup(null)}
+                        initialFocus
+                        className="[&_.rdp]:text-white/80"
                       />
-                    </div>
-                  )}
-                </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                {/* Start time select */}
+                {readonly ? (
+                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70">
+                    {formatTimePill(startDt)}
+                  </div>
+                ) : (
+                  <Select
+                    value={toTimeValue(startDt)}
+                    onValueChange={(val) => {
+                      const { h, m } = fromTimeValue(val);
+                      setStartDt(setTimeOnDate(startDt, h, m));
+                      if (errors.endDt)
+                        setErrors((p) => ({ ...p, endDt: undefined }));
+                    }}
+                  >
+                    <SelectTrigger className="w-fit h-auto px-3 py-2 rounded-lg text-sm bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 shadow-none focus:ring-0 focus:ring-offset-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[220px] bg-[#1e1e1e] border-white/10 text-white/80">
+                      {TIME_SLOTS.map((s) => (
+                        <SelectItem
+                          key={s.value}
+                          value={s.value}
+                          className="focus:bg-white/10 focus:text-white/90 text-white/70"
+                        >
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 <span className="text-white/20 text-sm px-0.5">—</span>
 
-                {/* End time pill */}
-                <div className="relative">
-                  <button
-                    onClick={() => !readonly && setOpenPopup(openPopup === "endTime" ? null : "endTime")}
-                    className={cn(
-                      "px-3 py-2 rounded-lg text-sm transition-colors",
-                      readonly
-                        ? "bg-white/[0.04] border border-white/[0.06] text-white/70 cursor-default"
-                        : "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
-                      openPopup === "endTime" && "border-purple-500/50 bg-white/10",
-                    )}
-                  >
+                {/* End time select */}
+                {readonly ? (
+                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70">
                     {formatTimePill(endDt)}
-                  </button>
-                  {openPopup === "endTime" && (
-                    <div ref={popupRef} className="absolute top-full left-0 mt-2 z-50">
-                      <TimeDropdown
-                        selected={endDt}
-                        onSelect={(h, m) => {
-                          setEndDt(setTime(endDt, h, m));
-                        }}
-                        onClose={() => setOpenPopup(null)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* End date pill */}
-                <div className="relative">
-                  <button
-                    onClick={() => !readonly && setOpenPopup(openPopup === "endDate" ? null : "endDate")}
-                    className={cn(
-                      "px-3 py-2 rounded-lg text-sm transition-colors",
-                      readonly
-                        ? "bg-white/[0.04] border border-white/[0.06] text-white/70 cursor-default"
-                        : "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
-                      openPopup === "endDate" && "border-purple-500/50 bg-white/10",
-                    )}
+                  </div>
+                ) : (
+                  <Select
+                    value={toTimeValue(endDt)}
+                    onValueChange={(val) => {
+                      const { h, m } = fromTimeValue(val);
+                      setEndDt(setTimeOnDate(endDt, h, m));
+                      if (errors.endDt)
+                        setErrors((p) => ({ ...p, endDt: undefined }));
+                    }}
                   >
+                    <SelectTrigger className="w-fit h-auto px-3 py-2 rounded-lg text-sm bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 shadow-none focus:ring-0 focus:ring-offset-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[220px] bg-[#1e1e1e] border-white/10 text-white/80">
+                      {TIME_SLOTS.map((s) => (
+                        <SelectItem
+                          key={s.value}
+                          value={s.value}
+                          className="focus:bg-white/10 focus:text-white/90 text-white/70"
+                        >
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* End date picker (shown separately for multi-day) */}
+                {readonly ? (
+                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70 flex items-center gap-1.5">
+                    <CalendarIcon className="w-3.5 h-3.5 text-white/30" />
                     {formatDatePill(endDt)}
-                  </button>
-                  {openPopup === "endDate" && (
-                    <div ref={popupRef} className="absolute top-full right-0 mt-2 z-50">
-                      <CalendarPicker
+                  </div>
+                ) : (
+                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          "px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5",
+                          "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
+                          endDateOpen && "border-purple-500/50 bg-white/10",
+                        )}
+                      >
+                        <CalendarIcon className="w-3.5 h-3.5 text-white/40" />
+                        {formatDatePill(endDt)}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 border-white/10 bg-[#1e1e1e]"
+                      align="start"
+                    >
+                      <Calendar
+                        mode="single"
                         selected={endDt}
-                        onApply={(d) => {
-                          setEndDt(setDateKeepTime(endDt, d));
-                          setOpenPopup(null);
+                        onSelect={(d) => {
+                          if (!d) return;
+                          const updated = new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate(),
+                            endDt.getHours(),
+                            endDt.getMinutes(),
+                            0,
+                            0,
+                          );
+                          setEndDt(updated);
+                          setEndDateOpen(false);
                         }}
-                        onCancel={() => setOpenPopup(null)}
+                        disabled={(d) =>
+                          d <
+                          new Date(
+                            startDt.getFullYear(),
+                            startDt.getMonth(),
+                            startDt.getDate(),
+                          )
+                        }
+                        initialFocus
+                        className="[&_.rdp]:text-white/80"
                       />
-                    </div>
-                  )}
-                </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
+
+              {errors.endDt && (
+                <p className="text-xs text-red-400 mt-1">{errors.endDt}</p>
+              )}
             </div>
 
             {/* ── Description ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-2 tracking-wide">Description</label>
+              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+                Description
+              </label>
               {readonly ? (
                 <div className="px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/60 whitespace-pre-wrap min-h-[60px]">
                   {description || "No description"}
@@ -716,17 +976,20 @@ export function CalendarEventEditor({
               )}
             </div>
 
-            {/* ── Meeting Room / Google Meet toggle ── */}
+            {/* ── Google Meet toggle ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-2 tracking-wide">Meeting Room</label>
+              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+                Meeting Room
+              </label>
               <div className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
                 <div className="flex items-center gap-2.5">
                   <div className="w-6 h-6 rounded bg-blue-500/15 flex items-center justify-center">
                     <Video className="w-3.5 h-3.5 text-blue-400" />
                   </div>
-                  <span className="text-sm text-white/80">Create Google Meet</span>
+                  <span className="text-sm text-white/80">
+                    Create Google Meet
+                  </span>
                 </div>
-                {/* Toggle switch */}
                 <button
                   onClick={() => !readonly && setCreateMeet(!createMeet)}
                   className={cn(

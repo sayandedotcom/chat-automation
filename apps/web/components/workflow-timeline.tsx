@@ -546,6 +546,30 @@ export function WorkflowTimeline({
                           );
                         }
 
+                        // Google Calendar → CalendarEventEditor
+                        if (
+                          integration === "google_calendar" &&
+                          primaryToolCall &&
+                          (onApprove || isCompleted)
+                        ) {
+                          return (
+                            <div className="space-y-2">
+                              <CalendarEventEditor
+                                toolCall={primaryToolCall}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={isCompleted}
+                                userHint={step.description}
+                              />
+                              {isCompleted && step.result && (
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
                         // Fallback for awaiting_approval without tool-specific UI
                         if (step.status === "awaiting_approval") {
                           return (
@@ -600,51 +624,110 @@ export function WorkflowTimeline({
                         return null;
                       })()
                     ) : step.status === "awaiting_approval" ? (
-                      // Generic approval card (no tool_calls)
-                      <div className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden">
-                        <div className="px-4 py-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Shield className="w-4 h-4 text-white/70" />
-                              <span className="text-sm font-medium text-white/80">
-                                Awaiting Approval
-                              </span>
-                            </div>
-                            {onApprove && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    onApprove(step.step_number, "approve")
-                                  }
-                                  className="h-7 px-3 text-xs border-white/20 text-white hover:bg-white/10 bg-transparent"
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    onApprove(step.step_number, "skip")
-                                  }
-                                  className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
-                                >
-                                  Skip
-                                </Button>
+                      // Generic approval card (no tool_calls) — with Google Calendar fallback
+                      (() => {
+                        const descLower = step.description.toLowerCase();
+                        const isCalendarCreate =
+                          (descLower.includes("google calendar") ||
+                            descLower.includes("calendar event") ||
+                            descLower.includes("calendar")) &&
+                          (descLower.includes("create") ||
+                            descLower.includes("add") ||
+                            descLower.includes("schedule") ||
+                            descLower.includes("new event") ||
+                            descLower.includes("invite"));
+
+                        if (isCalendarCreate && onApprove) {
+                          // Extract any email addresses mentioned in the description
+                          const emailMatches =
+                            step.description.match(
+                              /[\w.+%-]+@[\w-]+\.[\w.]+/g,
+                            ) || [];
+
+                          // Default start = next full hour, end = 1h after
+                          const now = new Date();
+                          const defaultStart = new Date(now);
+                          defaultStart.setHours(now.getHours() + 1, 0, 0, 0);
+                          const defaultEnd = new Date(defaultStart);
+                          defaultEnd.setHours(defaultStart.getHours() + 1, 0, 0, 0);
+
+                          const syntheticToolCall: ToolCallPreview = {
+                            id: `synthetic_calendar_${step.step_number}`,
+                            tool_name: "create_event",
+                            integration: "google_calendar",
+                            arguments: {
+                              summary: "New Event",
+                              calendarId: "primary",
+                              start: {
+                                dateTime: defaultStart.toISOString(),
+                              },
+                              end: {
+                                dateTime: defaultEnd.toISOString(),
+                              },
+                              attendees: emailMatches.map((email) => ({
+                                email,
+                              })),
+                            },
+                          };
+
+                          return (
+                            <CalendarEventEditor
+                              toolCall={syntheticToolCall}
+                              stepNumber={step.step_number}
+                              onApprove={onApprove}
+                              userHint={step.description}
+                            />
+                          );
+                        }
+
+                        // Generic fallback
+                        return (
+                          <div className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden">
+                            <div className="px-4 py-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Shield className="w-4 h-4 text-white/70" />
+                                  <span className="text-sm font-medium text-white/80">
+                                    Awaiting Approval
+                                  </span>
+                                </div>
+                                {onApprove && (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        onApprove(step.step_number, "approve")
+                                      }
+                                      className="h-7 px-3 text-xs border-white/20 text-white hover:bg-white/10 bg-transparent"
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        onApprove(step.step_number, "skip")
+                                      }
+                                      className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
+                                    >
+                                      Skip
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
-                            )}
+                              <p className="text-sm text-white/60">
+                                {step.description}
+                              </p>
+                              {step.approval_reason && (
+                                <p className="text-xs text-white/40 mt-1">
+                                  {step.approval_reason}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-sm text-white/60">
-                            {step.description}
-                          </p>
-                          {step.approval_reason && (
-                            <p className="text-xs text-white/40 mt-1">
-                              {step.approval_reason}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                        );
+                      })()
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
                       <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 overflow-hidden">

@@ -412,9 +412,22 @@ integrations:
     request_patterns:
       - '\b(calendar|schedule|meeting|event|appointment|book)\b'
       - '\b(next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b'
-    planner_hints: ""
+    planner_hints: |
+      GOOGLE CALENDAR: When the user wants to create an event, plan a single create_event
+      step. Do NOT add clarification steps for missing details like title or time — the
+      executor will call the tool directly with any available information.
     executor_hints: |
-      GOOGLE CALENDAR: Always report the event link (htmlLink) in your response after
+      GOOGLE CALENDAR — CRITICAL RULE FOR create_event:
+      ALWAYS call the create_event tool immediately, even if title, start time, or end
+      time are not specified. Use these defaults for any missing fields:
+        - summary (title): "New Event"
+        - calendarId: "primary"
+        - start.dateTime: the next full hour from now (e.g. if now is 14:23, use 15:00)
+        - end.dateTime: 1 hour after start
+        - start.timeZone / end.timeZone: "UTC"
+      NEVER respond with a question asking for the event title or time. The user will
+      review and edit all fields in the interactive form shown in the UI before the event
+      is actually created. Always report the event link (htmlLink) in your response after
       creating or modifying an event.
 
   google_drive:
