@@ -3,11 +3,11 @@
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { Search, Check, Loader2 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTRPC } from "@/lib/trpc";
 import { Input } from "@workspace/ui/components/input";
 import { Button } from "@workspace/ui/components/button";
 import { oauthIntegrations, type Integration } from "@/config/integrations";
-
-type ConnectionStatus = Record<string, boolean>;
 
 function IntegrationCard({
   integration,
@@ -95,37 +95,26 @@ function IntegrationCard({
 
 export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
-    {},
-  );
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
     {},
   );
 
-  // Fetch connection status on mount
+  const trpc = useTRPC();
+  const { data: connectionStatus = {}, refetch: refetchStatus } = useQuery(
+    trpc.integrations.status.queryOptions(),
+  );
+  const disconnectMutation = useMutation(
+    trpc.integrations.disconnect.mutationOptions(),
+  );
+
+  // Handle success/error params from OAuth callback
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response = await fetch("/api/auth/status");
-        if (response.ok) {
-          const status = await response.json();
-          setConnectionStatus(status);
-        }
-      } catch (error) {
-        console.error("Failed to fetch connection status:", error);
-      }
-    };
-
-    fetchStatus();
-
-    // Check for success/error params from OAuth callback
     const params = new URLSearchParams(window.location.search);
     const success = params.get("success");
     const error = params.get("error");
 
     if (success) {
-      setConnectionStatus((prev) => ({ ...prev, [success]: true }));
-      // Clean up URL
+      refetchStatus();
       window.history.replaceState({}, "", window.location.pathname);
     }
 
@@ -133,26 +122,20 @@ export default function IntegrationsPage() {
       console.error("OAuth error:", error);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = (integrationId: string) => {
     setLoadingStates((prev) => ({ ...prev, [integrationId]: true }));
-    // Redirect to OAuth flow
-    window.location.href = `/api/auth/${integrationId}`;
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    window.location.href = `${apiUrl}/oauth/${integrationId}`;
   };
 
   const handleDisconnect = async (integrationId: string) => {
     setLoadingStates((prev) => ({ ...prev, [integrationId]: true }));
     try {
-      const response = await fetch("/api/auth/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: integrationId }),
-      });
-
-      if (response.ok) {
-        setConnectionStatus((prev) => ({ ...prev, [integrationId]: false }));
-      }
+      await disconnectMutation.mutateAsync({ provider: integrationId });
+      refetchStatus();
     } catch (error) {
       console.error("Failed to disconnect:", error);
     } finally {

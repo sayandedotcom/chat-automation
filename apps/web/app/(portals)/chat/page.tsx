@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useTRPC } from "@/lib/trpc";
 import { useAuth } from "@/components/auth-provider";
 import { PlanetaryBackground } from "@/components/planetary-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
@@ -51,6 +53,9 @@ interface ConversationTurn {
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const trpc = useTRPC();
+  const retryMutation = useMutation(trpc.chat.retry.mutationOptions());
+  const resumeMutation = useMutation(trpc.chat.resume.mutationOptions());
   const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>("idle");
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
@@ -177,11 +182,14 @@ export default function ChatPage() {
 
       try {
         // Use streaming endpoint for real-time updates
-        const response = await fetch("/api/chat/stream", {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+        const response = await fetch(`${apiUrl}/chat/stream`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
           body: JSON.stringify({
             request,
             thread_id: threadIdRef.current,
@@ -501,24 +509,11 @@ export default function ChatPage() {
     setWorkflowStatus("executing");
     setError(null);
 
-    // Call the retry endpoint
     try {
-      const response = await fetch("/api/chat/retry", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          thread_id: threadIdRef.current,
-          step_number: stepNumber,
-        }),
+      const data = await retryMutation.mutateAsync({
+        thread_id: threadIdRef.current!,
+        step_number: stepNumber,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to retry workflow");
-      }
-
-      const data = await response.json();
 
       if (data.plan?.steps) {
         setSteps((prev) => {
@@ -551,7 +546,7 @@ export default function ChatPage() {
       setError(err instanceof Error ? err.message : "Retry failed");
       setWorkflowStatus("error");
     }
-  }, []);
+  }, [retryMutation]);
 
   const handleApprove = useCallback(
     async (
@@ -575,24 +570,11 @@ export default function ChatPage() {
           ),
         );
 
-        // Call the resume endpoint
-        const response = await fetch("/api/chat/resume", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            thread_id: threadIdRef.current,
-            action,
-            content: action === "edit" ? content : undefined,
-          }),
+        const data = await resumeMutation.mutateAsync({
+          thread_id: threadIdRef.current!,
+          action,
+          content: action === "edit" ? content : undefined,
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to resume workflow");
-        }
-
-        const data = await response.json();
 
         // Extract tool_calls for a new approval step from the resume response
         const newApproval = data.approval_step_info as
@@ -661,7 +643,7 @@ export default function ChatPage() {
         );
       }
     },
-    [],
+    [resumeMutation],
   );
 
   const handleNewWorkflow = useCallback(() => {

@@ -6,6 +6,8 @@ import helmet from "helmet";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import { mountTRPC, setSessionGetter } from "@workspace/trpc/adapters/express";
 import { auth } from "./lib/auth.js";
+import { chatExpressRouter } from "./routes/chat.js";
+import { oauthRouter } from "./routes/oauth.js";
 
 async function main() {
   const app = express();
@@ -64,6 +66,12 @@ async function main() {
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  // SSE chat streaming (plain Express — tRPC cannot stream raw SSE)
+  app.use("/chat", chatExpressRouter);
+
+  // OAuth flows (plain Express — needs HTTP redirects)
+  app.use("/oauth", oauthRouter);
 
   // Mount tRPC on /trpc
   mountTRPC(app);

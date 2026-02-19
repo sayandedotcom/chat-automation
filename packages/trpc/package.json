@@ -25,6 +25,10 @@
     "./adapters/express": {
       "import": "./src/adapters/express.ts",
       "types": "./src/adapters/express.ts"
+    },
+    "./lib/token-utils": {
+      "import": "./src/lib/token-utils.ts",
+      "types": "./src/lib/token-utils.ts"
     }
   },
   "scripts": {
