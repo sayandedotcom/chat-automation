@@ -5,9 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
@@ -22,9 +22,11 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "sst": "3.18.12",
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/aws-lambda": "8.10.160",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
