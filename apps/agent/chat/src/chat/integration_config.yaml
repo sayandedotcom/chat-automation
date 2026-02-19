@@ -295,10 +295,24 @@ integrations:
       - '\b(sheet|spreadsheet|google\s*sheets)\b'
       - '\b(read|write|update|modify)\b.*\b(cell|range|row|column|data)\b'
       - '\b(create)\b.*\b(spreadsheet|sheet)\b'
-    planner_hints: ""
+    planner_hints: |
+      GOOGLE SHEETS: When the task involves creating a spreadsheet AND populating it
+      with data, always combine ALL actions (create, write data, format headers) into
+      a SINGLE step. Never create separate steps for creating, writing, or formatting —
+      do everything in one step so the user sees a single approval card.
     executor_hints: |
-      GOOGLE SHEETS: Always report the spreadsheet URL and ID in your response after
-      creating a spreadsheet.
+      GOOGLE SHEETS: When creating a new spreadsheet that will contain data, you MUST
+      follow ALL of these steps in order within the same execution:
+      1. Call create_spreadsheet with the title (and sheets/headers if the tool supports it).
+      2. Call modify_sheet_values to write the header row as values[0] followed by all data rows.
+      3. ALWAYS call format_sheet_range to format the header row with:
+         - bold: true
+         - backgroundColor: a light green color (e.g. RGB 183/225/205 or similar)
+         - horizontalAlignment: "CENTER"
+         Apply this format to the entire first row (e.g. range "Sheet1!A1:Z1" or scoped to the actual column count).
+      4. Freeze the header row so it stays visible when scrolling (if the tool supports freezeRows).
+      5. Always report the spreadsheet URL and ID in your response.
+      Formatting the header row is MANDATORY — never skip step 3.
 
   google_slides:
     tool_names:

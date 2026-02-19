@@ -1191,6 +1191,38 @@ class WorkflowNodes:
                 from langchain_core.messages import message_to_dict
                 pending_message = message_to_dict(response)
 
+                # ── Enrich google_sheets preview with sheet/column structure ──
+                # create_spreadsheet usually only carries {title}; the headers live
+                # in the follow-up modify_sheet_values call which hasn't run yet.
+                # We run a cheap, tool-free LLM call to fill in the structure so the
+                # user sees real column names in the approval card.
+                for idx, tc_preview in enumerate(tool_calls_preview):
+                    if tc_preview["tool_name"] == "create_spreadsheet":
+                        args = tc_preview.get("arguments", {})
+                        has_columns = (
+                            args.get("sheets") or args.get("headers") or args.get("columns")
+                        )
+                        if not has_columns:
+                            try:
+                                structure = await self._generate_spreadsheet_structure(
+                                    current_step, previous_results
+                                )
+                                # Merge: keep whatever title the LLM already chose,
+                                # only backfill sheets/columns
+                                enriched_args = dict(args)
+                                if "title" not in enriched_args or not enriched_args["title"]:
+                                    enriched_args["title"] = structure.get("title", "")
+                                enriched_args["sheets"] = structure.get("sheets", [])
+                                tool_calls_preview[idx] = {
+                                    **tc_preview,
+                                    "arguments": enriched_args,
+                                }
+                            except Exception as enrich_err:
+                                logger.warning(
+                                    f"Spreadsheet structure enrichment failed: {enrich_err}"
+                                )
+                        break  # only enrich the first create_spreadsheet call
+
         except Exception as e:
             logger.warning(f"Failed to generate preview for step {current_step.step_number}: {e}")
             # Fallback to generic approval (no tool_calls preview)
@@ -1291,6 +1323,62 @@ class WorkflowNodes:
                             previous_results += line + "\n"
 
         return previous_results if previous_results else "None yet - this is the first step."
+
+    async def _generate_spreadsheet_structure(
+        self,
+        step: WorkflowStep,
+        previous_results: str,
+    ) -> dict:
+        """Generate spreadsheet structure (sheets + columns) for the approval preview.
+
+        This is a lightweight, tool-free LLM call whose sole purpose is to tell the
+        frontend what sheets and columns the step will create so the user can see them
+        before approving. The actual execution is unaffected.
+        """
+        prompt = f"""A workflow step will create a Google Spreadsheet. Describe the exact spreadsheet structure it should have.
+
+STEP: {step.description}
+
+PREVIOUS STEPS:
+{previous_results}
+
+Respond with JSON only — no markdown fences, no extra text. Use this schema exactly:
+{{
+  "title": "<spreadsheet title>",
+  "sheets": [
+    {{
+      "name": "<sheet / tab name>",
+      "columns": [
+        {{"name": "<column header>", "type": "<text|number|date|boolean|currency|percentage>"}}
+      ]
+    }}
+  ]
+}}
+
+Rules:
+- Infer the title and columns from the step description and previous research results.
+- Include every column the spreadsheet will contain, with the correct type.
+- Use "text" for string columns, "number" for numeric ones, "currency" for price/cost columns,
+  "date" for date columns, "percentage" for % columns.
+- Typically 1 sheet unless the step explicitly mentions multiple tabs.
+"""
+        response = await self.executor_llm.ainvoke([
+            SystemMessage(content="You are a planning assistant. Respond with valid JSON only."),
+            HumanMessage(content=prompt),
+        ])
+
+        try:
+            content = response.content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+            return json.loads(content.strip())
+        except Exception:
+            return {
+                "title": step.description,
+                "sheets": [{"name": "Sheet1", "columns": []}],
+            }
 
     async def _generate_preview_content(
         self, 

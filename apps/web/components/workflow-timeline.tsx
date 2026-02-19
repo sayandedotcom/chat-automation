@@ -32,6 +32,7 @@ import { EmailComposer } from "./email-composer";
 import { DocumentEditor } from "./document-editor";
 import { NotionPageEditor } from "./notion-page-editor";
 import { CalendarEventEditor } from "./calendar-event-editor";
+import { SheetsEditor } from "./sheets-editor";
 import { MarkdownRenderer } from "./markdown-renderer";
 
 // Thinking event from the backend
@@ -560,6 +561,32 @@ export function WorkflowTimeline({
                                 onApprove={onApprove || (() => {})}
                                 completed={isCompleted}
                                 userHint={step.description}
+                              />
+                              {isCompleted && step.result && (
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Google Sheets → SheetsEditor (only for create_spreadsheet)
+                        if (
+                          integration === "google_sheets" &&
+                          primaryToolCall &&
+                          step.tool_calls!.some(
+                            (tc) => tc.tool_name === "create_spreadsheet",
+                          ) &&
+                          (onApprove || isCompleted)
+                        ) {
+                          return (
+                            <div className="space-y-2">
+                              <SheetsEditor
+                                toolCalls={step.tool_calls!}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={isCompleted}
                               />
                               {isCompleted && step.result && (
                                 <div className="mt-2 text-sm text-gray-300">
