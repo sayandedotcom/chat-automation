@@ -11,12 +11,12 @@ from langchain_core.tools import BaseTool
 from typing import List, TYPE_CHECKING
 
 from chat.schemas import WorkflowState
-from chat.workflow.nodes import (
-    WorkflowNodes,
+from chat.workflow.nodes import WorkflowNodes
+from chat.workflow.routing import (
+    route_after_tools,
     route_to_executor,
     should_continue,
     should_execute_next_step,
-    route_after_tools,
 )
 
 if TYPE_CHECKING:

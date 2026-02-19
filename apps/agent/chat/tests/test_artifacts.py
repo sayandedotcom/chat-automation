@@ -17,14 +17,13 @@ from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from chat.schemas import Artifact
-from chat.workflow.nodes import (
+from chat.workflow.artifacts import (
     extract_artifacts_from_step,
-    build_conversation_summary,
-    format_artifacts_context,
     _find_field_recursive,
     _extract_name_from_data,
     _classify_url_type,
 )
+from chat.workflow.context import build_conversation_summary, format_artifacts_context
 
 
 # ────────────────────────────────────────────────────────────────────────────
