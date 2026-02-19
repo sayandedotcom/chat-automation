@@ -50,11 +50,11 @@ class DynamicWorkflow:
 
     Graph (with multi-hop tool calling):
 
-    ┌─────────┐
-    │  START  │
-    └────┬────┘
-         │
-         ▼
+        ┌─────────┐
+        │  START  │
+        └────┬────┘
+             │
+             ▼
     ┌─────────────────┐
     │     PLANNER     │ ← LLM creates plan with HITL flags
     │ (structured out)│
@@ -74,13 +74,13 @@ class DynamicWorkflow:
 │ EXECUTOR │◄───┐       │ EXECUTOR_WITH_APPROVAL │◄───┐
 │ (auto)   │    │       │ (state-based HITL)     │    │
 └────┬─────┘    │       └───────────┬────────────┘    │
-     │          │                   │                  │
-     │ should_  │                   │ should_          │
-     │ continue │                   │ continue         │
-     ▼          │                   ▼                  │
-┌────────┐     │              ┌────────┐              │
-│ TOOLS  │─────┘              │ TOOLS  │──────────────┘
-└────────┘ route_after_tools  └────────┘ route_after_tools
+     │          │                   │                 │
+     │ should_  │                   │ should_         │
+     │ continue │                   │ continue        │
+     ▼          │                   ▼                 │
+┌────────┐      │              ┌────────┐             │
+│ TOOLS  │──────┘              │ TOOLS  │─────────────┘
+└────────┘ route_after_tools   └────────┘ route_after_tools
      │ (no more tool calls)        │
      ▼                             ▼
     ┌───────────────────┐
