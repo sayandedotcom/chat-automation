@@ -9,6 +9,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import BaseTool
 from typing import Optional
 from dotenv import load_dotenv
+import asyncio
 import os
 
 # Load environment variables
@@ -183,7 +184,7 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
     return tool
 
 
-async def load_mcp_tools(client: MultiServerMCPClient) -> list[BaseTool]:
+async def load_mcp_tools(client: MultiServerMCPClient, retries: int = 3, base_delay: float = 1.0) -> list[BaseTool]:
     """
     Load tools from the MCP client and sanitize their schemas.
     
@@ -201,7 +202,24 @@ async def load_mcp_tools(client: MultiServerMCPClient) -> list[BaseTool]:
 
     try:
         print("Loading MCP tools...")
-        tools = await client.get_tools()
+
+        # MCP servers are spawned as child processes (uvx/npx) and may take a few
+        # seconds to initialize. Retry with exponential backoff to handle transient
+        # startup failures without surfacing an error to the user.
+        last_exc: Exception | None = None
+        for attempt in range(retries):
+            try:
+                tools = await client.get_tools()
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt < retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    print(f"⚠️ MCP connection attempt {attempt + 1}/{retries} failed: {exc}. Retrying in {delay:.1f}s...")
+                    await asyncio.sleep(delay)
+        else:
+            # All retries exhausted — propagate to outer except for uniform handling
+            raise last_exc  # type: ignore[misc]
 
         # Process tools and sanitize schemas for Gemini compatibility
         safe_tools = []
