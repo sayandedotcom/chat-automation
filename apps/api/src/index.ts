@@ -7,7 +7,7 @@ import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import { mountTRPC, setSessionGetter } from "@workspace/trpc/adapters/express";
 import { auth } from "./lib/auth.js";
 import { chatExpressRouter } from "./routes/chat.js";
-import { oauthRouter } from "./routes/oauth.js";
+import { oauthRouter } from "./routes/oauth/index.js";
 
 async function main() {
   const app = express();
