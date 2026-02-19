@@ -13,7 +13,7 @@ import json
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
-from chat.classifier import IntegrationClassifier, ClassificationResult, IntegrationIndex
+from chat.integrations.classifier import IntegrationClassifier, ClassificationResult, IntegrationIndex
 
 
 # ────────────────────────────────────────────────────────────────────────────

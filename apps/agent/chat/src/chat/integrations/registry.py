@@ -73,7 +73,7 @@ class IntegrationRegistry:
         logger.info(f"Loaded {len(self._integrations)} integration configs")
 
         # Build classifier index from the same config
-        from chat.classifier import get_classifier
+        from chat.integrations.classifier import get_classifier
 
         classifier = get_classifier()
         classifier.build_index(integrations_config)
@@ -262,7 +262,7 @@ async def classify_integrations(request: str, registry: IntegrationRegistry) -> 
     Returns:
         List of integration names that should be loaded
     """
-    from chat.classifier import get_classifier
+    from chat.integrations.classifier import get_classifier
 
     classifier = get_classifier()
 

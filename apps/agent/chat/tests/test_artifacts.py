@@ -17,7 +17,7 @@ from unittest.mock import patch, MagicMock
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from chat.schemas import Artifact
-from chat.nodes import (
+from chat.workflow.nodes import (
     extract_artifacts_from_step,
     build_conversation_summary,
     format_artifacts_context,
@@ -635,7 +635,7 @@ class TestHintsLoading:
     """Test IntegrationRegistry.get_hints()."""
 
     def test_get_planner_hints(self):
-        from chat.integration_registry import IntegrationConfig, IntegrationRegistry
+        from chat.integrations.registry import IntegrationConfig, IntegrationRegistry
 
         registry = IntegrationRegistry()
         registry._integrations["gmail"] = IntegrationConfig("gmail", {
@@ -653,7 +653,7 @@ class TestHintsLoading:
         assert "GOOGLE DOCS: Include title in step." in result
 
     def test_get_executor_hints(self):
-        from chat.integration_registry import IntegrationConfig, IntegrationRegistry
+        from chat.integrations.registry import IntegrationConfig, IntegrationRegistry
 
         registry = IntegrationRegistry()
         registry._integrations["gmail"] = IntegrationConfig("gmail", {
@@ -665,14 +665,14 @@ class TestHintsLoading:
         assert "GMAIL: Use send_gmail_message." in result
 
     def test_empty_hints_for_unconfigured(self):
-        from chat.integration_registry import IntegrationRegistry
+        from chat.integrations.registry import IntegrationRegistry
 
         registry = IntegrationRegistry()
         result = registry.get_hints(["nonexistent"], "planner")
         assert result == ""
 
     def test_empty_hints_when_all_blank(self):
-        from chat.integration_registry import IntegrationConfig, IntegrationRegistry
+        from chat.integrations.registry import IntegrationConfig, IntegrationRegistry
 
         registry = IntegrationRegistry()
         registry._integrations["web_search"] = IntegrationConfig("web_search", {

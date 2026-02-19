@@ -11,7 +11,7 @@ from langchain_core.tools import BaseTool
 from typing import List, TYPE_CHECKING
 
 from chat.schemas import WorkflowState
-from chat.nodes import (
+from chat.workflow.nodes import (
     WorkflowNodes,
     route_to_executor,
     should_continue,
@@ -20,7 +20,7 @@ from chat.nodes import (
 )
 
 if TYPE_CHECKING:
-    from chat.integration_registry import IntegrationRegistry
+    from chat.integrations.registry import IntegrationRegistry
 
 
 _checkpointer = None  # Module-level singleton — shared across all DynamicWorkflow instances
@@ -44,10 +44,10 @@ def get_checkpointer():
 class DynamicWorkflow:
     """
     Dynamic workflow with LLM-driven Human-in-the-Loop.
-    
+
     The LLM decides during planning which steps need human approval.
     Steps are routed to the appropriate executor based on this classification.
-    
+
     Graph (with multi-hop tool calling):
 
     ┌─────────┐
@@ -100,7 +100,7 @@ class DynamicWorkflow:
                    │ END │
                    └─────┘
     """
-    
+
     def __init__(
         self,
         tools: List[BaseTool] = None,
@@ -143,7 +143,7 @@ class DynamicWorkflow:
             workflow.add_edge("smart_router", "planner")
         else:
             workflow.add_edge(START, "planner")
-        
+
         # PLANNER -> ROUTE_EXECUTOR (conditional based on LLM's HITL classification)
         workflow.add_conditional_edges(
             "planner",
@@ -154,7 +154,7 @@ class DynamicWorkflow:
                 "end": END,
             }
         )
-        
+
         # EXECUTOR (auto) can either call tools or complete the step
         if self.tools:
             workflow.add_conditional_edges(
@@ -167,7 +167,7 @@ class DynamicWorkflow:
             )
         else:
             workflow.add_edge("executor", "step_complete")
-        
+
         # EXECUTOR_WITH_APPROVAL can call tools, complete step, or end (for approval)
         if self.tools:
             workflow.add_conditional_edges(
@@ -181,7 +181,7 @@ class DynamicWorkflow:
             )
         else:
             workflow.add_edge("executor_with_approval", "step_complete")
-        
+
         # After tools, route BACK to executor for multi-hop tool calling.
         # The executor sees tool results and decides: more tool calls or finish.
         if self.tools:
@@ -193,7 +193,7 @@ class DynamicWorkflow:
                     "executor_with_approval": "executor_with_approval",
                 }
             )
-        
+
         # After step complete, either continue to next step or end
         # We use route_to_executor again for proper HITL routing on next step
         workflow.add_conditional_edges(
@@ -201,11 +201,11 @@ class DynamicWorkflow:
             should_execute_next_step,
             {
                 "executor": "executor",
-                "executor_with_approval": "executor_with_approval", 
+                "executor_with_approval": "executor_with_approval",
                 "end": END,
             }
         )
-        
+
         return workflow.compile(checkpointer=self.checkpointer)
 
     def get_app(self):
@@ -215,4 +215,3 @@ class DynamicWorkflow:
     def get_checkpointer(self):
         """Get the checkpointer."""
         return self.checkpointer
-

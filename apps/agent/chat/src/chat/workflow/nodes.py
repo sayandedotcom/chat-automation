@@ -27,9 +27,10 @@ from chat.schemas import (
     IntegrationInfo,
     Artifact,
 )
+from chat.workflow.prompts import PLANNER_SYSTEM_PROMPT, EXECUTOR_SYSTEM_PROMPT
 
 if TYPE_CHECKING:
-    from chat.integration_registry import IntegrationRegistry
+    from chat.integrations.registry import IntegrationRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +76,13 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
     Tavily MCP returns JSON with 'results' array containing title, url, content, etc.
     """
     search_results = []
-    
+
     for msg in reversed(messages):
         if isinstance(msg, ToolMessage):
             content = msg.content
             if not content:
                 continue
-            
+
             try:
                 if isinstance(content, str):
                     if "```json" in content:
@@ -95,13 +96,13 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
                     data = content
                 else:
                     continue
-                
+
                 results = None
                 if isinstance(data, dict) and "results" in data:
                     results = data["results"]
                 elif isinstance(data, list):
                     results = data
-                
+
                 if results and isinstance(results, list):
                     for item in results[:10]:
                         if isinstance(item, dict) and "url" in item:
@@ -113,7 +114,7 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
                                 domain = parsed.netloc.replace("www.", "")
                             except:
                                 domain = url.split("/")[2] if len(url.split("/")) > 2 else ""
-                            
+
                             search_results.append(SearchResultItem(
                                 title=item.get("title", domain),
                                 url=url,
@@ -121,13 +122,13 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
                                 favicon=f"https://www.google.com/s2/favicons?domain={domain}&sz=32",
                                 date=item.get("published_date") or item.get("date"),
                             ))
-                    
+
                     if search_results:
                         return search_results
-                        
+
             except (json.JSONDecodeError, KeyError, TypeError):
                 continue
-    
+
     return None if not search_results else search_results
 
 
@@ -635,76 +636,6 @@ def format_artifacts_context(artifacts: List[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-# -------------------
-# Prompts
-# -------------------
-PLANNER_SYSTEM_PROMPT = """You are a workflow planner. Analyze the user's request and create a step-by-step execution plan.
-{conversation_context}
-{integration_context}
-{artifacts_context}
-{integration_hints}
-RULES:
-1. Each step should be a single, atomic action
-2. Steps should be in correct execution order (dependencies first)
-3. Be specific about what tools/actions each step requires
-4. Keep steps concise but clear
-5. ARTIFACT RESOLUTION: When the user refers to "it", "that", "the document", "send it", "mail this", etc.:
-   - Check AVAILABLE ARTIFACTS above and embed the exact URL/ID directly into step descriptions.
-   - If the most recent turn FAILED, look at EARLIER successful turns for the artifact.
-   - Use the [SUCCESS]/[FAILED] markers in conversation history to identify what the user means.
-   - Copy URLs and IDs exactly as shown — do NOT invent or guess resource identifiers.
-   - NEVER plan a step that asks the user for information available in AVAILABLE ARTIFACTS or conversation context.
-   - Be proactive: generate sensible defaults for any missing details based on artifacts and conversation history rather than blocking on the user.
-   - For Google Calendar create_event steps: always plan to call create_event directly — the frontend shows an editable form so the user can fill in missing details (title, time, etc.) before confirming. Never plan a clarification step.
-
-For EACH step, you MUST determine if it requires human approval:
-
-**REQUIRES HUMAN APPROVAL (requires_human_approval: true):**
-- Creating documents, pages, files, or records
-- Sending emails, messages, or notifications
-- Updating, editing, or modifying existing content
-- Deleting or archiving anything
-- Publishing or sharing content
-- Any action that has external side effects
-
-**DOES NOT REQUIRE APPROVAL (requires_human_approval: false):**
-- Searching or researching information
-- Reading documents, emails, or messages
-- Listing or fetching data
-- Analyzing or summarizing content
-- Any read-only operation
-
-Be thoughtful about your approval decisions - only require approval when the action has real-world consequences.
-"""
-
-EXECUTOR_SYSTEM_PROMPT = """You are a workflow executor. Execute the specific step given to you.
-{conversation_context}
-{integration_context}
-{artifacts_context}
-{integration_hints}
-CURRENT STEP: {current_step}
-STEP {step_number} OF {total_steps}
-
-PREVIOUS STEPS COMPLETED:
-{previous_results}
-
-YOUR TASK:
-Execute ONLY this step using the available tools. Be thorough but focused on just this step.
-If the step references items from previous conversation turns (e.g., a document URL, an email address), use the conversation context above.
-
-CRITICAL — RESOURCE ID HANDLING:
-- NEVER manually copy document IDs or URLs from text. Long alphanumeric IDs are easily corrupted during copying.
-- ALWAYS use the exact ID or URL from "EXACT RESOURCE IDs" annotations in PREVIOUS STEPS or from the AVAILABLE ARTIFACTS section above.
-- These are extracted directly from tool responses and are guaranteed correct.
-- Do NOT ask the user for information available in artifacts.
-
-After completing the step:
-1. Report what you accomplished
-2. Include any relevant outputs (links, IDs, document titles) that might be needed for later steps
-3. For web searches, include the source URLs
-"""
-
-
 class WorkflowNodes:
     """Nodes for the dynamic workflow graph with LLM-driven HITL."""
 
@@ -730,7 +661,7 @@ class WorkflowNodes:
         Route request to appropriate integrations using pattern matching.
         This node runs BEFORE the planner and binds only needed tools.
         """
-        from chat.integration_registry import classify_integrations
+        from chat.integrations.registry import classify_integrations
 
         messages = state["messages"]
 
@@ -763,7 +694,7 @@ class WorkflowNodes:
         #   integration name, or artifact name) to avoid loading unnecessary tools.
         artifacts = state.get("artifacts", [])
         if artifacts:
-            from chat.classifier import get_classifier
+            from chat.integrations.classifier import get_classifier
 
             classifier = get_classifier()
             request_lower = user_request.lower()
@@ -905,7 +836,7 @@ class WorkflowNodes:
             SystemMessage(content=system_prompt),
             HumanMessage(content=f"Create a plan for: {user_request}")
         ])
-        
+
         logger.debug(f"Plan created: {len(plan_output.steps)} steps, thinking: {plan_output.thinking[:100]}...")
 
         # Convert PlannedStep to WorkflowStep
@@ -926,7 +857,7 @@ class WorkflowNodes:
             thinking=plan_output.thinking,  # Store the LLM's reasoning
             steps=workflow_steps,
         )
-        
+
         # Create a message showing the plan
         plan_message = f"📋 **Workflow Plan Created**\n\n"
         plan_message += f"Original request: {user_request}\n\n"
@@ -935,7 +866,7 @@ class WorkflowNodes:
             approval_icon = "🔐" if step.requires_human_approval else "✅"
             plan_message += f"{step.step_number}. {approval_icon} {step.description}\n"
         plan_message += "\n---\nStarting execution...\n"
-        
+
         return {
             "messages": [AIMessage(content=plan_message)],
             "plan": plan,
@@ -1381,8 +1312,8 @@ Rules:
             }
 
     async def _generate_preview_content(
-        self, 
-        step: WorkflowStep, 
+        self,
+        step: WorkflowStep,
         previous_results: str,
         total_steps: int
     ) -> dict:
@@ -1410,7 +1341,7 @@ Respond with JSON only.
             SystemMessage(content="You generate content previews for user approval."),
             HumanMessage(content=prompt)
         ])
-        
+
         try:
             content = response.content
             if "```json" in content:
@@ -1511,10 +1442,10 @@ Respond with JSON only.
         plan = state["plan"]
         current_index = state["current_step_index"]
         messages = state["messages"]
-        
+
         if not plan or current_index >= len(plan.steps):
             return {}
-        
+
         # Get the last AI message as the result
         last_message = ""
         for msg in reversed(messages):
@@ -1530,7 +1461,7 @@ Respond with JSON only.
                 else:
                     last_message = str(msg.content)
                 break
-        
+
         # Update current step
         current_step = plan.steps[current_index]
         current_step.status = "completed"
@@ -1611,12 +1542,12 @@ def route_to_executor(state: WorkflowState) -> Literal["executor", "executor_wit
     """
     plan = state.get("plan")
     current_index = state.get("current_step_index", 0)
-    
+
     if not plan or current_index >= len(plan.steps):
         return "end"
-    
+
     current_step = plan.steps[current_index]
-    
+
     if current_step.requires_human_approval:
         return "executor_with_approval"
 
@@ -1630,13 +1561,13 @@ def should_continue(state: WorkflowState) -> Literal["tools", "step_complete", "
     # If awaiting approval, end the graph (streaming code will detect and send approval event)
     if state.get("awaiting_approval"):
         return "end"
-    
+
     messages = state["messages"]
     if not messages:
         return "step_complete"
-    
+
     last_message = messages[-1]
-    
+
     # Check if the last message has tool calls
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         # Per-step tool call limit to prevent infinite loops
@@ -1647,7 +1578,7 @@ def should_continue(state: WorkflowState) -> Literal["tools", "step_complete", "
             return "step_complete"
 
         return "tools"
-    
+
     return "step_complete"
 
 
@@ -1674,13 +1605,13 @@ def should_execute_next_step(state: WorkflowState) -> Literal["executor", "execu
     """
     plan = state.get("plan")
     current_index = state.get("current_step_index", 0)
-    
+
     if not plan or plan.is_complete:
         return "end"
-    
+
     if current_index >= len(plan.steps):
         return "end"
-    
+
     # Route based on next step's requires_human_approval
     next_step = plan.steps[current_index]
     if next_step.requires_human_approval:

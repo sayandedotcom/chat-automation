@@ -15,9 +15,9 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from langchain_core.messages import HumanMessage
 
-from chat.nodes import WorkflowNodes
+from chat.workflow.nodes import WorkflowNodes
 from chat.schemas import WorkflowPlan, WorkflowStep
-from chat.integration_registry import IntegrationConfig
+from chat.integrations.registry import IntegrationConfig
 
 
 # Identity keywords used in integration_config.yaml (subset needed for tests)
@@ -87,11 +87,11 @@ def _make_nodes(registry: MagicMock) -> WorkflowNodes:
 
 
 @pytest.mark.asyncio
-@patch("chat.nodes.ToolNode", MagicMock)
+@patch("chat.workflow.nodes.ToolNode", MagicMock)
 class TestSmartRouterArtifactInjection:
     """Test that smart_router_node injects integrations from prior-turn artifacts."""
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_no_artifacts_unchanged(self, mock_classify):
         """No artifacts → classifier output passed through unchanged."""
         mock_classify.return_value = ["notion"]
@@ -103,8 +103,8 @@ class TestSmartRouterArtifactInjection:
         registry.get_toolset.assert_called_once_with(["notion"])
         assert result["initial_integrations"] == ["notion"]
 
-    @patch("chat.classifier.get_classifier")
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.classifier.get_classifier")
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_artifact_injected_when_referenced_by_identity_keyword(self, mock_classify, mock_get_classifier):
         """Artifact integration injected when request contains its identity keyword."""
         mock_classify.return_value = ["notion"]
@@ -120,8 +120,8 @@ class TestSmartRouterArtifactInjection:
         assert "notion" in call_args
         assert "google_docs" in call_args
 
-    @patch("chat.classifier.get_classifier")
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.classifier.get_classifier")
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_artifact_not_injected_when_not_referenced(self, mock_classify, mock_get_classifier):
         """Artifact integration NOT injected when request doesn't reference it."""
         mock_classify.return_value = ["notion"]
@@ -137,7 +137,7 @@ class TestSmartRouterArtifactInjection:
         assert "notion" in call_args
         assert "google_docs" not in call_args
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_no_duplicate_if_already_classified(self, mock_classify):
         """If classifier already selected google_docs, artifact injection doesn't duplicate it."""
         mock_classify.return_value = ["google_docs", "notion"]
@@ -150,7 +150,7 @@ class TestSmartRouterArtifactInjection:
         call_args = registry.get_toolset.call_args[0][0]
         assert call_args.count("google_docs") == 1
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_unknown_integration_filtered_out(self, mock_classify):
         """Artifact with unknown integration name is silently ignored."""
         mock_classify.return_value = ["notion"]
@@ -164,8 +164,8 @@ class TestSmartRouterArtifactInjection:
         assert "unknown_service" not in call_args
         assert call_args == ["notion"]
 
-    @patch("chat.classifier.get_classifier")
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.classifier.get_classifier")
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_only_referenced_artifacts_injected(self, mock_classify, mock_get_classifier):
         """When multiple artifact integrations exist, only referenced ones are injected."""
         mock_classify.return_value = ["gmail"]
@@ -187,8 +187,8 @@ class TestSmartRouterArtifactInjection:
         assert "notion" in call_args
         assert "google_docs" not in call_args
 
-    @patch("chat.classifier.get_classifier")
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.classifier.get_classifier")
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_artifact_injected_by_name_match(self, mock_classify, mock_get_classifier):
         """Artifact injected when its name appears in the request."""
         mock_classify.return_value = ["gmail"]
@@ -206,7 +206,7 @@ class TestSmartRouterArtifactInjection:
         assert "gmail" in call_args
         assert "google_docs" in call_args
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_none_integration_ignored(self, mock_classify):
         """Artifact with None or missing integration field is safely skipped."""
         mock_classify.return_value = ["notion"]
@@ -222,7 +222,7 @@ class TestSmartRouterArtifactInjection:
         call_args = registry.get_toolset.call_args[0][0]
         assert call_args == ["notion"]
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_continuation_keyword_injects_all_artifacts(self, mock_classify):
         """'similar' keyword triggers injection of ALL artifact integrations."""
         mock_classify.return_value = ["notion"]
@@ -238,7 +238,7 @@ class TestSmartRouterArtifactInjection:
         assert "notion" in call_args
         assert "google_docs" in call_args
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_continuation_keyword_same(self, mock_classify):
         """'same' keyword triggers injection of artifact integrations."""
         mock_classify.return_value = ["notion"]
@@ -253,7 +253,7 @@ class TestSmartRouterArtifactInjection:
         call_args = registry.get_toolset.call_args[0][0]
         assert "google_docs" in call_args
 
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_continuation_keyword_based_on(self, mock_classify):
         """'based on' keyword triggers injection of artifact integrations."""
         mock_classify.return_value = ["notion"]
@@ -268,8 +268,8 @@ class TestSmartRouterArtifactInjection:
         call_args = registry.get_toolset.call_args[0][0]
         assert "google_docs" in call_args
 
-    @patch("chat.classifier.get_classifier")
-    @patch("chat.integration_registry.classify_integrations", new_callable=AsyncMock)
+    @patch("chat.integrations.classifier.get_classifier")
+    @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
     async def test_no_continuation_keyword_no_blanket_injection(self, mock_classify, mock_get_classifier):
         """Without continuation keywords, non-referenced artifacts are NOT injected."""
         mock_classify.return_value = ["gmail"]
@@ -308,7 +308,7 @@ def _make_plan_with_completed_steps(n_steps: int, results: dict[int, str] | None
     return WorkflowPlan(original_request="test request", steps=steps)
 
 
-@patch("chat.nodes.ToolNode", MagicMock)
+@patch("chat.workflow.nodes.ToolNode", MagicMock)
 class TestGetPreviousResultsArtifactEnrichment:
     """Test that _get_previous_results appends EXACT RESOURCE IDs from artifacts."""
 

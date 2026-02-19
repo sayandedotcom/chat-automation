@@ -10,10 +10,10 @@ from typing import Optional, AsyncGenerator
 import uuid
 import logging
 
-from chat.graph import DynamicWorkflow
+from chat.workflow.graph import DynamicWorkflow
 from chat.schemas import WorkflowState, WorkflowPlan
 from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
-from chat.integration_registry import IntegrationRegistry, get_registry, get_registry_sync
+from chat.integrations.registry import IntegrationRegistry, get_registry, get_registry_sync
 
 logger = logging.getLogger(__name__)
 

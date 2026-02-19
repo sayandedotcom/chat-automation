@@ -39,7 +39,7 @@ def test_config():
 @pytest.fixture
 def classifier(test_config):
     """Initialized classifier with test config."""
-    from chat.classifier import IntegrationClassifier
+    from chat.integrations.classifier import IntegrationClassifier
 
     clf = IntegrationClassifier()
     clf.build_index(test_config)
