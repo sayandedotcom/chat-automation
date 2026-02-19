@@ -2,15 +2,15 @@
 
 import * as React from "react";
 import {
-  Bot,
   GitBranch,
   MessageSquarePlus,
-  MessagesSquare,
   Puzzle,
   Search,
   Settings,
   ShoppingBag,
   Sparkles,
+  SquarePen,
+  WandSparkles,
 } from "lucide-react";
 
 import { NavChats } from "@/components/nav-chats";
@@ -56,7 +56,7 @@ const navItems = [
   {
     title: "Skills",
     url: "/skills",
-    icon: Bot,
+    icon: WandSparkles,
   },
   {
     title: "Marketplace",
@@ -94,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 asChild
               >
                 <a href="/chat">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-violet-600 text-white">
                     <Sparkles className="size-4" />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">

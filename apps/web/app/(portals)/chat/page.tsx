@@ -700,16 +700,16 @@ export default function ChatPage() {
     }
     // Show planetary background when idle
     return (
-      <PlanetaryBackground
-        backgroundContent={
-          <>
-            <ShootingStars />
-            <StarsBackground />
-          </>
-        }
-      >
-        {children}
-      </PlanetaryBackground>
+      // <PlanetaryBackground
+      //   backgroundContent={
+      //     <>
+      //       <ShootingStars />
+      //       <StarsBackground />
+      //     </>
+      //   }
+      // >
+      <>{children}</>
+      // </PlanetaryBackground>
     );
   };
 

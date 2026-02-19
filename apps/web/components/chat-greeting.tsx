@@ -88,7 +88,7 @@ export function ChatGreeting({
   return (
     <div className="text-center space-y-2 mb-8">
       <p className="text-sm text-muted-foreground tracking-wide">{dateStr}</p>
-      <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
+      <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">
         {greeting}, {userName}
       </h1>
       {subtitle && (

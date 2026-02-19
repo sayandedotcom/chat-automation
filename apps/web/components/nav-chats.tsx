@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  MessagesSquare,
-  MoreHorizontal,
-  Trash2,
-  Edit,
-  Share,
-} from "lucide-react";
+import { SquarePen, MoreHorizontal, Trash2, Edit, Share } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +35,7 @@ export function NavChats({ chats }: { chats: Chat[] }) {
           <SidebarMenuItem key={chat.id}>
             <SidebarMenuButton asChild>
               <a href={chat.url}>
-                <MessagesSquare className="h-4 w-4" />
+                <SquarePen className="h-4 w-4" />
                 <span className="truncate">{chat.title}</span>
               </a>
             </SidebarMenuButton>

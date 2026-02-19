@@ -83,7 +83,7 @@ export function ChatInputWithMentions({
 
   useEffect(() => {
     highlightCode(JSON.stringify(parsed, null, 2), "json").then(
-      setHighlightedOutput
+      setHighlightedOutput,
     );
   }, [parsed]);
 
@@ -164,28 +164,28 @@ export function ChatInputWithMentions({
                 size="sm"
                 pressed={isAutoMode}
                 onPressedChange={setIsAutoMode}
-                className="h-8 px-3 gap-2 rounded-full border-[#2a2a2e] bg-[#1a1a1e] text-neutral-400 hover:text-neutral-200 hover:bg-[#2a2a2e] data-[state=on]:bg-[#2a2a2e] data-[state=on]:text-neutral-200"
+                className="h-8 px-3 gap-2 rounded-full border-[#2a2a2e] bg-[#1a1a1e] text-neutral-400 hover:text-neutral-200 hover:bg-[#2a2a2e] data-[state=on]:bg-gradient-to-r data-[state=on]:from-violet-500/20 data-[state=on]:to-purple-500/40 data-[state=on]:border-violet-500/30 data-[state=on]:text-white"
               >
                 <span className="text-xs font-medium">Auto</span>
                 <div
-                  className={`w-3 h-3 rounded-sm border ${
+                  className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
                     isAutoMode
-                      ? "border-emerald-500 bg-emerald-500"
-                      : "border-neutral-500"
-                  } transition-colors flex items-center justify-center`}
+                      ? "bg-white/20 text-white"
+                      : "bg-transparent border border-neutral-600"
+                  }`}
                 >
                   {isAutoMode && (
                     <svg
-                      width="6"
-                      height="4"
-                      viewBox="0 0 8 6"
+                      width="8"
+                      height="8"
+                      viewBox="0 0 12 12"
                       fill="none"
                       xmlns="http://www.w3.org/2000/svg"
                     >
                       <path
-                        d="M1 3L3 5L7 1"
-                        stroke="white"
-                        strokeWidth="1.5"
+                        d="M2.5 6.5L5 9L9.5 3.5"
+                        stroke="currentColor"
+                        strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
