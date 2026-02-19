@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 _planner_llm = None
 _executor_llm = None
+_classifier_llm = None
 
 
 def get_planner_llm():
@@ -42,3 +43,16 @@ def get_executor_llm():
         )
         logger.info("Initialized shared executor LLM")
     return _executor_llm
+
+
+def get_classifier_llm():
+    """Get shared classifier LLM instance."""
+    global _classifier_llm
+    if _classifier_llm is None:
+        _classifier_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            temperature=0.0,
+        )
+        logger.info("Initialized shared classifier LLM")
+    return _classifier_llm

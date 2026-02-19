@@ -87,15 +87,9 @@ class IntegrationClassifier:
         """Gemini Flash classification."""
         try:
             if self._llm is None:
-                import os
+                from chat.workflow.llm import get_classifier_llm
 
-                from langchain_google_genai import ChatGoogleGenerativeAI
-
-                self._llm = ChatGoogleGenerativeAI(
-                    model="gemini-2.5-flash",
-                    google_api_key=os.getenv("GOOGLE_API_KEY"),
-                    temperature=0.0,
-                )
+                self._llm = get_classifier_llm()
 
             integration_list = "\n".join(
                 f"- {name}: {idx.description}" for name, idx in self._indexes.items()
