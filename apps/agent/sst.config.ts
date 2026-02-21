@@ -17,6 +17,9 @@ export default $config({
   async run() {
     const chatApi = new sst.aws.Function("ChatLambdaFunction", {
       description: "Handler function for chat api.",
+      python: {
+        container: true,
+      },
       handler: "chat/src/chat/api.handler",
       runtime: "python3.10",
       url: {
@@ -24,10 +27,6 @@ export default $config({
       },
       timeout: "60 seconds",
       memory: "512 MB",
-      architecture: "x86_64",
-      environment: {
-        PYTHONPATH: "/var/task/chat/src",
-      },
     });
 
     return {
