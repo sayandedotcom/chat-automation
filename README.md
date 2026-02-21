@@ -54,16 +54,28 @@ Required variables:
 DATABASE_URL="postgresql://postgres:password@localhost:5432/chatautomation?schema=public"
 
 # ─── API / Auth ───
-BETTER_AUTH_URL=http://localhost:8000
+BETTER_AUTH_URL=http://localhost:8080
 BETTER_AUTH_SECRET=your_secret_here
+
+# ─── Google OAuth ───
 GOOGLE_CLIENT_ID=your_google_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:8080/oauth/gmail/callback
+
+# ─── Notion OAuth ───
+NOTION_CLIENT_ID=your_notion_oauth_client_id
+NOTION_CLIENT_SECRET=your_notion_oauth_client_secret
+NOTION_REDIRECT_URI=http://localhost:8080/oauth/notion/callback
 
 # ─── Web ───
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_APP_URL=http://localhost:8080
+NEXT_PUBLIC_API_URL=http://localhost:8080
 
 # ─── Agent ───
 GOOGLE_API_KEY=your_gemini_api_key
+GOOGLE_OAUTH_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_OAUTH_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8080/oauth/gmail/callback
 TAVILY_API_KEY=tvly-your_tavily_api_key
 ```
 
