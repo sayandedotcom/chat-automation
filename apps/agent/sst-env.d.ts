@@ -2,10 +2,13 @@
 /* tslint:disable */
 /* eslint-disable */
 /* deno-fmt-ignore-file */
-/* biome-ignore-all lint: auto-generated */
 
 declare module "sst" {
   export interface Resource {
+    "APIRouter": {
+      "type": "sst.aws.Router"
+      "url": string
+    }
     "ChatLambdaFunction": {
       "name": string
       "type": "sst.aws.Function"

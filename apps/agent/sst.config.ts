@@ -17,7 +17,7 @@ export default $config({
   async run() {
     // Domains
     const DOMAINS = {
-      main: "chat.tweakleaf.com",
+      main: "agent.tweakleaf.com",
     };
 
     const chatApi = new sst.aws.Function("ChatLambdaFunction", {
