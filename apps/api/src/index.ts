@@ -12,6 +12,9 @@ import { oauthRouter } from "./routes/oauth/index.js";
 async function main() {
   const app = express();
 
+  // Trust nginx reverse proxy — allows reading X-Forwarded-* headers
+  app.set("trust proxy", 1);
+
   // CORS configuration (BEFORE auth handler for preflight)
   app.use(
     cors({

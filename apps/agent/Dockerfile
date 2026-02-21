@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Build dependencies with uv
 # ============================================
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -21,13 +21,13 @@ COPY . .
 # Install the project itself
 RUN uv sync --frozen --no-dev --package chat
 
-# Ensure uvicorn is installed (uv.lock may not resolve fastapi[standard] extras)
-RUN uv pip install uvicorn[standard]
+# Ensure uvicorn is installed directly into the venv
+RUN uv pip install --python /app/.venv/bin/python uvicorn[standard]
 
 # ============================================
 # Stage 2: Production runner
 # ============================================
-FROM python:3.10-slim AS runner
+FROM python:3.11-slim AS runner
 
 WORKDIR /app
 
@@ -38,10 +38,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH="/app/chat/src" \
     PATH="/app/.venv/bin:$PATH"
 
-# Copy the virtual environment and source
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/chat /app/chat
-
 # Install Node.js for MCP servers (required for npx)
 RUN apt-get update && apt-get install -y \
     nodejs \
@@ -51,6 +47,14 @@ RUN apt-get update && apt-get install -y \
 # Install uv (provides uvx for workspace-mcp)
 RUN pip install uv --no-cache-dir
 
+# Copy the entire builder uv state (includes Python binary downloaded by uv)
+# since uv sync uses its own python version instead of the system one
+COPY --from=builder /root/.local/share/uv /root/.local/share/uv
+
+# Copy the virtual environment and source
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/chat /app/chat
+
 EXPOSE 8001
 
-CMD ["python", "-m", "uvicorn", "chat.api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "chat.api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

@@ -29,8 +29,12 @@ services:
       - NODE_ENV=production
       - PORT=8000
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
-    ports:
-      - "8000:8000"
+      - APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
+      - API_BASE_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+      - AGENT_API_URL=http://agent:8001
+    command: sh -c "pnpm --filter @workspace/database db:push && pnpm --filter api start"
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
       interval: 15s
@@ -49,7 +53,7 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     env_file:
       - .env
     environment:
@@ -57,8 +61,8 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - AGENT_API_URL=http://agent:8001
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
       interval: 15s
@@ -80,8 +84,13 @@ services:
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-    ports:
-      - "8001:8001"
+    expose:
+      - "8001"
+    volumes:
+      - agent_credentials:/root/.google_workspace_mcp
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -112,3 +121,4 @@ services:
 
 volumes:
   postgres_data:
+  agent_credentials:

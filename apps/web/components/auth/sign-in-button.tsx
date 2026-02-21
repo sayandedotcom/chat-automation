@@ -3,19 +3,15 @@
 import { signIn } from "@/lib/auth-client";
 import { Button } from "@workspace/ui/components/button";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
 interface SignInButtonProps {
   callbackURL?: string;
 }
 
-export function SignInButton({
-  callbackURL = `${APP_URL}/chat`,
-}: SignInButtonProps) {
+export function SignInButton({ callbackURL }: SignInButtonProps) {
   const handleSignIn = async () => {
     await signIn.social({
       provider: "google",
-      callbackURL,
+      callbackURL: callbackURL ?? "/chat",
     });
   };
 
