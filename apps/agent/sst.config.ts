@@ -15,11 +15,6 @@ export default $config({
     };
   },
   async run() {
-    // Domains
-    const DOMAINS = {
-      main: "agent.tweakleaf.com",
-    };
-
     const chatApi = new sst.aws.Function("ChatLambdaFunction", {
       description: "Handler function for chat api.",
       python: {
@@ -34,15 +29,8 @@ export default $config({
       memory: "512 MB",
     });
 
-    // Router
-    const apiRouter = new sst.aws.Router("APIRouter", {
-      domain: {
-        name: DOMAINS.main,
-      },
-    });
-
     return {
-      apiDomain: apiRouter.url,
+      chatApi: chatApi.url,
     };
   },
 });
