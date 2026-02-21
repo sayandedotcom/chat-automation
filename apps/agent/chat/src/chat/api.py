@@ -52,7 +52,7 @@ app = FastAPI(title="Chat Agent API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080"],
+    allow_origins=["http://localhost:3000", "http://localhost:8080", "https://chat.sayande.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

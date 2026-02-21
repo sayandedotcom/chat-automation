@@ -11,17 +11,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml ./
+COPY requirements.txt /tmp/requirements.txt
+RUN uv venv && uv pip install --python /app/.venv/bin/python -r /tmp/requirements.txt && \
+    uv pip install --python /app/.venv/bin/python awslambdaric
 
-RUN uv venv && uv pip install --python /app/.venv/bin/python -e .
-
-COPY src/ ./src/
-
-RUN uv pip install --python /app/.venv/bin/python -e .
-
-RUN uv pip install --python /app/.venv/bin/python awslambdaric
-
-# Runtime stage
+# Runtime stage  
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -33,9 +27,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /tmp/* \
-    && rm -rf /var/tmp/*
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN pip install uv --no-cache-dir
 
@@ -44,14 +37,14 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 
 COPY --from=builder /root/.local/share/uv /root/.local/share/uv
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/src ./src
-
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/var/task"
+COPY . ${LAMBDA_TASK_ROOT}
 
 RUN find ${LAMBDA_TASK_ROOT} -type f -name "*.pyc" -delete && \
     find ${LAMBDA_TASK_ROOT} -type d -name "__pycache__" -delete && \
     find ${LAMBDA_TASK_ROOT} -type f -name "*.pyo" -delete
 
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/var/task"
+
 ENTRYPOINT ["/app/.venv/bin/python", "-m", "awslambdaric"]
-CMD ["src.chat.api.handler"]
+CMD ["api.handler"]
