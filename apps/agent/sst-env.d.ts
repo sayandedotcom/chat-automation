@@ -5,10 +5,6 @@
 
 declare module "sst" {
   export interface Resource {
-    "APIRouter": {
-      "type": "sst.aws.Router"
-      "url": string
-    }
     "ChatLambdaFunction": {
       "name": string
       "type": "sst.aws.Function"
