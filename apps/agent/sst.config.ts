@@ -23,6 +23,11 @@ export default $config({
         cors: false,
       },
       timeout: "60 seconds",
+      memory: "512 MB",
+      architecture: "x86_64",
+      environment: {
+        PYTHONPATH: "/var/task/chat/src",
+      },
     });
 
     return {
