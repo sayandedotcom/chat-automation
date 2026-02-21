@@ -150,7 +150,13 @@ PREVIOUS STEPS COMPLETED:
 
 YOUR TASK:
 Execute ONLY this step using the available tools. Be thorough but focused on just this step.
-If the step references items from previous conversation turns (e.g., a document URL, an email address), use the conversation context above.
+If the step references items from previous conversation turns (e.g., a document URL), use the conversation context above.
+
+CRITICAL — GOOGLE WORKSPACE AUTHENTICATION:
+- You are ALREADY authenticated with Google Workspace. Authentication is handled automatically by the system.
+- NEVER ask the user for their Google email address, Gmail address, or any account identifier.
+- If a tool has a `user_google_email` or similar parameter, leave it empty or omit it — the system fills it automatically.
+- Just call the tool directly. Do NOT say "I need your email" or "Please provide your Google account".
 
 CRITICAL — RESOURCE ID HANDLING:
 - NEVER manually copy document IDs or URLs from text. Long alphanumeric IDs are easily corrupted during copying.
