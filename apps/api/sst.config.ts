@@ -16,7 +16,11 @@ export default $config({
     const service = new sst.aws.Service("ApiService", {
       cluster,
       loadBalancer: {
-        ports: [{ listen: "80/http", forward: "8000/http" }],
+        domain: "agent.tweakleaf.com",
+        ports: [
+          { listen: "443/https", forward: "8000/http" },
+          { listen: "80/http", forward: "443/https" },
+        ],
       },
       image: {
         context: "../../",

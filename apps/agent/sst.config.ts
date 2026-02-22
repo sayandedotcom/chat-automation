@@ -29,8 +29,16 @@ export default $config({
       memory: "512 MB",
     });
 
+    const router = new sst.aws.Router("ChatRouter", {
+      domain: "chat.tweakleaf.com",
+      routes: {
+        "/*": chatApi.url,
+      },
+    });
+
     return {
       chatApi: chatApi.url,
+      url: router.url,
     };
   },
 });
