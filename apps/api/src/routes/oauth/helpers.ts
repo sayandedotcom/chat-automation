@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 
-export const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
-export const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:8001";
-export const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8000";
+export const APP_URL = process.env.APP_URL as string;
+export const AGENT_API_URL = process.env.AGENT_API_URL as string;
+export const API_BASE_URL = process.env.API_BASE_URL as string;
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 export interface GoogleTokenResponse {

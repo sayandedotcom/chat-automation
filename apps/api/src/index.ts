@@ -19,10 +19,10 @@ async function main() {
   app.use(
     cors({
       origin: [
-        "http://localhost:3000",
-        "http://localhost:8080",
+        process.env.APP_URL as string,
+        process.env.BETTER_AUTH_URL as string,
         "https://chat.sayande.com",
-      ],
+      ].filter(Boolean),
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
       credentials: true,
     }),

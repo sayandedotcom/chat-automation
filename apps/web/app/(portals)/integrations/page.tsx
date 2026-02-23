@@ -126,8 +126,7 @@ export default function IntegrationsPage() {
 
   const handleConnect = (integrationId: string) => {
     setLoadingStates((prev) => ({ ...prev, [integrationId]: true }));
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL as string;
     window.location.href = `${apiUrl}/oauth/${integrationId}`;
   };
 

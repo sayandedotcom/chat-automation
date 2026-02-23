@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { Readable } from "stream";
 import { getRefreshedTokens } from "@workspace/trpc/lib/token-utils";
 
-const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:8001";
+const AGENT_API_URL = process.env.AGENT_API_URL as string;
 
 export const chatExpressRouter: IRouter = Router();
 

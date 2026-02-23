@@ -7,7 +7,7 @@ import {
   getTokensFromCookies,
 } from "../lib/token-utils.js";
 
-const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:8001";
+const AGENT_API_URL = process.env.AGENT_API_URL;
 
 const requiresExpressContext = middleware(({ ctx, next }) => {
   if (!("req" in ctx)) {
@@ -30,8 +30,10 @@ export const chatRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, slackToken } =
-        await getRefreshedTokens(ctx.req, ctx.res);
+      const { gmailToken, notionToken, slackToken } = await getRefreshedTokens(
+        ctx.req,
+        ctx.res,
+      );
 
       const response = await fetch(`${AGENT_API_URL}/chat`, {
         method: "POST",

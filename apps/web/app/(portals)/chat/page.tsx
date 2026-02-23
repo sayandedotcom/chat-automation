@@ -182,8 +182,7 @@ export default function ChatPage() {
 
       try {
         // Use streaming endpoint for real-time updates
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL as string;
         const response = await fetch(`${apiUrl}/chat/stream`, {
           method: "POST",
           headers: {
@@ -496,57 +495,60 @@ export default function ChatPage() {
     }
   };
 
-  const handleRetry = useCallback(async (stepNumber: number) => {
-    // Reset the failed step and subsequent steps
-    setSteps((prev) =>
-      prev.map((step) =>
-        step.step_number >= stepNumber
-          ? { ...step, status: "pending", error: undefined }
-          : step,
-      ),
-    );
-    setCurrentStep(stepNumber - 1);
-    setWorkflowStatus("executing");
-    setError(null);
+  const handleRetry = useCallback(
+    async (stepNumber: number) => {
+      // Reset the failed step and subsequent steps
+      setSteps((prev) =>
+        prev.map((step) =>
+          step.step_number >= stepNumber
+            ? { ...step, status: "pending", error: undefined }
+            : step,
+        ),
+      );
+      setCurrentStep(stepNumber - 1);
+      setWorkflowStatus("executing");
+      setError(null);
 
-    try {
-      const data = await retryMutation.mutateAsync({
-        thread_id: threadIdRef.current!,
-        step_number: stepNumber,
-      });
-
-      if (data.plan?.steps) {
-        setSteps((prev) => {
-          const prevByNumber = new Map(prev.map((s) => [s.step_number, s]));
-          return data.plan.steps.map(
-            (s: {
-              step_number: number;
-              description: string;
-              status: string;
-              result?: string;
-            }) => {
-              const existing = prevByNumber.get(s.step_number);
-              return {
-                step_number: s.step_number,
-                description: s.description,
-                status: s.status as WorkflowStep["status"],
-                result: s.result,
-                tool_calls: existing?.tool_calls,
-              };
-            },
-          );
+      try {
+        const data = await retryMutation.mutateAsync({
+          thread_id: threadIdRef.current!,
+          step_number: stepNumber,
         });
-      }
 
-      if (data.is_complete) {
-        setWorkflowStatus("complete");
+        if (data.plan?.steps) {
+          setSteps((prev) => {
+            const prevByNumber = new Map(prev.map((s) => [s.step_number, s]));
+            return data.plan.steps.map(
+              (s: {
+                step_number: number;
+                description: string;
+                status: string;
+                result?: string;
+              }) => {
+                const existing = prevByNumber.get(s.step_number);
+                return {
+                  step_number: s.step_number,
+                  description: s.description,
+                  status: s.status as WorkflowStep["status"],
+                  result: s.result,
+                  tool_calls: existing?.tool_calls,
+                };
+              },
+            );
+          });
+        }
+
+        if (data.is_complete) {
+          setWorkflowStatus("complete");
+        }
+      } catch (err) {
+        console.error("Retry error:", err);
+        setError(err instanceof Error ? err.message : "Retry failed");
+        setWorkflowStatus("error");
       }
-    } catch (err) {
-      console.error("Retry error:", err);
-      setError(err instanceof Error ? err.message : "Retry failed");
-      setWorkflowStatus("error");
-    }
-  }, [retryMutation]);
+    },
+    [retryMutation],
+  );
 
   const handleApprove = useCallback(
     async (

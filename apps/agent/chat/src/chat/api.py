@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from chat.utils.mcp_client import TAVILY_API_KEY
@@ -50,13 +50,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Chat Agent API", lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080", "https://chat.sayande.com"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[origin for origin in [os.getenv("APP_URL")] if origin],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 app.include_router(credentials_router.router)
 app.include_router(chat_router.router)

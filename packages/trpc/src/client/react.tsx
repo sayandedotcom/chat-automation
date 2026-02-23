@@ -32,7 +32,7 @@ export interface TRPCProviderProps {
   children: React.ReactNode;
   /**
    * Base URL of the tRPC server
-   * @default process.env.NEXT_PUBLIC_API_URL + '/trpc' or 'http://localhost:8000/trpc'
+   * @default process.env.NEXT_PUBLIC_API_URL + '/trpc'
    */
   url?: string;
 }
@@ -86,7 +86,7 @@ function getQueryClient() {
  *
  * export default function RootLayout({ children }) {
  *   return (
- *     <TRPCProvider url="http://localhost:8000/trpc">
+ *     <TRPCProvider>
  *       {children}
  *     </TRPCProvider>
  *   );
@@ -94,11 +94,7 @@ function getQueryClient() {
  * ```
  */
 export function TRPCProvider({ children, url }: TRPCProviderProps) {
-  const baseUrl =
-    url ??
-    (typeof window !== "undefined"
-      ? `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/trpc`
-      : "http://localhost:8000/trpc");
+  const baseUrl = url ?? `${process.env.NEXT_PUBLIC_API_URL}/trpc`;
 
   const queryClient = getQueryClient();
 
@@ -117,7 +113,7 @@ export function TRPCProvider({ children, url }: TRPCProviderProps) {
           },
         }),
       ],
-    })
+    }),
   );
 
   return (

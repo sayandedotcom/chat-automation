@@ -14,7 +14,7 @@ export type { AppRouter };
  */
 export interface CreateClientOptions {
   /**
-   * Base URL of the tRPC server (e.g., 'http://localhost:8000/trpc')
+   * Base URL of the tRPC server (e.g., process.env.NEXT_PUBLIC_API_URL + '/trpc')
    */
   url: string;
 
@@ -36,7 +36,7 @@ export interface CreateClientOptions {
  * ```ts
  * import { createClient } from '@workspace/trpc/client';
  *
- * const client = createClient({ url: 'http://localhost:8000/trpc' });
+ * const client = createClient({ url: `${process.env.NEXT_PUBLIC_API_URL}/trpc` });
  *
  * // Make type-safe API calls
  * const greeting = await client.greeting.hello.query({ name: 'World' });
@@ -51,7 +51,7 @@ export function createClient(options: CreateClientOptions) {
     links.push(
       loggerLink({
         enabled: () => true,
-      })
+      }),
     );
   }
 
@@ -61,7 +61,7 @@ export function createClient(options: CreateClientOptions) {
       url: options.url,
       headers: options.headers,
       transformer: superjson,
-    })
+    }),
   );
 
   return createTRPCClient<AppRouter>({
