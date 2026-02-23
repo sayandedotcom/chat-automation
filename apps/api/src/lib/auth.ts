@@ -19,8 +19,17 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: process.env.APP_URL
-    ? ["http://localhost:3000", "http://localhost:8080", process.env.APP_URL]
-    : ["http://localhost:3000", "http://localhost:8080"],
+    ? [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "https://chat.sayande.com",
+        process.env.APP_URL,
+      ]
+    : [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "https://chat.sayande.com",
+      ],
   advanced: {
     defaultCookieAttributes: {
       sameSite: "none",
