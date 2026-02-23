@@ -26,7 +26,7 @@ export default $config({
         cors: false,
       },
       timeout: "60 seconds",
-      memory: "512 MB",
+      memory: "1536 MB",
       environment: {
         GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ?? "",
         TAVILY_API_KEY: process.env.TAVILY_API_KEY ?? "",

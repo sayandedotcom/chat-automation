@@ -14,6 +14,25 @@ export interface GoogleTokenResponse {
 }
 
 /**
+ * Extracts the root domain for cross-subdomain cookie sharing in production.
+ * e.g., 'https://chat.tweakleaf.com' -> '.tweakleaf.com'
+ */
+export function getCookieDomain(urlStr: string): string | undefined {
+  if (!IS_PRODUCTION) return undefined;
+
+  try {
+    const hostname = new URL(urlStr).hostname;
+    const parts = hostname.split(".");
+    if (parts.length >= 2) {
+      return `.${parts.slice(-2).join(".")}`;
+    }
+  } catch (e) {
+    console.error("Failed to parse cookie domain from APP_URL", e);
+  }
+  return undefined;
+}
+
+/**
  * Build a Google OAuth consent URL and redirect the user to it.
  */
 export function googleAuthInit(
@@ -99,12 +118,15 @@ export async function googleAuthCallback(
 
     const tokens: GoogleTokenResponse = await tokenResponse.json();
 
+    const domain = getCookieDomain(APP_URL);
+
     // Express res.cookie maxAge is in milliseconds
     res.cookie(opts.accessCookieName, tokens.access_token, {
       httpOnly: true,
       secure: IS_PRODUCTION,
       sameSite: "lax",
       maxAge: tokens.expires_in * 1000,
+      domain,
     });
 
     if (tokens.refresh_token) {
@@ -113,6 +135,7 @@ export async function googleAuthCallback(
         secure: IS_PRODUCTION,
         sameSite: "lax",
         maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
+        domain,
       });
     }
 
