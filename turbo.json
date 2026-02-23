@@ -5,7 +5,22 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_API_URL",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "DATABASE_URL",
+        "NOTION_CLIENT_ID",
+        "NOTION_CLIENT_SECRET",
+        "NOTION_REDIRECT_URI",
+        "APP_URL",
+        "API_BASE_URL",
+        "AGENT_API_URL",
+        "GOOGLE_API_KEY",
+        "TAVILY_API_KEY"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
