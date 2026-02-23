@@ -14,12 +14,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isPending && !session?.user) {
+    // Only redirect when we have a definitive "no session" answer
+    // Never redirect while still loading
+    if (isPending) return;
+    if (session === null || (session !== undefined && !session.user)) {
       router.replace("/");
     }
   }, [isPending, session, router]);
 
-  if (isPending) {
+  // Always show loading spinner while pending
+  if (isPending || session === undefined) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3">
