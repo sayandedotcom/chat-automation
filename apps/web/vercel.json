@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && pnpm --filter @workspace/database run db:generate && pnpm --filter web build",
+  "buildCommand": "npx prisma generate --schema=prisma/schema.prisma && next build",
   "outputDirectory": ".next",
   "framework": "nextjs"
 }
