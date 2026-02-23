@@ -2,8 +2,11 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/db";
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+
 export const auth = betterAuth({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL,
+  baseURL: appUrl,
+  secret: process.env.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -18,5 +21,5 @@ export const auth = betterAuth({
       accessType: "offline",
     },
   },
-  trustedOrigins: [process.env.NEXT_PUBLIC_APP_URL as string].filter(Boolean),
+  trustedOrigins: [appUrl].filter(Boolean),
 });

@@ -27,9 +27,13 @@ export default function Page() {
     );
   }
 
-  // If authenticated, don't render — redirect is in progress
+  // If authenticated, show spinner while redirect is in progress
   if (session?.user) {
-    return null;
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-white" />
+      </main>
+    );
   }
 
   return (
