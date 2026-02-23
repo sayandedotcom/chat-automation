@@ -32,9 +32,6 @@ export default $config({
       environment: {
         NODE_ENV: "production",
         PORT: "8000",
-        DATABASE_URL: process.env.DATABASE_URL!,
-        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-        BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
         GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
         GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET!,
         AGENT_API_URL: process.env.AGENT_API_URL!,
@@ -43,7 +40,6 @@ export default $config({
         NOTION_CLIENT_ID: process.env.NOTION_CLIENT_ID ?? "",
         NOTION_CLIENT_SECRET: process.env.NOTION_CLIENT_SECRET ?? "",
         NOTION_REDIRECT_URI: process.env.NOTION_REDIRECT_URI ?? "",
-        GMAIL_REDIRECT_URI: process.env.GMAIL_REDIRECT_URI ?? "",
       },
     });
 
