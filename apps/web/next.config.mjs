@@ -2,7 +2,7 @@
 const nextConfig = {
   output: "standalone",
   transpilePackages: ["@workspace/ui"],
-  serverExternalPackages: ["@prisma/client"],
+  serverExternalPackages: ["@prisma/client", "@workspace/database"],
 };
 
 export default nextConfig;
