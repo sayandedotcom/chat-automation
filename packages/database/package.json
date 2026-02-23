@@ -32,10 +32,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.8.0"
+    "@prisma/adapter-pg": "^7.4.1",
+    "@prisma/client": "^6.8.0",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.32",
+    "@types/pg": "^8.16.0",
     "@workspace/typescript-config": "workspace:*",
     "prisma": "^6.8.0",
     "tsx": "^4.21.0",
