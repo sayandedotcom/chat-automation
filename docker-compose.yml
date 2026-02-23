@@ -31,6 +31,8 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
       - APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
       - API_BASE_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+      # BETTER_AUTH_URL must match the web app frontend domain so OAuth cookies are same-origin
+      - BETTER_AUTH_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
       - AGENT_API_URL=http://agent:8001
     command: sh -c "pnpm --filter @workspace/database db:push && pnpm --filter api start"
     expose:
@@ -61,6 +63,8 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - AGENT_API_URL=http://agent:8001
+      # Internal URL for Next.js rewrite (server-side runtime, not baked at build time)
+      - INTERNAL_API_URL=http://api:8000
     expose:
       - "3000"
     healthcheck:
