@@ -10,7 +10,7 @@ const PUBLIC_ONLY_ROUTES = ["/"];
 // Better Auth session cookie name
 const SESSION_COOKIE = "better-auth.session_token";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_COOKIE);
 
