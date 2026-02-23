@@ -5,19 +5,18 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.80.7",
     "@trpc/client": "^11.8.1",
     "@trpc/tanstack-react-query": "^11.8.1",
-    "@prisma/client": "^6.8.0",
+    "@workspace/database": "workspace:*",
     "@workspace/trpc": "workspace:*",
     "@workspace/ui": "workspace:*",
     "better-auth": "^1.4.17",
