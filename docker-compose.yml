@@ -65,6 +65,11 @@ services:
       - AGENT_API_URL=http://agent:8001
       # Internal URL for Next.js rewrite (server-side runtime, not baked at build time)
       - INTERNAL_API_URL=http://api:8000
+      # Better Auth (auth now runs in Next.js)
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     expose:
       - "3000"
     healthcheck:

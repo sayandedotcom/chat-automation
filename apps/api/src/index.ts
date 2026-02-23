@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
+import { fromNodeHeaders } from "better-auth/node";
 import { mountTRPC, setSessionGetter } from "@workspace/trpc/adapters/express";
 import { auth } from "./lib/auth.js";
 import { chatExpressRouter } from "./routes/chat.js";
@@ -28,11 +28,10 @@ async function main() {
     }),
   );
 
-  // Better Auth handler BEFORE body parsing (Express v5 uses /*splat)
-  // This is critical - express.json() breaks Better Auth if mounted first
-  app.all("/api/auth/*splat", toNodeHandler(auth));
+  // Better Auth login/signup/OAuth is handled by Next.js.
+  // Express only uses auth.api.getSession() for session verification.
 
-  // Body parsing AFTER Better Auth handler
+  // Body parsing
   app.use(express.json());
 
   // Security headers
@@ -88,7 +87,6 @@ async function main() {
   app.listen(PORT, () => {
     console.log(`[API] Server listening on http://localhost:${PORT}`);
     console.log(`[API] tRPC endpoint: http://localhost:${PORT}/trpc`);
-    console.log(`[API] Auth endpoint: http://localhost:${PORT}/api/auth`);
   });
 }
 
