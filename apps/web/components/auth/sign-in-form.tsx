@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "@/lib/auth-client";
+import { signIn, getCallbackUrl } from "@/lib/auth-client";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import Link from "next/link";
@@ -89,7 +89,7 @@ export function SignInForm() {
           className="w-full"
           type="button"
           onClick={() =>
-            signIn.social({ provider: "google", callbackURL: "/chat" })
+            signIn.social({ provider: "google", callbackURL: getCallbackUrl() })
           }
         >
           <svg

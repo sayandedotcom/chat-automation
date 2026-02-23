@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "@/lib/auth-client";
+import { signIn, getCallbackUrl } from "@/lib/auth-client";
 import { Button } from "@workspace/ui/components/button";
 
 interface SignInButtonProps {
@@ -11,7 +11,7 @@ export function SignInButton({ callbackURL }: SignInButtonProps) {
   const handleSignIn = async () => {
     await signIn.social({
       provider: "google",
-      callbackURL: callbackURL ?? "/chat",
+      callbackURL: getCallbackUrl(callbackURL),
     });
   };
 
