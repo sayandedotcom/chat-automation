@@ -89,7 +89,10 @@ export function SignInForm() {
           className="w-full"
           type="button"
           onClick={() =>
-            signIn.social({ provider: "google", callbackURL: "/chat" })
+            signIn.social({
+              provider: "google",
+              callbackURL: `${window.location.origin}/chat`,
+            })
           }
         >
           <svg
