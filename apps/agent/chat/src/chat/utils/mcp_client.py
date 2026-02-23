@@ -48,10 +48,15 @@ def create_mcp_client(
     client_secret = google_client_secret or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
     
     if client_id and client_secret:
+        # Use /tmp for credentials — the only writable path in Lambda/serverless envs.
+        # Must match MCP_CREDENTIALS_DIR in credentials.py (overridable via env var).
+        mcp_creds_dir = os.getenv(
+            "GOOGLE_MCP_CREDENTIALS_DIR", "/tmp/.google_workspace_mcp/credentials"
+        )
         workspace_env = {
             "GOOGLE_OAUTH_CLIENT_ID": client_id,
             "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
-            "OAUTHLIB_INSECURE_TRANSPORT": "1",  # Allow HTTP for localhost (dev only)
+            "GOOGLE_MCP_CREDENTIALS_DIR": mcp_creds_dir,
         }
         
         servers["google_workspace"] = {

@@ -6,6 +6,7 @@ Handles health check and OAuth credential sync endpoints.
 
 import json
 import logging
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -17,7 +18,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # MCP credentials directory (where workspace-mcp stores OAuth credentials)
-MCP_CREDENTIALS_DIR = Path.home() / ".google_workspace_mcp" / "credentials"
+# Use /tmp in Lambda/serverless environments where the home directory is read-only.
+# workspace-mcp also reads from this path when GOOGLE_MCP_CREDENTIALS_DIR is set.
+_DEFAULT_MCP_CREDENTIALS_DIR = "/tmp/.google_workspace_mcp/credentials"
+MCP_CREDENTIALS_DIR = Path(
+    os.getenv("GOOGLE_MCP_CREDENTIALS_DIR", _DEFAULT_MCP_CREDENTIALS_DIR)
+)
 
 
 @router.get("/health")
