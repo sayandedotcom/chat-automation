@@ -22,10 +22,15 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 # Stage 2: Final runtime image
 FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
+# CRITICAL: Cache bust - must be first instruction to invalidate all cached layers
+# Change this timestamp to force fresh build: 2025-02-26T00:45:00Z
+ARG CACHE_BUST=1738134300
+RUN echo "Cache bust: $CACHE_BUST" && date
+
 # Install curl for downloading uv
 RUN yum install -y curl
 
-# Download and install uv directly - this bypasses any COPY caching issues
+# Download and install uv directly
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv && \
@@ -40,5 +45,5 @@ COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 # Copy the application code into the final image
 COPY . ${LAMBDA_TASK_ROOT}
 
-# Verify uv is in PATH
+# Verify uv is in PATH at the end
 RUN which uv && uv --version
