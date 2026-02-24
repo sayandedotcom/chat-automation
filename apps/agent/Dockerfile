@@ -26,7 +26,7 @@ FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 RUN yum install -y nodejs npm && yum clean all
 
 # Install uv (provides uvx for workspace-mcp)
-RUN pip install uv --no-cache-dir
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy the installed dependencies from the build stage
 COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}

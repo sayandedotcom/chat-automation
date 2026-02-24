@@ -30,12 +30,11 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install uv --no-cache-dir
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 RUN mkdir -p ${LAMBDA_TASK_ROOT} ${LAMBDA_RUNTIME_DIR}
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-COPY --from=builder /root/.local/share/uv /root/.local/share/uv
 COPY --from=builder /app/.venv /app/.venv
 COPY . ${LAMBDA_TASK_ROOT}
 
