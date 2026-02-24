@@ -22,22 +22,24 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 # Stage 2: Final runtime image
 FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
-# CRITICAL: Cache bust - must be first instruction to invalidate all cached layers
-# Change this timestamp to force fresh build: 2025-02-26T00:45:00Z
-ARG CACHE_BUST=1738134300
-RUN echo "Cache bust: $CACHE_BUST" && date
+# CACHE BUST: This timestamp must change to invalidate Docker layer cache
+# Last modified: 2025-02-26T02:30:00Z (epoch: 1738139400)
+RUN echo "=== BUILD TIMESTAMP: 2025-02-26T02:30:00Z ===" && date
 
 # Install curl for downloading uv
-RUN yum install -y curl
+RUN yum install -y curl && curl --version
 
-# Download and install uv directly
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+# Download and install uv directly from official source
+RUN set -ex && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    ls -la /root/.local/bin/ || true && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv && \
-    uv --version
+    /usr/local/bin/uv --version && \
+    echo "uv installed successfully at /usr/local/bin/uv"
 
 # Install Node.js for MCP servers (required for npx)
-RUN yum install -y nodejs npm && yum clean all
+RUN yum install -y nodejs npm && yum clean all && node --version
 
 # Copy the installed dependencies from the build stage
 COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
@@ -46,4 +48,4 @@ COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 COPY . ${LAMBDA_TASK_ROOT}
 
 # Verify uv is in PATH at the end
-RUN which uv && uv --version
+RUN /usr/local/bin/uv --version && echo "UV VERIFICATION SUCCESS"
