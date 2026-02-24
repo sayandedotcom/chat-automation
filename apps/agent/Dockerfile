@@ -22,10 +22,14 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 # Stage 2: Final runtime image
 FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
-# Install uv FIRST (before anything else to bust cache) - v2025.02.25.c
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-# Force cache invalidation - timestamp: 2025-02-25T22:35:00Z
-RUN uv --version && echo "Cache bust: 1739825700"
+# Install curl for downloading uv
+RUN yum install -y curl
+
+# Download and install uv directly - this bypasses any COPY caching issues
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    chmod +x /usr/local/bin/uv && \
+    uv --version
 
 # Install Node.js for MCP servers (required for npx)
 RUN yum install -y nodejs npm && yum clean all
@@ -36,4 +40,5 @@ COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 # Copy the application code into the final image
 COPY . ${LAMBDA_TASK_ROOT}
 
-# No need to configure the handler or entrypoint - SST will do that
+# Verify uv is in PATH
+RUN which uv && uv --version
