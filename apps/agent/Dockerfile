@@ -1,60 +1,37 @@
-# ============================================
-# Stage 1: Build dependencies with uv
-# ============================================
-FROM python:3.11-slim AS builder
+# Specify the Python version as an ARG
+ARG PYTHON_VERSION=3.11
+ARG PYTHON_RUNTIME
 
-WORKDIR /app
+# Stage 1: Build environment (install build tools and dependencies)
+FROM public.ecr.aws/lambda/python:${PYTHON_VERSION} AS build
 
-# Install uv for fast dependency resolution
-RUN pip install --no-cache-dir uv
+# Ensure git and gcc are installed for building dependencies
+RUN if [[ "$PYTHON_RUNTIME" == 3.1[2-9]* ]]; then \
+  dnf install -y git gcc; \
+  else \
+  yum install -y git gcc; \
+  fi
 
-# Copy dependency files first (layer caching)
-COPY pyproject.toml uv.lock ./
-COPY chat/pyproject.toml chat/pyproject.toml
+# Copy requirements and install dependencies
+COPY requirements.txt ${LAMBDA_TASK_ROOT}/requirements.txt
 
-# Install dependencies into a virtual env (target the chat workspace member)
-RUN uv sync --frozen --no-dev --no-install-project --package chat
+# Mount the uv image to install the dependencies - uv will not be installed in the final image
+RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
+  uv pip install -r requirements.txt --target ${LAMBDA_TASK_ROOT} --system --compile-bytecode
 
-# Copy source code
-COPY . .
-
-# Install the project itself
-RUN uv sync --frozen --no-dev --package chat
-
-# Ensure uvicorn is installed directly into the venv
-RUN uv pip install --python /app/.venv/bin/python uvicorn[standard]
-
-# ============================================
-# Stage 2: Production runner
-# ============================================
-FROM python:3.11-slim AS runner
-
-WORKDIR /app
-
-# Set Python environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONIOENCODING=utf-8 \
-    PYTHONPATH="/app/chat/src" \
-    PATH="/app/.venv/bin:$PATH"
+# Stage 2: Final runtime image
+FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
 # Install Node.js for MCP servers (required for npx)
-RUN apt-get update && apt-get install -y \
-    nodejs \
-    npm \
-    && rm -rf /var/lib/apt/lists/*
+RUN yum install -y nodejs npm && yum clean all
 
 # Install uv (provides uvx for workspace-mcp)
 RUN pip install uv --no-cache-dir
 
-# Copy the entire builder uv state (includes Python binary downloaded by uv)
-# since uv sync uses its own python version instead of the system one
-COPY --from=builder /root/.local/share/uv /root/.local/share/uv
+# Copy the installed dependencies from the build stage
+COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 
-# Copy the virtual environment and source
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/chat /app/chat
+# Copy the application code into the final image
+COPY . ${LAMBDA_TASK_ROOT}
 
-EXPOSE 8001
-
-CMD ["/app/.venv/bin/python", "-m", "uvicorn", "chat.api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+# No need to configure the handler or entrypoint - SST will do that
