@@ -53,11 +53,12 @@ def create_mcp_client(
         mcp_creds_dir = os.getenv(
             "GOOGLE_MCP_CREDENTIALS_DIR", "/tmp/.google_workspace_mcp/credentials"
         )
-        workspace_env = {
+        workspace_env = os.environ.copy()
+        workspace_env.update({
             "GOOGLE_OAUTH_CLIENT_ID": client_id,
             "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
             "GOOGLE_MCP_CREDENTIALS_DIR": mcp_creds_dir,
-        }
+        })
         
         servers["google_workspace"] = {
             "transport": "stdio",
@@ -75,7 +76,7 @@ def create_mcp_client(
             "transport": "stdio",
             "command": "npx",
             "args": ["-y", "@vercel/mcp-server"],
-            "env": {"VERCEL_ACCESS_TOKEN": vercel_token},
+            "env": {**os.environ, "VERCEL_ACCESS_TOKEN": vercel_token},
         }
 
     if notion_token:
@@ -83,7 +84,7 @@ def create_mcp_client(
             "transport": "stdio",
             "command": "npx",
             "args": ["-y", "@notionhq/notion-mcp-server@2.1.0"],
-            "env": {"NOTION_TOKEN": notion_token},
+            "env": {**os.environ, "NOTION_TOKEN": notion_token},
         }
 
     if tavily_api_key:
@@ -91,7 +92,7 @@ def create_mcp_client(
             "transport": "stdio",
             "command": "npx",
             "args": ["-y", "tavily-mcp@latest"],
-            "env": {"TAVILY_API_KEY": tavily_api_key},
+            "env": {**os.environ, "TAVILY_API_KEY": tavily_api_key},
         }
 
     return MultiServerMCPClient(servers)
