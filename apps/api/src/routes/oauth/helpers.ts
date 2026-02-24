@@ -124,8 +124,8 @@ export async function googleAuthCallback(
     res.cookie(opts.accessCookieName, tokens.access_token, {
       httpOnly: true,
       secure: IS_PRODUCTION,
-      sameSite: "lax",
-      maxAge: tokens.expires_in * 1000,
+      sameSite: IS_PRODUCTION ? "none" : "lax",
+      maxAge: tokens.expires_in ? tokens.expires_in * 1000 : 3600000,
       domain,
     });
 
@@ -133,7 +133,7 @@ export async function googleAuthCallback(
       res.cookie(opts.refreshCookieName, tokens.refresh_token, {
         httpOnly: true,
         secure: IS_PRODUCTION,
-        sameSite: "lax",
+        sameSite: IS_PRODUCTION ? "none" : "lax",
         maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
         domain,
       });

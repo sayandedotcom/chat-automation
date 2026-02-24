@@ -3,7 +3,7 @@
 export default $config({
   app(input) {
     return {
-      name: "agent",
+      name: "chat-automation-agent",
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "aws",
@@ -41,7 +41,7 @@ export default $config({
     });
 
     const router = new sst.aws.Router("ChatRouter", {
-      domain: "chat.tweakleaf.com",
+      domain: "agent.sayande.xyz",
       routes: {
         "/*": chatApi.url,
       },

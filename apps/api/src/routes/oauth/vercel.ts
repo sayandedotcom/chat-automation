@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { APP_URL, API_BASE_URL, IS_PRODUCTION } from "./helpers.js";
+import { IS_PRODUCTION, API_BASE_URL, APP_URL } from "./helpers.js";
 
 interface VercelTokenResponse {
   access_token: string;

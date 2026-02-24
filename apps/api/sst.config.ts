@@ -7,6 +7,11 @@ export default $config({
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "aws",
+      providers: {
+        aws: {
+          region: "us-east-1",
+        },
+      },
     };
   },
   async run() {
@@ -16,7 +21,7 @@ export default $config({
     const service = new sst.aws.Service("ApiService", {
       cluster,
       loadBalancer: {
-        domain: "agent.tweakleaf.com",
+        domain: "api.sayande.xyz",
         ports: [
           { listen: "443/https", forward: "8000/http" },
           { listen: "80/http", forward: "443/https" },
