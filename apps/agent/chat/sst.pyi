@@ -7,11 +7,4 @@ class Resource:
     class App:
         name: str
         stage: str
-    class ChatLambdaFunction:
-        name: str
-        type: str
-        url: str
-    class ChatRouter:
-        type: str
-        url: str
 

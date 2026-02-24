@@ -6,15 +6,6 @@
 
 declare module "sst" {
   export interface Resource {
-    "ChatLambdaFunction": {
-      "name": string
-      "type": "sst.aws.Function"
-      "url": string
-    }
-    "ChatRouter": {
-      "type": "sst.aws.Router"
-      "url": string
-    }
   }
 }
 /// <reference path="sst-env.d.ts" />
