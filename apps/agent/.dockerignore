@@ -15,7 +15,6 @@ node_modules/
 
 # ─── SST ───
 .sst/
-.sst_temp/
 
 # ─── Environment files ───
 .env
