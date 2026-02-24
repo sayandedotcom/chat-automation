@@ -15,7 +15,7 @@ export default $config({
     };
   },
   async run() {
-    const chatApi = new sst.aws.Function("ChatV6", {
+    const chatApi = new sst.aws.Function("ChatV7", {
       description: "Handler function for chat api.",
       python: {
         container: true,
