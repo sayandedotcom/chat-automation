@@ -22,11 +22,17 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 # Stage 2: Final runtime image
 FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
+# Cache bust - change this to force rebuild
+ARG CACHE_BUST=2025-02-25-v2
+
 # Install Node.js for MCP servers (required for npx)
 RUN yum install -y nodejs npm && yum clean all
 
 # Install uv (provides uvx for workspace-mcp)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Verify uv is accessible
+RUN uv --version
 
 # Copy the installed dependencies from the build stage
 COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
