@@ -22,21 +22,16 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 # Stage 2: Final runtime image
 FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
-# CACHE BUST: This timestamp must change to invalidate Docker layer cache
-# Last modified: 2025-02-26T02:30:00Z (epoch: 1738139400)
-RUN echo "=== BUILD TIMESTAMP: 2025-02-26T02:30:00Z ===" && date
-
-# Install curl for downloading uv
-RUN yum install -y curl && curl --version
-
-# Download and install uv directly from official source
-RUN set -ex && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    ls -la /root/.local/bin/ || true && \
-    mv /root/.local/bin/uv /usr/local/bin/uv && \
+# Install uv directly from GitHub releases (cache-bust: v2 method - direct binary)
+# Using specific version to ensure reproducibility and cache invalidation
+ARG UV_VERSION=0.5.11
+RUN yum install -y curl ca-certificates && \
+    curl -LsSf "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /tmp && \
+    mv /tmp/uv-x86_64-unknown-linux-gnu/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv && \
+    rm -rf /tmp/uv-x86_64-unknown-linux-gnu && \
     /usr/local/bin/uv --version && \
-    echo "uv installed successfully at /usr/local/bin/uv"
+    echo "UV_DIRECT_DOWNLOAD_COMPLETE"
 
 # Install Node.js for MCP servers (required for npx)
 RUN yum install -y nodejs npm && yum clean all && node --version
@@ -46,6 +41,3 @@ COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 
 # Copy the application code into the final image
 COPY . ${LAMBDA_TASK_ROOT}
-
-# Verify uv is in PATH at the end
-RUN /usr/local/bin/uv --version && echo "UV VERIFICATION SUCCESS"
