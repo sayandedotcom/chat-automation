@@ -22,16 +22,14 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 # Stage 2: Final runtime image
 FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 
-# Install uv directly from GitHub releases (cache-bust: v2 method - direct binary)
-# Using specific version to ensure reproducibility and cache invalidation
-ARG UV_VERSION=0.5.11
-RUN yum install -y curl ca-certificates && \
-    curl -LsSf "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /tmp && \
-    mv /tmp/uv-x86_64-unknown-linux-gnu/uv /usr/local/bin/uv && \
-    chmod +x /usr/local/bin/uv && \
-    rm -rf /tmp/uv-x86_64-unknown-linux-gnu && \
-    /usr/local/bin/uv --version && \
-    echo "UV_DIRECT_DOWNLOAD_COMPLETE"
+# CACHE_BUST_MARKER: chatv8-uv-runtime-20250226
+# This comment changes to invalidate Docker layer cache
+
+# Copy uv binary from the official image directly
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Verify uv is installed and working
+RUN /usr/local/bin/uv --version
 
 # Install Node.js for MCP servers (required for npx)
 RUN yum install -y nodejs npm && yum clean all && node --version
