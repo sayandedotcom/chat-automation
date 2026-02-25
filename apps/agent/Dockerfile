@@ -25,11 +25,14 @@ FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 # CACHE_BUST_MARKER: chatv8-uv-runtime-20250226
 # This comment changes to invalidate Docker layer cache
 
+# Ensure /usr/local/bin is on PATH so 'uv' can be found by subprocess calls
+ENV PATH="/usr/local/bin:${PATH}"
+
 # Copy uv binary from the official image directly
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Verify uv is installed and working
-RUN /usr/local/bin/uv --version
+# Verify uv is installed and on PATH
+RUN uv --version && which uv
 
 # Install Node.js for MCP servers (required for npx)
 RUN yum install -y nodejs npm && yum clean all && node --version

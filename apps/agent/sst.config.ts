@@ -15,13 +15,13 @@ export default $config({
     };
   },
   async run() {
-    const chatApi = new sst.aws.Function("ChatV8", {
+    const chatApi = new sst.aws.Function("ChatV9", {
       description: "Handler function for chat api.",
       python: {
         container: true,
       },
       handler: "chat/src/chat/api.handler",
-      runtime: "python3.10",
+      runtime: "python3.11",
       url: {
         cors: false,
       },
