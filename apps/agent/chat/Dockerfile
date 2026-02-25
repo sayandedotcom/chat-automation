@@ -30,9 +30,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Install Node.js 16 — the last version compatible with Amazon Linux 2 (glibc 2.26).
 # Needed at runtime for MCP servers spawned via "npx -y @server/package".
 # Node 18+ requires glibc 2.28 which AL2 doesn't have.
+# Lambda base image lacks tar, so install it first.
 ARG NODE_VERSION=16.20.2
-RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz | \
-  tar -xz --strip-components=1 -C /usr/local/
+RUN yum install -y tar gzip && \
+  curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz | \
+  tar -xz --strip-components=1 -C /usr/local/ && \
+  yum remove -y tar gzip && yum clean all
 
 # Ensure uv and npx are discoverable by subprocess calls
 ENV PATH="/usr/local/bin:${PATH}"
