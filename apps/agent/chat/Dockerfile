@@ -27,8 +27,11 @@ FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
 # Install uv binary — needed at runtime for MCP subprocess: "uv tool run workspace-mcp@..."
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Install Node.js — needed at runtime for MCP subprocess: "npx -y @server/package"
-RUN yum install -y nodejs npm && yum clean all
+# Install Node.js 18 — needed at runtime for MCP subprocess: "npx -y @server/package"
+# Amazon Linux 2 (Lambda Python 3.11 base) doesn't ship nodejs, so pull from NodeSource.
+RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash - && \
+  yum install -y nodejs && \
+  yum clean all
 
 # Ensure uv and npx are discoverable by subprocess calls
 ENV PATH="/usr/local/bin:${PATH}"
