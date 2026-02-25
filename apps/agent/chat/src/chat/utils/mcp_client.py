@@ -67,6 +67,9 @@ def create_mcp_client(
             # Credentials are pre-synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
             "args": ["tool", "run", "workspace-mcp@1.11.1", "--single-user", "--tools", "gmail", "drive", "calendar", "docs", "sheets", "slides"],
             "env": workspace_env,
+            # Lambda CWD is /var/task (read-only). workspace-mcp creates tmp/attachments
+            # relative to CWD, so set CWD to /tmp which is writable.
+            "cwd": "/tmp",
         }
         print(f"🔐 Google Workspace MCP configured (single-user mode, stdio)")
 
