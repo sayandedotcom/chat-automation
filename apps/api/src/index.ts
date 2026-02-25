@@ -21,7 +21,6 @@ async function main() {
       origin: [
         process.env.APP_URL as string,
         process.env.BETTER_AUTH_URL as string,
-        "https://chat.sayande.com",
       ].filter(Boolean),
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
       credentials: true,
