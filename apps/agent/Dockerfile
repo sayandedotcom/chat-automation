@@ -1,44 +1,53 @@
-# Specify the Python version as an ARG
-ARG PYTHON_VERSION=3.11
-ARG PYTHON_RUNTIME
+# ============================================
+# Stage 1: Build dependencies with uv
+# ============================================
+FROM python:3.12-slim AS builder
 
-# Stage 1: Build environment (install build tools and dependencies)
-FROM public.ecr.aws/lambda/python:${PYTHON_VERSION} AS build
+WORKDIR /app
 
-# Ensure git and gcc are installed for building dependencies
-RUN if [[ "$PYTHON_RUNTIME" == 3.1[2-9]* ]]; then \
-  dnf install -y git gcc; \
-  else \
-  yum install -y git gcc; \
-  fi
-
-# Copy requirements and install dependencies
-COPY requirements.txt ${LAMBDA_TASK_ROOT}/requirements.txt
-
-# Mount the uv image to install the dependencies - uv will not be installed in the final image
-RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
-  uv pip install -r requirements.txt --target ${LAMBDA_TASK_ROOT} --system --compile-bytecode
-
-# Stage 2: Final runtime image
-FROM public.ecr.aws/lambda/python:${PYTHON_VERSION}
-
-# CACHE_BUST_MARKER: chatv8-uv-runtime-20250226
-# This comment changes to invalidate Docker layer cache
-
-# Ensure /usr/local/bin is on PATH so 'uv' can be found by subprocess calls
-ENV PATH="/usr/local/bin:${PATH}"
-
-# Copy uv binary from the official image directly
+# Install uv for fast dependency resolution
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Verify uv is installed and on PATH
-RUN uv --version && which uv
+# Copy dependency files first (layer caching)
+COPY pyproject.toml uv.lock ./
+COPY chat/pyproject.toml chat/pyproject.toml
 
-# Install Node.js for MCP servers (required for npx)
-RUN yum install -y nodejs npm && yum clean all && node --version
+# Install dependencies into a virtual env (target the chat workspace member)
+RUN uv sync --frozen --no-dev --no-install-project --package chat
 
-# Copy the installed dependencies from the build stage
-COPY --from=build ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
+# Copy source code
+COPY . .
 
-# Copy the application code into the final image
-COPY . ${LAMBDA_TASK_ROOT}
+# Install the project itself
+RUN uv sync --frozen --no-dev --package chat
+
+# ============================================
+# Stage 2: Production runner
+# ============================================
+FROM python:3.12-slim AS runner
+
+WORKDIR /app
+
+# Set Python environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=utf-8 \
+    PYTHONPATH="/app/chat/src" \
+    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
+
+# Install Node.js 18 for MCP servers (required for npx)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (needed at runtime for "uv tool run workspace-mcp@...")
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy the virtual environment and source from builder
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/chat /app/chat
+
+EXPOSE 8000
+
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "chat.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -15,18 +15,22 @@ export default $config({
     };
   },
   async run() {
-    const chatApi = new sst.aws.Function("ChatV9", {
-      description: "Handler function for chat api.",
-      python: {
-        container: true,
+    const vpc = new sst.aws.Vpc("AgentVpc", { nat: "managed" });
+    const cluster = new sst.aws.Cluster("AgentCluster", { vpc });
+
+    const service = new sst.aws.Service("AgentService", {
+      cluster,
+      loadBalancer: {
+        domain: "agent.sayande.xyz",
+        ports: [
+          { listen: "443/https", forward: "8000/http" },
+          { listen: "80/http", redirect: "443/https" },
+        ],
       },
-      handler: "chat/src/chat/api.handler",
-      runtime: "python3.12",
-      url: {
-        cors: false,
+      image: {
+        context: ".",
+        dockerfile: "Dockerfile",
       },
-      timeout: "300 seconds",
-      memory: "1536 MB",
       environment: {
         GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ?? "",
         TAVILY_API_KEY: process.env.TAVILY_API_KEY ?? "",
@@ -40,16 +44,8 @@ export default $config({
       },
     });
 
-    const router = new sst.aws.Router("ChatRouter", {
-      domain: "agent.sayande.xyz",
-      routes: {
-        "/*": chatApi.url,
-      },
-    });
-
     return {
-      chatApi: chatApi.url,
-      url: router.url,
+      url: service.url,
     };
   },
 });

@@ -7,7 +7,6 @@ logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message
 
 from fastapi import FastAPI
 # from fastapi.middleware.cors import CORSMiddleware
-from mangum import Mangum
 
 from chat.utils.mcp_client import TAVILY_API_KEY
 from chat.integrations.registry import get_registry
@@ -61,5 +60,7 @@ app = FastAPI(title="Chat Agent API", lifespan=lifespan)
 app.include_router(credentials_router.router)
 app.include_router(chat_router.router)
 
-# Create handler for AWS Lambda with specific configuration
-handler = Mangum(app, api_gateway_base_path=None, lifespan="off")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
