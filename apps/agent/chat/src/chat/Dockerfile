@@ -42,8 +42,11 @@ RUN find ${LAMBDA_TASK_ROOT} -type f -name "*.pyc" -delete && \
     find ${LAMBDA_TASK_ROOT} -type d -name "__pycache__" -delete && \
     find ${LAMBDA_TASK_ROOT} -type f -name "*.pyo" -delete
 
-ENV PATH="/app/.venv/bin:$PATH" \
+ENV PATH="/usr/local/bin:/app/.venv/bin:$PATH" \
     PYTHONPATH="/var/task"
+
+# Verify uv and node are on PATH
+RUN uv --version && which uv && node --version && which node
 
 ENTRYPOINT ["/app/.venv/bin/python", "-m", "awslambdaric"]
 CMD ["api.handler"]
