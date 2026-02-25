@@ -6,14 +6,13 @@
 
 declare module "sst" {
   export interface Resource {
-    "ChatLambdaFunction": {
-      "name": string
-      "type": "sst.aws.Function"
+    "AgentService": {
+      "service": string
+      "type": "sst.aws.Service"
       "url": string
     }
-    "ChatRouter": {
-      "type": "sst.aws.Router"
-      "url": string
+    "AgentVpc": {
+      "type": "sst.aws.Vpc"
     }
   }
 }

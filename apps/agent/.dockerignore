@@ -46,3 +46,6 @@ tests/
 
 # ─── Database files ───
 *.db
+
+# sst
+.sst
