@@ -37,8 +37,13 @@ RUN yum install -y tar gzip && \
   tar -xz --strip-components=1 -C /usr/local/ && \
   yum remove -y tar gzip && yum clean all
 
-# Ensure uv and npx are discoverable by subprocess calls
-ENV PATH="/usr/local/bin:${PATH}"
+# Ensure uv and npx are discoverable by subprocess calls.
+# Lambda filesystem is read-only except /tmp — redirect all caches there.
+ENV PATH="/usr/local/bin:${PATH}" \
+  UV_CACHE_DIR="/tmp/.uv-cache" \
+  UV_TOOL_DIR="/tmp/.uv-tools" \
+  npm_config_cache="/tmp/.npm" \
+  HOME="/tmp"
 
 # Verify both are available
 RUN uv --version && node --version && npx --version
