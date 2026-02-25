@@ -21,7 +21,7 @@ export default $config({
         container: true,
       },
       handler: "chat/src/chat/api.handler",
-      runtime: "python3.11",
+      runtime: "python3.12",
       url: {
         cors: false,
       },
