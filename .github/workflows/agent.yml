@@ -2,7 +2,7 @@ name: Agent
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "apps/agent/**"
       - "packages/**"
@@ -10,7 +10,7 @@ on:
       - "pnpm-lock.yaml"
       - "turbo.json"
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
       - "apps/agent/**"
       - "packages/**"
@@ -58,7 +58,7 @@ jobs:
   deploy:
     name: Deploy
     needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     steps:
