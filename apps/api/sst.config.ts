@@ -37,9 +37,11 @@ export default $config({
       environment: {
         NODE_ENV: "production",
         PORT: "8000",
-        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
+        DATABASE_URL: process.env.DATABASE_URL!,
+        SESSION_SECRET: process.env.SESSION_SECRET!,
         GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
         GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET!,
+        GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL!,
         AGENT_API_URL: process.env.AGENT_API_URL!,
         APP_URL: process.env.APP_URL!,
         API_BASE_URL: process.env.API_BASE_URL!,
