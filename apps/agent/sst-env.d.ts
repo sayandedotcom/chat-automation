@@ -6,9 +6,17 @@
 
 declare module "sst" {
   export interface Resource {
+    AgentService: {
+      service: string;
+      type: "sst.aws.Service";
+      url: string;
+    };
+    AgentVpc: {
+      type: "sst.aws.Vpc";
+    };
   }
 }
 /// <reference path="sst-env.d.ts" />
 
-import "sst"
-export {}
+import "sst";
+export {};
