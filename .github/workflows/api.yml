@@ -96,4 +96,4 @@ jobs:
           NOTION_CLIENT_ID: ${{ secrets.NOTION_CLIENT_ID }}
           NOTION_CLIENT_SECRET: ${{ secrets.NOTION_CLIENT_SECRET }}
           NOTION_REDIRECT_URI: ${{ secrets.NOTION_REDIRECT_URI }}
-        run: pnpm sst deploy --stage production
+        run: npx sst deploy --stage production

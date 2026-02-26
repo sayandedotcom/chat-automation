@@ -95,4 +95,4 @@ jobs:
           LANGSMITH_ENDPOINT: ${{ secrets.LANGSMITH_ENDPOINT }}
           LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
           LANGSMITH_PROJECT: ${{ secrets.LANGSMITH_PROJECT }}
-        run: pnpm sst deploy --stage production
+        run: npx sst deploy --stage production
