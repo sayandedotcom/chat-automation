@@ -1,12 +1,20 @@
 "use client";
 
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { Button } from "@workspace/ui/components/button";
+import { signOut } from "@/lib/auth-client";
 
 function SettingsPage() {
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = "/";
+  };
+
   return (
-    <div>
-      <h1>Settings</h1>
-      <SignOutButton />
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-8">Settings</h1>
+      <Button onClick={handleSignOut} variant="destructive">
+        Sign out
+      </Button>
     </div>
   );
 }

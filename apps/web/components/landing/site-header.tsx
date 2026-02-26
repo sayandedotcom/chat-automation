@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@workspace/ui/components/button";
-import { SignInButton } from "../auth/sign-in-button";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export function SiteHeader() {
   return (
@@ -30,20 +31,11 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <SignInButton />
-          <Link href="/auth/sign-in">
-            <Button
-              variant="ghost"
-              className="text-neutral-400 hover:text-white"
-            >
-              Sign In
-            </Button>
-          </Link>
-          <Link href="/auth/sign-up">
+          <a href={`${API_URL}/auth/google`}>
             <Button className="bg-white text-black hover:bg-neutral-200">
-              Sign Up
+              Sign in with Google
             </Button>
-          </Link>
+          </a>
         </div>
       </div>
     </header>

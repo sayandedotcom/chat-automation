@@ -1,6 +1,7 @@
 "use client";
 
 import { FileIcon, Mic } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
@@ -47,9 +48,24 @@ const files: FileItem[] = [
   { id: "f3", name: "notes.txt" },
 ];
 
+// Reusable icon component pointing to the public/integrations SVGs
+function IntegrationIcon({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-white shadow-sm overflow-hidden p-0.5 opacity-90 hover:opacity-100 transition-opacity">
+      <Image
+        src={src}
+        alt={alt}
+        width={16}
+        height={16}
+        className="object-contain"
+      />
+    </div>
+  );
+}
+
 export function ChatInputWithMentions({
   onSubmit,
-  placeholder = "Type and press enter to start chatting...",
+  placeholder = "e.g., Research the best auth services, create a Notion doc with findings...",
 }: {
   onSubmit?: (value: string) => void;
   placeholder?: string;
@@ -72,9 +88,6 @@ export function ChatInputWithMentions({
         }),
       },
       onSubmit: (parsedValue) => {
-        console.log("Submitted parsed:", parsedValue);
-        console.log("Members mentioned:", parsedValue.member);
-        console.log("Files mentioned:", parsedValue.file);
         if (onSubmit) {
           onSubmit(parsedValue.content);
         }
@@ -94,7 +107,7 @@ export function ChatInputWithMentions({
           onSubmit={handleSubmit}
           value={value}
           onChange={onChange}
-          className="bg-[#0a0a0c] border border-[#1a1a1e] rounded-3xl shadow-2xl"
+          className="bg-[#121214] border border-[#222225] rounded-[24px] shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ring-1 ring-white/5 focus-within:ring-white/10 focus-within:border-[#333336]"
         >
           <ChatInputMention
             type={mentionConfigs.member.type}
@@ -110,7 +123,6 @@ export function ChatInputWithMentions({
                   />
                   <AvatarFallback>{item.name[0]?.toUpperCase()}</AvatarFallback>
                 </Avatar>
-
                 <span
                   className="text-xs font-medium truncate max-w-[100px]"
                   title={item.name}
@@ -144,67 +156,105 @@ export function ChatInputWithMentions({
           {/* Top: Text input */}
           <ChatInputEditor
             placeholder={placeholder}
-            className="text-neutral-200 placeholder:text-neutral-500 min-h-[28px] text-sm"
+            className="text-neutral-200 placeholder:text-[#6e6e77] min-h-[44px] text-[15px] pt-4 px-4 pb-2 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
           />
 
           {/* Bottom: Actions bar */}
           <ChatInputGroupAddon
             align="block-end"
-            className="flex items-center justify-between px-4 pb-4 pt-0"
+            className="flex flex-col w-full"
           >
-            {/* Left side: Plus button and Auto toggle */}
-            <div className="flex items-center gap-2">
-              <ChatInputMentionButton
-                variant="ghost"
-                className="text-neutral-400 hover:text-white hover:bg-white/10 rounded-full h-9 w-9 p-0"
-              />
+            <div className="flex items-center justify-between px-3 pb-3 pt-1 w-full">
+              <div className="flex items-center gap-1.5">
+                <ChatInputMentionButton
+                  variant="ghost"
+                  className="text-neutral-400 hover:text-neutral-200 hover:bg-white/5 rounded-full h-8 w-8 p-0"
+                />
 
-              <Toggle
-                variant="outline"
-                size="sm"
-                pressed={isAutoMode}
-                onPressedChange={setIsAutoMode}
-                className="h-8 px-3 gap-2 rounded-full border-[#2a2a2e] bg-[#1a1a1e] text-neutral-400 hover:text-neutral-200 hover:bg-[#2a2a2e] data-[state=on]:bg-gradient-to-r data-[state=on]:from-violet-500/20 data-[state=on]:to-purple-500/40 data-[state=on]:border-violet-500/30 data-[state=on]:text-white"
-              >
-                <span className="text-xs font-medium">Auto</span>
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
-                    isAutoMode
-                      ? "bg-white/20 text-white"
-                      : "bg-transparent border border-neutral-600"
-                  }`}
+                <Toggle
+                  variant="outline"
+                  size="sm"
+                  pressed={isAutoMode}
+                  onPressedChange={setIsAutoMode}
+                  className="h-7 px-3 gap-2 rounded-full border border-[#2a2a2e] bg-[#1a1a1e] text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2e] data-[state=on]:bg-white/10 data-[state=on]:border-white/20 data-[state=on]:text-white transition-all shadow-sm"
                 >
-                  {isAutoMode && (
-                    <svg
-                      width="8"
-                      height="8"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M2.5 6.5L5 9L9.5 3.5"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
-              </Toggle>
+                  <span className="text-[13px] font-medium tracking-wide">
+                    Auto
+                  </span>
+                  <div
+                    className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
+                      isAutoMode
+                        ? "bg-white/20 text-white"
+                        : "bg-transparent border border-[#52525b]"
+                    }`}
+                  >
+                    {isAutoMode && (
+                      <svg
+                        width="8"
+                        height="8"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M2.5 6.5L5 9L9.5 3.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </Toggle>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-neutral-400 hover:text-white hover:bg-white/5 rounded-full h-8 w-8 ml-1"
+                >
+                  <Mic className="h-[18px] w-[18px]" />
+                </Button>
+                <ChatInputSubmitButton className="bg-[#2a2a2e] hover:bg-[#3a3a3e] text-[#a1a1aa] hover:text-white rounded-full h-8 w-8 transition-colors flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4 [&>svg]:stroke-[2.5]" />
+              </div>
             </div>
 
-            {/* Right side: Mic and Submit buttons */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-neutral-400 hover:text-white hover:bg-white/10 rounded-full h-9 w-9"
-              >
-                <Mic className="h-4 w-4" />
-              </Button>
-              <ChatInputSubmitButton className="bg-white hover:bg-neutral-200 text-black rounded-full h-9 w-9 shadow-md" />
+            {/* Competitor subtle row: Connect Your Tools */}
+            <div className="flex items-center justify-start gap-4 border-t border-white/[0.04] px-4 py-3 bg-[#0e0e11]/50 rounded-b-[24px]">
+              <span className="text-[11px] font-medium text-[#71717a] tracking-[0.03em]">
+                Connect Your Tools
+              </span>
+              <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
+                <IntegrationIcon src="/integrations/gmail.svg" alt="Gmail" />
+                <IntegrationIcon src="/integrations/notion.svg" alt="Notion" />
+                <IntegrationIcon
+                  src="/integrations/google_sheets.svg"
+                  alt="Sheets"
+                />
+                <IntegrationIcon
+                  src="/integrations/google_docs.svg"
+                  alt="Docs"
+                />
+                <IntegrationIcon src="/integrations/drive.svg" alt="Drive" />
+                <IntegrationIcon src="/integrations/slack.svg" alt="Slack" />
+                <div className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-[#222] text-[#a1a1aa] border border-white/10 hover:bg-[#333] transition-colors">
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                  </svg>
+                </div>
+              </div>
             </div>
           </ChatInputGroupAddon>
         </ChatInput>

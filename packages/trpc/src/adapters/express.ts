@@ -25,7 +25,7 @@ let sessionGetter: SessionGetter | null = null;
 
 /**
  * Set the session getter function.
- * Call this from your Express app to inject Better Auth session into tRPC context.
+ * Call this from your Express app to inject Passport.js session into tRPC context.
  */
 export function setSessionGetter(fn: SessionGetter) {
   sessionGetter = fn;

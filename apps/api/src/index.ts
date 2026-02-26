@@ -3,89 +3,78 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { fromNodeHeaders } from "better-auth/node";
+import passport from "passport";
 import { mountTRPC, setSessionGetter } from "@workspace/trpc/adapters/express";
-import { auth } from "./lib/auth.js";
-import { chatExpressRouter } from "./routes/chat.js";
-import { oauthRouter } from "./routes/oauth/index.js";
+import { config } from "./config/index.js";
+import { googleStrategy } from "./services/google.service.js";
+import { sessionMiddleware } from "./middlewares/index.js";
+import { authRouter, chatRouter, oauthRouter } from "./routes/index.js";
+import "./@types/express.d.js";
+
+passport.use(googleStrategy);
 
 async function main() {
+  config.validate();
+
   const app = express();
 
-  // Trust nginx reverse proxy — allows reading X-Forwarded-* headers
   app.set("trust proxy", 1);
 
-  // CORS configuration (BEFORE auth handler for preflight)
   app.use(
     cors({
-      origin: [
-        process.env.APP_URL as string,
-        process.env.BETTER_AUTH_URL as string,
-      ].filter(Boolean),
+      origin: [config.appUrl],
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
       credentials: true,
     }),
   );
 
-  // Better Auth login/signup/OAuth is handled by Next.js.
-  // Express only uses auth.api.getSession() for session verification.
-
-  // Body parsing
   app.use(express.json());
 
-  // Security headers
   app.use(
     helmet({
       contentSecurityPolicy: false,
     }),
   );
 
-  // Cookie parsing
   app.use(cookieParser());
 
-  // Configure tRPC to use Better Auth sessions
-  setSessionGetter(async (req) => {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
+  app.use(sessionMiddleware());
 
-    if (!session) {
+  app.use(passport.initialize());
+
+  setSessionGetter(async (req) => {
+    if (!req.user) {
       return { user: null, session: null };
     }
 
     return {
       user: {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-        image: session.user.image ?? null,
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        image: req.user.image,
       },
       session: {
-        id: session.session.id,
-        expiresAt: session.session.expiresAt,
+        id: req.user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     };
   });
 
-  // Health check endpoint
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // SSE chat streaming (plain Express — tRPC cannot stream raw SSE)
-  app.use("/chat", chatExpressRouter);
-
-  // OAuth flows (plain Express — needs HTTP redirects)
+  app.use("/auth", authRouter);
+  app.use("/chat", chatRouter);
   app.use("/oauth", oauthRouter);
 
-  // Mount tRPC on /trpc
   mountTRPC(app);
 
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8000;
-
-  app.listen(PORT, () => {
-    console.log(`[API] Server listening on http://localhost:${PORT}`);
-    console.log(`[API] tRPC endpoint: http://localhost:${PORT}/trpc`);
+  app.listen(config.port, () => {
+    console.log(`[API] Server listening on http://localhost:${config.port}`);
+    console.log(`[API] tRPC endpoint: http://localhost:${config.port}/trpc`);
+    console.log(`[API] Auth endpoints: http://localhost:${config.port}/auth/*`);
   });
 }
 

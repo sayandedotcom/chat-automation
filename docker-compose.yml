@@ -22,19 +22,19 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/api/Dockerfile.dev
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=8000
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
       - APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
-      - API_BASE_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+      - API_BASE_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       # BETTER_AUTH_URL must match the web app frontend domain so OAuth cookies are same-origin
       - BETTER_AUTH_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
       - AGENT_API_URL=http://agent:8001
-    command: sh -c "pnpm --filter @workspace/database db:push && pnpm --filter api start"
+    command: sh -c "pnpm --filter @workspace/database db:push && pnpm --filter api dev"
     expose:
       - "8000"
     healthcheck:
@@ -42,7 +42,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,20 +52,19 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      dockerfile: apps/web/Dockerfile.dev
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - AGENT_API_URL=http://agent:8001
-      # Internal URL for Next.js rewrite (server-side runtime, not baked at build time)
+      - NEXT_TELEMETRY_DISABLED=1
+      # NEXT_PUBLIC_* are read from runtime env in next dev mode (no build-time baking)
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      # Internal URL for Next.js server-side requests
       - INTERNAL_API_URL=http://api:8000
-      # Better Auth (auth now runs in Next.js)
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -75,9 +74,9 @@ services:
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 60s
     depends_on:
       api:
         condition: service_healthy
@@ -87,12 +86,13 @@ services:
   agent:
     build:
       context: ./apps/agent
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     env_file:
       - .env
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
     expose:
       - "8001"
     volumes:

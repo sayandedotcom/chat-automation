@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTRPC } from "@/lib/trpc";
-import { useAuth } from "@/components/auth-provider";
+import { useSession } from "@/lib/auth-client";
 import { PlanetaryBackground } from "@/components/planetary-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { StarsBackground } from "@workspace/ui/components/stars-background";
@@ -52,7 +52,8 @@ interface ConversationTurn {
 }
 
 export default function ChatPage() {
-  const { user } = useAuth();
+  const { data: session } = useSession();
+  const user = session?.user;
   const trpc = useTRPC();
   const retryMutation = useMutation(trpc.chat.retry.mutationOptions());
   const resumeMutation = useMutation(trpc.chat.resume.mutationOptions());

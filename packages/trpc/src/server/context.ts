@@ -6,7 +6,7 @@
 import type { Request, Response } from "express";
 
 /**
- * Session information from Better Auth
+ * Session information from Passport.js
  */
 export interface SessionInfo {
   user: {
@@ -30,7 +30,7 @@ export interface BaseContext {
    */
   requestId: string;
   /**
-   * Session info from Better Auth
+   * Session info from Passport.js
    */
   session: SessionInfo;
 }

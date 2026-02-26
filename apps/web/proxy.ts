@@ -7,15 +7,15 @@ const PROTECTED_ROUTES = ["/chat", "/integrations", "/greetings"];
 // Routes only accessible to unauthenticated users
 const PUBLIC_ONLY_ROUTES = ["/"];
 
-// Better Auth session cookie name — plain in dev (HTTP), __Secure- prefixed in prod (HTTPS)
-const SESSION_COOKIE = "better-auth.session_token";
-const SESSION_COOKIE_SECURE = "__Secure-better-auth.session_token";
+// JWE session cookie names
+const SESSION_COOKIE = "session_token";
+const SESSION_ID_COOKIE = "session_id";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession =
     request.cookies.has(SESSION_COOKIE) ||
-    request.cookies.has(SESSION_COOKIE_SECURE);
+    request.cookies.has(SESSION_ID_COOKIE);
 
   // Check if the current path matches a protected route
   const isProtectedRoute = PROTECTED_ROUTES.some(

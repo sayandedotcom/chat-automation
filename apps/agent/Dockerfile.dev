@@ -1,39 +1,48 @@
-# Use a base image for building the dependencies
-FROM python:3.10-slim AS builder
+# ============================================
+# Stage 1: Install Python dependencies (cached)
+# ============================================
+FROM python:3.12-slim AS deps
 
 WORKDIR /app
 
-# Update the package lists and install dependencies in a single RUN command
-RUN apt-get update && \
-    apt-get install -y curl gcc python3-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Upgrade pip and install certifi
-RUN pip install --upgrade pip certifi
+# Copy only manifests first — this layer is cached unless deps change
+COPY pyproject.toml uv.lock ./
+COPY chat/pyproject.toml chat/pyproject.toml
 
-COPY requirements.txt ./
+# Install all dependencies into /app/.venv (skip the project itself for now)
+RUN uv sync --frozen --no-dev --no-install-project --package chat
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Use a minimal base image for the final stage
-FROM python:3.10-slim
+# ============================================
+# Stage 2: Development runner (extends deps)
+# ============================================
+FROM deps AS runner
 
 WORKDIR /app
 
-# Copy the installed dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.10 /usr/local/lib/python3.10
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Install Node.js for MCP servers (workspace-mcp requires npx)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set Python environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONIOENCODING=utf-8
+    PYTHONIOENCODING=utf-8 \
+    PYTHONPATH="/app/chat/src" \
+    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
 
-COPY . /app
+# Copy source after deps so cache is only busted on source changes
+COPY . .
 
-# Chmod to entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+# Install the chat project package into the already-populated venv
+RUN uv sync --frozen --no-dev --package chat
 
-# Run entrypoint.sh
-ENTRYPOINT ["/app/entrypoint.sh"]
+EXPOSE 8001
+
+# Use the venv python directly; --reload watches /app/chat/src for changes
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "chat.api:app", \
+     "--host", "0.0.0.0", "--port", "8001", \
+     "--reload", "--reload-dir", "/app/chat/src"]

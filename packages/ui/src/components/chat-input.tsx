@@ -113,7 +113,7 @@ export function ChatInput({
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Needs to accept configs with different item types
   const [mentionConfigs, setMentionConfigs] = useState<MentionConfig<any>[]>(
-    []
+    [],
   );
   const [editor, setEditor] = useState<Editor | null>(null);
 
@@ -155,7 +155,7 @@ export function ChatInput({
       <InputGroup
         className={cn(
           "focus-within:ring-1 focus-within:ring-ring rounded-2xl",
-          className
+          className,
         )}
         {...props}
       >
@@ -194,6 +194,7 @@ export function ChatInputEditor({
   const effectiveValue = value ?? contextValue;
   const effectiveOnChange = onChange ?? contextOnChange;
   const [isMounted, setIsMounted] = useState(false);
+  const lastEmittedValue = useRef<ChatInputValue | undefined>(effectiveValue);
 
   useEffect(() => {
     setIsMounted(true);
@@ -220,7 +221,7 @@ export function ChatInputEditor({
           HTMLAttributes: {
             class: cn(
               "bg-primary text-primary-foreground rounded-sm px-1 py-0.5 no-underline",
-              config.editorMentionClass
+              config.editorMentionClass,
             ),
           },
           suggestion: {
@@ -230,16 +231,18 @@ export function ChatInputEditor({
         });
       }),
     ],
-    [mentionConfigs, placeholder]
+    [mentionConfigs, placeholder],
   );
 
   const onUpdate = useCallback(
     ({ editor }: { editor: Editor }) => {
       if (isMounted) {
-        effectiveOnChange?.(editor.getJSON());
+        const json = editor.getJSON();
+        lastEmittedValue.current = json;
+        effectiveOnChange?.(json);
       }
     },
-    [effectiveOnChange, isMounted]
+    [effectiveOnChange, isMounted],
   );
 
   const editor = useEditor(
@@ -250,7 +253,7 @@ export function ChatInputEditor({
       editable: !(disabled || contextDisabled),
       immediatelyRender: false,
     },
-    [extensions, disabled, contextDisabled]
+    [extensions, disabled, contextDisabled],
   );
 
   useEffect(() => {
@@ -264,7 +267,9 @@ export function ChatInputEditor({
     if (
       effectiveValue &&
       editor &&
-      JSON.stringify(effectiveValue) !== JSON.stringify(editor.getJSON())
+      JSON.stringify(effectiveValue) !== JSON.stringify(editor.getJSON()) &&
+      JSON.stringify(effectiveValue) !==
+        JSON.stringify(lastEmittedValue.current)
     ) {
       editor.commands.setContent(effectiveValue);
     }
@@ -286,7 +291,7 @@ export function ChatInputEditor({
         editor={editor}
         className={cn(
           "w-full h-full max-h-48 px-4 pt-4 pb-2 overflow-y-auto",
-          className
+          className,
         )}
       />
     </>
@@ -361,7 +366,7 @@ type GenericMentionListRef = {
 const GenericMentionList = forwardRef(
   <T extends BaseMentionItem>(
     props: GenericMentionListProps<T>,
-    ref: React.Ref<GenericMentionListRef>
+    ref: React.Ref<GenericMentionListRef>,
   ) => {
     const { items, command, renderItem } = props;
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -377,7 +382,7 @@ const GenericMentionList = forwardRef(
           });
         }
       },
-      [items, command]
+      [items, command],
     );
 
     const scrollToItem = useCallback((index: number) => {
@@ -431,13 +436,13 @@ const GenericMentionList = forwardRef(
         }
         return false;
       },
-      [upHandler, downHandler, enterHandler]
+      [upHandler, downHandler, enterHandler],
     );
 
     useImperativeHandle(
       ref as React.ForwardedRef<GenericMentionListRef>,
       () => ({ handleKeyDown }),
-      [handleKeyDown]
+      [handleKeyDown],
     );
 
     return (
@@ -450,7 +455,7 @@ const GenericMentionList = forwardRef(
               size="sm"
               className={cn(
                 "flex justify-start px-1 py-2 gap-2",
-                selectedIndex === index && "bg-accent"
+                selectedIndex === index && "bg-accent",
               )}
               onClick={() => selectItem(index)}
               ref={(el) => {
@@ -473,18 +478,18 @@ const GenericMentionList = forwardRef(
         )}
       </div>
     );
-  }
+  },
 );
 
 GenericMentionList.displayName = "GenericMentionList";
 
 function getMentionSuggestion<T extends BaseMentionItem>(
-  config: MentionConfig<T>
+  config: MentionConfig<T>,
 ) {
   return {
     items: ({ query }: { query: string }) => {
       return config.items.filter((item) =>
-        item.name.toLowerCase().startsWith(query.toLowerCase())
+        item.name.toLowerCase().startsWith(query.toLowerCase()),
       );
     },
     render: () => {
@@ -754,17 +759,17 @@ export function useChatInput<
   onSubmit?: (parsed: any) => void;
 }): UseChatInputReturn<Mentions> {
   const [value, setValue] = useState<JSONContent>(
-    initialValue ?? { type: "doc", content: [] }
+    initialValue ?? { type: "doc", content: [] },
   );
 
   const configsArray = useMemo(
     () => (mentions ? Object.values(mentions) : []),
-    [mentions]
+    [mentions],
   );
 
   const parsed = useMemo(
     () => parseContent(value, configsArray),
-    [value, configsArray]
+    [value, configsArray],
   );
 
   const clear = useCallback(() => {
@@ -796,7 +801,7 @@ export function useChatInput<
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
-  k: infer I
+  k: infer I,
 ) => void
   ? I
   : never;
@@ -819,7 +824,7 @@ export type ParsedChatInputValue<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for generic config handling
 export function parseContent<Configs extends readonly MentionConfig<any>[]>(
   json: JSONContent,
-  configs: Configs
+  configs: Configs,
 ): ParsedChatInputValue<Configs> {
   let content = "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic mention types
