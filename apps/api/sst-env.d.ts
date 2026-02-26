@@ -6,9 +6,17 @@
 
 declare module "sst" {
   export interface Resource {
+    ApiService: {
+      service: string;
+      type: "sst.aws.Service";
+      url: string;
+    };
+    ApiVpc: {
+      type: "sst.aws.Vpc";
+    };
   }
 }
 /// <reference path="sst-env.d.ts" />
 
-import "sst"
-export {}
+import "sst";
+export {};
