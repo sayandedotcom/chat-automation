@@ -2,4 +2,4 @@
 export { prisma, PrismaClient } from "./client.js";
 
 // Re-export all generated Prisma types
-export * from "../../apps/web/src/generated/prisma/index.js";
+export * from "@prisma/client";
