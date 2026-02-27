@@ -114,12 +114,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild tooltip={item.title}>
+                <SidebarMenuButton asChild tooltip={item.title} className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]">
                   <a href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
                     {item.shortcut && (
-                      <span className="ml-auto text-xs text-muted-foreground">
+                      <span className="ml-auto text-xs text-zinc-500">
                         {item.shortcut}
                       </span>
                     )}
@@ -140,7 +140,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* Settings */}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings">
+            <SidebarMenuButton asChild tooltip="Settings" className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]">
               <a href="/settings">
                 <Settings />
                 <span>Settings</span>

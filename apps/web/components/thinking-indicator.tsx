@@ -24,11 +24,10 @@ export function ThinkingIndicator({
       {/* Thinking header - clickable to expand/collapse */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-1.5 text-sm text-[#9b7fdb] hover:text-[#b69be8] transition-colors group"
+        className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white/70 transition-colors group"
       >
-        <span className="text-white/40">•</span>
         <span className="font-medium">Thought</span>
-        <span className="text-white/40">for {duration}s</span>
+        <span className="text-white/30">for {duration}s</span>
         <ChevronRight
           className={cn(
             "w-3.5 h-3.5 text-white/40 transition-transform duration-200",
@@ -45,7 +44,7 @@ export function ThinkingIndicator({
         )}
       >
         <div className="pl-4 border-l border-white/10">
-          <p className="text-sm text-[#9b7fdb]/80 leading-relaxed italic">
+          <p className="text-sm text-white/40 leading-relaxed italic">
             {content}
           </p>
         </div>

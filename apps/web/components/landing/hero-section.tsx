@@ -1,9 +1,11 @@
 "use client";
+
 import { StarsBackground } from "@workspace/ui/components/stars-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { Button } from "@workspace/ui/components/button";
-import { useScroll, useTransform, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRef } from "react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -11,121 +13,235 @@ export function HeroSection() {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col items-center justify-start min-h-[120vh] w-full overflow-hidden bg-black text-white pt-32 md:pt-40"
+      className="relative flex flex-col items-center justify-start min-h-[140vh] w-full overflow-hidden bg-black text-white pt-32 md:pt-44"
     >
       <div className="absolute inset-0 z-0 top-0 h-screen">
-        <StarsBackground className="h-full" starDensity={0.0002} />
+        <StarsBackground className="h-full" starDensity={0.00015} />
         <ShootingStars />
       </div>
 
-      {/* Radial Gradient */}
-      <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-900/30 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[800px] bg-gradient-to-b from-purple-600/20 via-purple-900/10 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-40 left-0 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="z-10 flex flex-col items-center text-center max-w-5xl px-4 gap-8">
-        <h1 className="text-5xl md:text-8xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-neutral-400 pb-2">
-          AI that actually
-          <br /> works for you.
-        </h1>
-        <p className="text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed">
-          Chat Automations is an AI coworker that understands you, your team,
-          <br className="hidden md:block" /> and your tools to get work done for
-          you.
-        </p>
-        <div className="flex gap-4 mt-4">
-          <Button className="rounded-full bg-gradient-to-r from-[#5d44df] to-[#4f37cb] hover:opacity-90 transition-opacity px-10 py-7 text-lg shadow-[0_0_40px_rgba(93,68,223,0.4)] border border-white/10">
-            Get Started
+      <div className="z-10 flex flex-col items-center text-center max-w-5xl px-4 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm text-sm text-neutral-300"
+        >
+          <Sparkles className="w-4 h-4 text-purple-400" />
+          <span>Introducing Chat Automations AI</span>
+        </motion.div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.1]"
+        >
+          <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-neutral-400">
+            Your AI coworker
+          </span>
+          <br />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-violet-400 to-purple-400">
+            that actually works
+          </span>
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed"
+        >
+          An intelligent assistant that understands you, your team, and your
+          tools.
+          <br className="hidden md:block" />
+          Automate the mundane. Focus on what matters.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="flex flex-col sm:flex-row gap-4 mt-4"
+        >
+          <Button className="group rounded-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 transition-all px-8 py-6 text-lg shadow-[0_0_60px_rgba(139,92,246,0.3)] border border-white/10 hover:shadow-[0_0_80px_rgba(139,92,246,0.4)]">
+            Get Started Free
+            <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
-        </div>
+          <Button
+            variant="outline"
+            className="rounded-full border-white/10 bg-white/5 hover:bg-white/10 transition-all px-8 py-6 text-lg text-white"
+          >
+            Watch Demo
+          </Button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="flex items-center gap-6 mt-6 text-sm text-neutral-500"
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span>No credit card required</span>
+          </div>
+          <div className="hidden sm:block w-px h-4 bg-neutral-700" />
+          <div className="hidden sm:flex items-center gap-2">
+            <span>Free 14-day trial</span>
+          </div>
+        </motion.div>
       </div>
 
-      {/* Dashboard Mockup with 3D perspective */}
-      <div className="z-20 mt-20 w-full max-w-6xl px-4 [perspective:2000px]">
+      <div className="z-20 mt-16 md:mt-24 w-full max-w-6xl px-4 [perspective:2000px]">
         <motion.div
-          initial={{ rotateX: 20, opacity: 0, y: 100 }}
+          initial={{ rotateX: 25, opacity: 0, y: 100 }}
           animate={{ rotateX: 0, opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: "easeOut" }}
-          className="relative rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md shadow-2xl overflow-hidden"
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          className="relative rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/80 to-black/90 backdrop-blur-xl shadow-2xl overflow-hidden"
         >
-          {/* Window Controls */}
-          <div className="flex items-center gap-2 px-4 py-4 border-b border-white/5 bg-white/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none" />
+
+          <div className="flex items-center gap-2 px-4 py-4 border-b border-white/5 bg-white/[0.02]">
             <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
             <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
             <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
-            <div className="ml-4 text-xs text-neutral-500 font-medium">
-              Chat Automations AI
+            <div className="ml-4 text-xs text-neutral-500 font-medium flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-500 to-violet-600" />
+              Chat Automations
+            </div>
+            <div className="ml-auto flex items-center gap-4 text-xs text-neutral-600">
+              <span>⌘K</span>
             </div>
           </div>
 
-          {/* App Content */}
-          <div className="p-4 md:p-8 h-[500px] md:h-[600px] flex flex-col gap-6 relative bg-gradient-to-br from-black to-neutral-900/50">
-            {/* Chat Message 1 (User) */}
-            <div className="flex items-start gap-4 self-end max-w-xl">
-              <div className="bg-[#1a1a1a] border border-white/5 rounded-2xl rounded-tr-sm p-4 text-sm text-neutral-200">
-                Clear my calendar for the rest of the week efficiently.
+          <div className="p-4 md:p-6 h-[450px] md:h-[550px] flex flex-col gap-5 relative">
+            <div className="flex items-start gap-4 self-end max-w-lg">
+              <div className="bg-neutral-800/80 border border-white/5 rounded-2xl rounded-tr-sm p-4 text-sm text-neutral-200">
+                <p>
+                  Clear my calendar for the rest of the week and reschedule the
+                  important meetings to next week.
+                </p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-600 flex-shrink-0" />
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-neutral-600 to-neutral-700 flex-shrink-0 flex items-center justify-center text-xs font-medium">
+                U
+              </div>
             </div>
 
-            {/* Chat Message 2 (AI) */}
             <div className="flex items-start gap-4 max-w-2xl">
-              <div className="w-8 h-8 rounded-full bg-[#5d44df] flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                D
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+                CA
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="bg-[#5d44df]/10 border border-[#5d44df]/20 rounded-2xl rounded-tl-sm p-5 text-sm text-neutral-200 shadow-[0_0_30px_rgba(93,68,223,0.1)]">
-                  <p className="mb-3">
-                    I analyzed your schedule. You have 3 recurring status
-                    meetings and 2 1:1s remaining.
-                  </p>
+              <div className="flex flex-col gap-3">
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl rounded-tl-sm p-5 text-sm text-neutral-200 shadow-[0_0_40px_rgba(139,92,246,0.1)]">
                   <p className="mb-4">
-                    I've drafted cancellations for low-priority syncs and
-                    rescheduled the 1:1s to next week. You validated 6 hours of
-                    focus time.
+                    I've analyzed your calendar and identified 5 meetings. I
+                    recommend canceling 3 low-priority syncs and rescheduling 2
+                    important meetings to next week.
                   </p>
 
-                  {/* Card inside chat */}
-                  <div className="bg-black/40 rounded-xl border border-white/5 overflow-hidden">
-                    <div className="p-3 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                  <div className="bg-black/50 rounded-xl border border-white/5 overflow-hidden">
+                    <div className="p-3 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
                       <span className="text-xs font-semibold text-neutral-300">
                         Calendar Actions
                       </span>
-                      <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
-                        Completed
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+                        6h freed
                       </span>
                     </div>
                     <div className="p-3 flex flex-col gap-2">
-                      <div className="flex items-center gap-3 text-xs text-neutral-400 p-2 hover:bg-white/5 rounded transition-colors">
-                        <div className="w-4 h-4 rounded-full border border-red-500/50 flex items-center justify-center text-red-500">
-                          ✕
+                      {[
+                        {
+                          icon: "✕",
+                          status: "Canceled",
+                          name: "Product Sync",
+                          color: "red",
+                        },
+                        {
+                          icon: "➜",
+                          status: "Moved to Mon",
+                          name: "Engineering 1:1",
+                          color: "green",
+                        },
+                        {
+                          icon: "✕",
+                          status: "Canceled",
+                          name: "Team Standup",
+                          color: "red",
+                        },
+                      ].map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 text-xs text-neutral-400 p-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <div
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] ${
+                              item.color === "red"
+                                ? "border-red-500/50 text-red-400"
+                                : "border-emerald-500/50 text-emerald-400"
+                            }`}
+                          >
+                            {item.icon}
+                          </div>
+                          <span
+                            className={
+                              item.color === "red"
+                                ? "text-neutral-500 line-through"
+                                : "text-neutral-300"
+                            }
+                          >
+                            {item.name}
+                          </span>
+                          <span className="ml-auto text-neutral-500">
+                            {item.status}
+                          </span>
                         </div>
-                        <span className="text-neutral-300 line-through">
-                          Product Sync
-                        </span>
-                        <span className="ml-auto">Canceled</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-neutral-400 p-2 hover:bg-white/5 rounded transition-colors">
-                        <div className="w-4 h-4 rounded-full border border-green-500/50 flex items-center justify-center text-green-500">
-                          ➜
-                        </div>
-                        <span className="text-neutral-300">
-                          Engineering 1:1
-                        </span>
-                        <span className="ml-auto">Moved to Mon</span>
-                      </div>
+                      ))}
                     </div>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-neutral-500 ml-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  <span>Completed in 2.3s</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute bottom-4 left-0 right-0 px-4 md:px-6">
+              <div className="flex items-center gap-3 bg-neutral-900/80 border border-white/5 rounded-xl p-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-xs font-bold">
+                  CA
+                </div>
+                <input
+                  type="text"
+                  placeholder="Ask Chat Automations to do something..."
+                  className="flex-1 bg-transparent text-sm text-neutral-300 placeholder-neutral-600 outline-none"
+                  readOnly
+                />
+                <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-600">
+                  <kbd className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700">
+                    ⌘
+                  </kbd>
+                  <kbd className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700">
+                    K
+                  </kbd>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Glow effect behind the container to simulate screen emission */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#5d44df]/10 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-purple-500/5 via-transparent to-transparent pointer-events-none" />
         </motion.div>
+
+        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[80%] h-40 bg-purple-500/20 blur-[100px] pointer-events-none" />
       </div>
 
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent z-20" />
+      <div className="absolute bottom-0 left-0 right-0 h-60 bg-gradient-to-t from-black via-black/80 to-transparent z-20" />
     </div>
   );
 }

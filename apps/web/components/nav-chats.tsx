@@ -29,11 +29,11 @@ export function NavChats({ chats }: { chats: Chat[] }) {
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Chats</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-[13px] text-zinc-300 font-medium">Chats</SidebarGroupLabel>
       <SidebarMenu>
         {chats.map((chat) => (
           <SidebarMenuItem key={chat.id}>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild className="text-[14px] text-zinc-300">
               <a href={chat.url}>
                 <SquarePen className="h-4 w-4" />
                 <span className="truncate">{chat.title}</span>

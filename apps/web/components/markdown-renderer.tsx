@@ -11,11 +11,12 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div
-      className="prose prose-invert prose-p:leading-relaxed prose-pre:p-0 break-words max-w-none
-        prose-p:text-gray-300 prose-headings:text-gray-100 prose-headings:font-semibold
-        prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
-        prose-code:text-emerald-400 prose-code:bg-transparent prose-code:font-normal prose-code:before:content-none prose-code:after:content-none
-        prose-ul:my-2 prose-li:my-0
+      className="prose prose-sm prose-invert prose-p:leading-relaxed prose-pre:p-0 break-words max-w-none
+        prose-p:text-zinc-300 prose-headings:text-zinc-200 prose-headings:font-semibold
+        prose-strong:text-zinc-200
+        prose-a:text-zinc-400 prose-a:underline prose-a:underline-offset-2 hover:prose-a:text-zinc-300
+        prose-code:text-zinc-300 prose-code:bg-transparent prose-code:font-normal prose-code:before:content-none prose-code:after:content-none
+        prose-ul:my-2 prose-li:my-0 prose-li:text-zinc-300
       "
     >
       <ReactMarkdown
@@ -32,7 +33,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             const isInline = !match;
             return isInline ? (
               <code
-                className="px-1.5 py-0.5 rounded-md bg-white/10 text-emerald-300 font-mono text-sm"
+                className="px-1.5 py-0.5 rounded-md bg-white/10 text-zinc-300 font-mono text-[13px]"
                 {...props}
               >
                 {children}

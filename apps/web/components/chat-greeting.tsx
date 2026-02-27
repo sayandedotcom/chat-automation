@@ -78,21 +78,21 @@ export function ChatGreeting({
 
   if (!mounted) {
     return (
-      <div className="text-center space-y-2 mb-8">
-        <div className="h-5 w-48 bg-muted/20 rounded animate-pulse mx-auto" />
-        <div className="h-12 w-80 bg-muted/20 rounded animate-pulse mx-auto" />
+      <div className="space-y-1 mb-6 w-full">
+        <div className="h-5 w-48 bg-muted/20 rounded animate-pulse" />
+        <div className="h-10 w-80 bg-muted/20 rounded animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="text-center space-y-2 mb-8">
-      <p className="text-sm text-muted-foreground tracking-wide">{dateStr}</p>
-      <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">
+    <div className="space-y-1 mb-6 w-full">
+      <p className="text-sm text-[#71717a] tracking-wide">{dateStr}</p>
+      <h1 className="text-3xl md:text-4xl font-semibold text-white/90 tracking-tight">
         {greeting}, {userName}
       </h1>
       {subtitle && (
-        <p className="text-sm text-muted-foreground mt-2">{subtitle}</p>
+        <p className="text-sm text-[#71717a] mt-2">{subtitle}</p>
       )}
     </div>
   );

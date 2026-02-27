@@ -6,6 +6,8 @@ import { useSession } from "@/lib/auth-client";
 import { SiteHeader } from "@/components/landing/site-header";
 import { HeroSection } from "@/components/landing/hero-section";
 import { FeaturesSection } from "@/components/landing/features-section";
+import { SocialProofSection } from "@/components/landing/social-proof-section";
+import { CTASection } from "@/components/landing/cta-section";
 import { SiteFooter } from "@/components/landing/site-footer";
 
 export default function Page() {
@@ -40,7 +42,9 @@ export default function Page() {
     <main className="min-h-screen bg-black text-white selection:bg-purple-500/30">
       <SiteHeader />
       <HeroSection />
+      <SocialProofSection />
       <FeaturesSection />
+      <CTASection />
       <SiteFooter />
     </main>
   );

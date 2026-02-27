@@ -94,6 +94,8 @@ export function ChatInputWithMentions({
       },
     });
 
+  const hasText = parsed.content.trim().length > 0;
+
   useEffect(() => {
     highlightCode(JSON.stringify(parsed, null, 2), "json").then(
       setHighlightedOutput,
@@ -101,8 +103,8 @@ export function ChatInputWithMentions({
   }, [parsed]);
 
   return (
-    <div className="w-full flex justify-center items-center pb-8">
-      <div className="w-full max-w-2xl relative">
+    <div className="w-full pb-8">
+      <div className="w-full relative">
         <ChatInput
           onSubmit={handleSubmit}
           value={value}
@@ -176,7 +178,7 @@ export function ChatInputWithMentions({
                   size="sm"
                   pressed={isAutoMode}
                   onPressedChange={setIsAutoMode}
-                  className="h-7 px-3 gap-2 rounded-full border border-[#2a2a2e] bg-[#1a1a1e] text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2e] data-[state=on]:bg-white/10 data-[state=on]:border-white/20 data-[state=on]:text-white transition-all shadow-sm"
+                  className="h-7 px-3 gap-2 rounded-full border border-[#2a2a2e] bg-[#1a1a1e] text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2e] data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-600/40 data-[state=on]:to-indigo-600/30 data-[state=on]:border-purple-500/30 data-[state=on]:text-white transition-all shadow-sm"
                 >
                   <span className="text-[13px] font-medium tracking-wide">
                     Auto
@@ -217,7 +219,7 @@ export function ChatInputWithMentions({
                 >
                   <Mic className="h-[18px] w-[18px]" />
                 </Button>
-                <ChatInputSubmitButton className="bg-[#2a2a2e] hover:bg-[#3a3a3e] text-[#a1a1aa] hover:text-white rounded-full h-8 w-8 transition-colors flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4 [&>svg]:stroke-[2.5]" />
+                <ChatInputSubmitButton className={`rounded-full h-8 w-8 transition-colors flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4 [&>svg]:stroke-[2.5] ${hasText ? "bg-white/20 text-white hover:bg-white/30" : "bg-[#2a2a2e] text-[#a1a1aa] hover:bg-[#3a3a3e] hover:text-white"}`} />
               </div>
             </div>
 

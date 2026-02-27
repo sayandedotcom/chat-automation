@@ -310,6 +310,7 @@ class ChatService:
                             "type": "auth_required",
                             "thread_id": thread_id,
                             "integrations": auth_required,
+                            "original_request": request,
                             "message": "Please connect the required integrations to complete this request.",
                         }
                         return  # Stop streaming — graph routes to END, no planner/executor
