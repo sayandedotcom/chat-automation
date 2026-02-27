@@ -126,6 +126,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: success
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env: api-production
           env_url: https://api.sayande.xyz
           desc: "API deployed successfully"
 
@@ -137,4 +138,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: failure
           deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env: api-production
           desc: "API deployment failed"
