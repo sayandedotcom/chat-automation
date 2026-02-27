@@ -113,7 +113,7 @@ jobs:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
           status: success
-          env: agent-production
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           env_url: https://agent.sayande.xyz
           desc: "Agent deployed successfully"
 
@@ -124,5 +124,5 @@ jobs:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
           status: failure
-          env: agent-production
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
           desc: "Agent deployment failed"
