@@ -37,6 +37,7 @@ from chat.workflow.routing import MAX_TOOL_CALLS_PER_STEP
 
 # Re-export routing symbols so graph.py can import them from here (single source)
 from chat.workflow.routing import (  # noqa: F401
+    route_after_smart_router,
     route_after_tools,
     route_to_executor,
     should_continue,
@@ -90,6 +91,46 @@ class WorkflowNodes:
 
         integrations = await classify_integrations(user_request, self.registry)
         integrations = self._inject_artifact_integrations(integrations, state, user_request)
+
+        # Pre-flight auth check: detect unauthenticated integrations before planning
+        # connected_integrations is a per-request list of integration IDs whose cookies are present
+        connected_set = set(state.get("connected_integrations") or [])
+
+        unauthenticated = []
+        for name in integrations:
+            config = self.registry.get_integration_config(name)
+            if not (config and config.requires_auth and config.mcp_server):
+                continue
+
+            # Convert integration name to kebab-case ID (e.g. "google_docs" → "google-docs")
+            connect_id = name.replace("_", "-")
+            if connect_id not in connected_set:
+                unauthenticated.append({
+                    "mcp_server": config.mcp_server,
+                    "display_name": config.display_name,  # e.g. "Google Docs", "Notion"
+                    "icon": config.icon,
+                    "connect_id": connect_id,  # e.g. "google-docs" → oauth/google-docs
+                })
+
+        if unauthenticated:
+            logger.info(f"Smart router: auth required for {[u['mcp_server'] for u in unauthenticated]}")
+            return {
+                "auth_required_integrations": unauthenticated,
+                "loaded_integrations": [
+                    IntegrationInfo(
+                        name=n,
+                        display_name=cfg.display_name,
+                        tools_count=0,
+                        icon=cfg.icon,
+                    )
+                    for n in integrations
+                    if (cfg := self.registry.get_integration_config(n))
+                ],
+                "executor_bound_tools": [],
+                "total_tool_count": 0,
+                "initial_integrations": integrations,
+                "incremental_load_events": [],
+            }
 
         tools = self.registry.get_toolset(integrations)
         loaded_integrations = [

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Readable } from "stream";
-import { getRefreshedTokens } from "@workspace/trpc/lib/token-utils";
+import { getRefreshedTokens, getConnectedIntegrations } from "@workspace/trpc/lib/token-utils";
 
 const AGENT_API_URL = process.env.AGENT_API_URL as string;
 
@@ -22,10 +22,11 @@ chatExpressRouter.post("/stream", async (req, res) => {
     return;
   }
 
-  const { gmailToken, notionToken, slackToken } = await getRefreshedTokens(
+  const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(
     req,
     res,
   );
+  const connectedIntegrations = getConnectedIntegrations(req);
 
   let agentResponse: Response;
   try {
@@ -37,7 +38,9 @@ chatExpressRouter.post("/stream", async (req, res) => {
         thread_id: thread_id ?? null,
         gmail_token: gmailToken,
         notion_token: notionToken,
+        vercel_token: vercelToken,
         slack_token: slackToken,
+        connected_integrations: connectedIntegrations,
       }),
     });
   } catch (err) {

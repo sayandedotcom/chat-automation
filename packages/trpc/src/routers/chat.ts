@@ -5,6 +5,7 @@ import type { ExpressContext } from "../server/context.js";
 import {
   getRefreshedTokens,
   getTokensFromCookies,
+  getConnectedIntegrations,
 } from "../lib/token-utils.js";
 
 const AGENT_API_URL = process.env.AGENT_API_URL;
@@ -30,10 +31,11 @@ export const chatRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, slackToken } = await getRefreshedTokens(
+      const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(
         ctx.req,
         ctx.res,
       );
+      const connectedIntegrations = getConnectedIntegrations(ctx.req);
 
       const response = await fetch(`${AGENT_API_URL}/chat`, {
         method: "POST",
@@ -43,7 +45,9 @@ export const chatRouter = router({
           thread_id: input.thread_id ?? null,
           gmail_token: gmailToken,
           notion_token: notionToken,
+          vercel_token: vercelToken,
           slack_token: slackToken,
+          connected_integrations: connectedIntegrations,
         }),
       });
 
@@ -68,7 +72,7 @@ export const chatRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, slackToken } = getTokensFromCookies(
+      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(
         ctx.req,
       );
 
@@ -81,6 +85,7 @@ export const chatRouter = router({
           content: input.content ?? null,
           gmail_token: gmailToken,
           notion_token: notionToken,
+          vercel_token: vercelToken,
           slack_token: slackToken,
         }),
       });
@@ -105,7 +110,7 @@ export const chatRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, slackToken } = getTokensFromCookies(
+      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(
         ctx.req,
       );
 
@@ -117,6 +122,7 @@ export const chatRouter = router({
           step_number: input.step_number,
           gmail_token: gmailToken,
           notion_token: notionToken,
+          vercel_token: vercelToken,
           slack_token: slackToken,
         }),
       });

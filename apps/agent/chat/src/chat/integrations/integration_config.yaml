@@ -643,6 +643,7 @@ integrations:
     display_name: "Vercel"
     icon: "vercel"
     requires_auth: true
+    mcp_server: "vercel"
     description: "Deployment and hosting via Vercel: deploying apps, managing domains, viewing build logs, and managing projects."
     identity_keywords:
       - "vercel"

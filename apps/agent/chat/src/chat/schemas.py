@@ -129,6 +129,10 @@ class WorkflowState(TypedDict):
     # Structured artifacts from completed steps (dicts for checkpointer serialization)
     # Uses add_artifacts reducer so initial_state artifacts=[] doesn't overwrite previous turns
     artifacts: Annotated[List[dict], add_artifacts]
+    # Pre-flight auth check: integrations needing user OAuth before workflow can proceed
+    auth_required_integrations: Optional[List[dict]]
+    # Per-request list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
+    connected_integrations: Optional[List[str]]
     # Executor tool-loop state (enables multi-hop tool calling within a step)
     _executor_chat: Optional[list]  # Executor's scoped conversation for current step
     _step_tool_calls: int  # Tool call count for current step (prevents infinite loops)

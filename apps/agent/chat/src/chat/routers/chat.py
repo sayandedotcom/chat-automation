@@ -6,7 +6,7 @@ Handles all /chat* endpoints: workflow execution, streaming, resume, status, and
 
 import json
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -33,7 +33,10 @@ class WorkflowRequestSchema(BaseModel):
     # Optional OAuth tokens
     gmail_token: Optional[str] = Field(default=None)
     notion_token: Optional[str] = Field(default=None)
+    vercel_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
+    # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
+    connected_integrations: Optional[List[str]] = Field(default=None)
 
 
 class WorkflowResumeSchema(BaseModel):
@@ -44,6 +47,7 @@ class WorkflowResumeSchema(BaseModel):
     # Optional OAuth tokens
     gmail_token: Optional[str] = Field(default=None)
     notion_token: Optional[str] = Field(default=None)
+    vercel_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
 
 
@@ -54,21 +58,24 @@ class WorkflowRetrySchema(BaseModel):
     # Optional OAuth tokens
     gmail_token: Optional[str] = Field(default=None)
     notion_token: Optional[str] = Field(default=None)
+    vercel_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
 
 
 async def get_or_create_service(
     gmail_token: Optional[str] = None,
     notion_token: Optional[str] = None,
+    vercel_token: Optional[str] = None,
     slack_token: Optional[str] = None,
 ) -> ChatService:
     """Get or create a workflow service for the given token combination."""
-    cache_key = f"{gmail_token or ''}:{notion_token or ''}:{slack_token or ''}"
+    cache_key = f"{gmail_token or ''}:{notion_token or ''}:{vercel_token or ''}:{slack_token or ''}"
 
     if cache_key not in _services:
         service = ChatService(
             gmail_token=gmail_token,
             notion_token=notion_token,
+            vercel_token=vercel_token,
             slack_token=slack_token,
             tavily_api_key=TAVILY_API_KEY,
         )
@@ -97,12 +104,14 @@ async def execute_workflow(data: WorkflowRequestSchema):
         service = await get_or_create_service(
             gmail_token=data.gmail_token,
             notion_token=data.notion_token,
+            vercel_token=data.vercel_token,
             slack_token=data.slack_token,
         )
 
         result = await service.execute(
             request=data.request,
             thread_id=data.thread_id,
+            connected_integrations=data.connected_integrations,
         )
 
         return result
@@ -129,12 +138,14 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
             service = await get_or_create_service(
                 gmail_token=data.gmail_token,
                 notion_token=data.notion_token,
+                vercel_token=data.vercel_token,
                 slack_token=data.slack_token,
             )
 
             async for event in service.execute_stream(
                 request=data.request,
                 thread_id=data.thread_id,
+                connected_integrations=data.connected_integrations,
             ):
                 # Capture thread_id from events
                 if event.get("thread_id"):
@@ -251,6 +262,7 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
         service = await get_or_create_service(
             gmail_token=data.gmail_token,
             notion_token=data.notion_token,
+            vercel_token=data.vercel_token,
             slack_token=data.slack_token,
         )
 
@@ -284,6 +296,7 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
         service = await get_or_create_service(
             gmail_token=data.gmail_token,
             notion_token=data.notion_token,
+            vercel_token=data.vercel_token,
             slack_token=data.slack_token,
         )
 

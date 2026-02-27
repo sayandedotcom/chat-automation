@@ -13,6 +13,7 @@ from typing import List, TYPE_CHECKING
 from chat.schemas import WorkflowState
 from chat.workflow.nodes import WorkflowNodes
 from chat.workflow.routing import (
+    route_after_smart_router,
     route_after_tools,
     route_to_executor,
     should_continue,
@@ -137,10 +138,14 @@ class DynamicWorkflow:
             workflow.add_node("tools", self.nodes.get_tool_node())
 
         # Add edges
-        # START -> SMART_ROUTER (if registry) -> PLANNER
+        # START -> SMART_ROUTER (if registry) -> PLANNER (or END if auth missing)
         if self.registry:
             workflow.add_edge(START, "smart_router")
-            workflow.add_edge("smart_router", "planner")
+            workflow.add_conditional_edges(
+                "smart_router",
+                route_after_smart_router,
+                {"planner": "planner", "end": END},
+            )
         else:
             workflow.add_edge(START, "planner")
 

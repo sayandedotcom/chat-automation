@@ -90,7 +90,10 @@ class ChatService:
         self._tools = self._registry.get_all_tools()
 
         # Build dynamic workflow with registry for smart routing
-        self._workflow = DynamicWorkflow(tools=self._tools, registry=self._registry)
+        self._workflow = DynamicWorkflow(
+            tools=self._tools,
+            registry=self._registry,
+        )
         self._initialized = True
 
         logger.info(f"Workflow service initialized with {len(self._tools)} tools")
@@ -99,6 +102,7 @@ class ChatService:
         self,
         request: str,
         thread_id: Optional[str] = None,
+        connected_integrations: Optional[list[str]] = None,
     ) -> dict:
         """
         Execute a dynamic workflow based on user request.
@@ -126,6 +130,7 @@ class ChatService:
             "current_step_index": -1,  # -1 indicates planning phase
             "conversation_summary": None,  # Computed by planner_node from accumulated messages
             "artifacts": [],  # Structured artifacts from completed steps
+            "connected_integrations": connected_integrations or [],
             "_executor_chat": None,
             "_step_tool_calls": 0,
         }
@@ -185,6 +190,7 @@ class ChatService:
         self,
         request: str,
         thread_id: Optional[str] = None,
+        connected_integrations: Optional[list[str]] = None,
     ) -> AsyncGenerator[dict, None]:
         """
         Execute a workflow with streaming updates.
@@ -222,6 +228,10 @@ class ChatService:
             "incremental_load_events": [],
             # Multi-turn conversation context
             "conversation_summary": None,  # Computed by planner_node from accumulated messages
+            # Pre-flight auth check
+            "auth_required_integrations": None,
+            # Per-request connected integrations for auth checking
+            "connected_integrations": connected_integrations or [],
             # Structured artifacts from completed steps
             "artifacts": [],
             # Executor tool-loop state
@@ -292,8 +302,18 @@ class ChatService:
                 if not isinstance(output, dict):
                     continue
 
-                # Handle smart_router output - emit integrations_ready event
+                # Handle smart_router output - check auth first, then emit integrations_ready
                 if node_name == "smart_router":
+                    auth_required = output.get("auth_required_integrations", [])
+                    if auth_required:
+                        yield {
+                            "type": "auth_required",
+                            "thread_id": thread_id,
+                            "integrations": auth_required,
+                            "message": "Please connect the required integrations to complete this request.",
+                        }
+                        return  # Stop streaming — graph routes to END, no planner/executor
+
                     loaded_integrations = output.get("loaded_integrations", [])
                     total_tool_count = output.get("total_tool_count", 0)
 

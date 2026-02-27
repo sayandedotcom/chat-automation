@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 MAX_TOOL_CALLS_PER_STEP = 10  # Prevent infinite tool-call loops within a single step
 
 
+def route_after_smart_router(state: WorkflowState) -> Literal["planner", "end"]:
+    """Route to END if auth is missing, otherwise continue to planner."""
+    if state.get("auth_required_integrations"):
+        return "end"
+    return "planner"
+
+
 def route_to_executor(state: WorkflowState) -> Literal["executor", "executor_with_approval", "end"]:
     """
     Route to the appropriate executor based on the LLM's HITL classification.

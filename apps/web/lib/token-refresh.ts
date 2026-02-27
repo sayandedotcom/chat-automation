@@ -57,16 +57,36 @@ export async function refreshGmailToken(
  * Get all integration tokens from cookies, refreshing Gmail if possible.
  * Use this for endpoints that START new workflows (chat, stream).
  */
+/**
+ * All Google Workspace services share the same OAuth — any one cookie proves auth.
+ */
+const GOOGLE_ACCESS_COOKIES = [
+  "gmail_access_token",
+  "google_docs_access_token",
+  "google_sheets_access_token",
+  "google_slides_access_token",
+  "google_drive_access_token",
+  "google_calendar_access_token",
+] as const;
+
 export async function getRefreshedTokens(): Promise<{
   gmailToken: string | null;
   notionToken: string | null;
+  vercelToken: string | null;
   slackToken: string | null;
 }> {
   const cookieStore = await cookies();
-  let gmailToken = cookieStore.get("gmail_access_token")?.value ?? null;
+
+  let gmailToken: string | null = null;
+  for (const name of GOOGLE_ACCESS_COOKIES) {
+    const val = cookieStore.get(name)?.value ?? null;
+    if (val) { gmailToken = val; break; }
+  }
+
   const gmailRefreshToken =
     cookieStore.get("gmail_refresh_token")?.value ?? null;
   const notionToken = cookieStore.get("notion_access_token")?.value ?? null;
+  const vercelToken = cookieStore.get("vercel_access_token")?.value ?? null;
   const slackToken = cookieStore.get("slack_access_token")?.value ?? null;
 
   if (gmailRefreshToken) {
@@ -76,7 +96,7 @@ export async function getRefreshedTokens(): Promise<{
     }
   }
 
-  return { gmailToken, notionToken, slackToken };
+  return { gmailToken, notionToken, vercelToken, slackToken };
 }
 
 /**
@@ -87,12 +107,21 @@ export async function getRefreshedTokens(): Promise<{
 export async function getTokensFromCookies(): Promise<{
   gmailToken: string | null;
   notionToken: string | null;
+  vercelToken: string | null;
   slackToken: string | null;
 }> {
   const cookieStore = await cookies();
+
+  let gmailToken: string | null = null;
+  for (const name of GOOGLE_ACCESS_COOKIES) {
+    const val = cookieStore.get(name)?.value ?? null;
+    if (val) { gmailToken = val; break; }
+  }
+
   return {
-    gmailToken: cookieStore.get("gmail_access_token")?.value ?? null,
+    gmailToken,
     notionToken: cookieStore.get("notion_access_token")?.value ?? null,
+    vercelToken: cookieStore.get("vercel_access_token")?.value ?? null,
     slackToken: cookieStore.get("slack_access_token")?.value ?? null,
   };
 }

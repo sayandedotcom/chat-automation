@@ -11,6 +11,9 @@ import { ChatGreeting } from "@/components/chat-greeting";
 import { ChatInputWithMentions } from "@/components/chat-input";
 import { WorkflowTimeline, WorkflowStep } from "@/components/workflow-timeline";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { integrations as integrationConfig } from "@/config/integrations";
+import Image from "next/image";
+import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -69,18 +72,50 @@ export default function ChatPage() {
   const [loadedIntegrations, setLoadedIntegrations] = useState<
     IntegrationInfo[]
   >([]);
+  const [authRequired, setAuthRequired] = useState<Array<{
+    mcp_server: string;
+    display_name: string;
+    icon: string;
+    connect_id: string;
+  }> | null>(null);
   const threadIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Multi-turn: completed previous turns
   const [completedTurns, setCompletedTurns] = useState<ConversationTurn[]>([]);
 
-  // Auto-scroll to bottom when new content arrives
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // Auto-scroll to bottom when new content arrives (debounced to prevent flicker)
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollToBottom = useCallback(() => {
+    if (scrollTimerRef.current) {
+      clearTimeout(scrollTimerRef.current);
     }
-  }, [completedTurns.length, steps, workflowStatus]);
+    scrollTimerRef.current = setTimeout(() => {
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+    }, 50);
+  }, []);
+
+  // Use stable scalar deps instead of object references to avoid excessive triggers
+  const stepsLength = steps.length;
+  const statusMessagesLength = statusMessages.length;
+  const integrationsLength = loadedIntegrations.length;
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [
+    completedTurns.length,
+    stepsLength,
+    currentStep,
+    workflowStatus,
+    planThinking,
+    statusMessagesLength,
+    integrationsLength,
+    scrollToBottom,
+  ]);
 
   // Restore session from URL param + sessionStorage on mount
   useEffect(() => {
@@ -180,6 +215,7 @@ export default function ChatPage() {
       setPlanThinking(null);
       setStatusMessages([]);
       setLoadedIntegrations([]);
+      setAuthRequired(null);
 
       try {
         // Use streaming endpoint for real-time updates
@@ -457,6 +493,19 @@ export default function ChatPage() {
         setWorkflowStatus("complete");
         break;
 
+      case "auth_required":
+        // Workflow stopped — user needs to connect integrations
+        if (event.integrations) {
+          setAuthRequired(event.integrations as Array<{
+            mcp_server: string;
+            display_name: string;
+            icon: string;
+            connect_id: string;
+          }>);
+        }
+        setWorkflowStatus("error");
+        break;
+
       case "approval_required":
         // Workflow is paused waiting for approval
         console.log("🔐 Received approval_required event:", event);
@@ -664,6 +713,7 @@ export default function ChatPage() {
     setCurrentStep(0);
     setOriginalRequest("");
     setError(null);
+    setAuthRequired(null);
     setPlanThinking(null);
     setStatusMessages([]);
     setLoadedIntegrations([]);
@@ -703,15 +753,17 @@ export default function ChatPage() {
       <div className="flex flex-col w-full h-full z-10 relative">
         {/* Idle state - show greeting and input */}
         {isIdle && (
-          <div className="flex-1 flex flex-col items-center justify-center px-4">
-            <ChatGreeting
-              userName={user?.name?.split(" ")[0] || "there"}
-              subtitle="Describe your workflow and I'll execute it step by step"
-            />
-            <ChatInputWithMentions
-              onSubmit={executeWorkflow}
-              placeholder="e.g., Research the best auth services, create a Notion doc with findings..."
-            />
+          <div className="flex-1 flex flex-col justify-center px-4">
+            <div className="w-full max-w-2xl mx-auto">
+              <ChatGreeting
+                userName={user?.name?.split(" ")[0] || "there"}
+                subtitle="Describe your workflow and I'll execute it step by step"
+              />
+              <ChatInputWithMentions
+                onSubmit={executeWorkflow}
+                placeholder="Type and press enter to start chatting..."
+              />
+            </div>
           </div>
         )}
 
@@ -753,6 +805,20 @@ export default function ChatPage() {
                   </div>
                 </div>
 
+                {/* Shimmer loading indicator while planning */}
+                {workflowStatus === "planning" && steps.length === 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#1a1a1a] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm">🤖</span>
+                    </div>
+                    <ShimmerText
+                      text="Working on it..."
+                      className="!text-base !font-medium"
+                      wrapperClassName="p-0 justify-start"
+                    />
+                  </div>
+                )}
+
                 {/* Current turn: active workflow timeline */}
                 <WorkflowTimeline
                   steps={steps}
@@ -765,8 +831,70 @@ export default function ChatPage() {
                   isComplete={workflowStatus === "complete"}
                 />
 
+                {/* Auth required card */}
+                {authRequired && authRequired.length > 0 && (
+                  <div className="flex items-start gap-4">
+                    <div className="w-2 h-2 mt-2 rounded-full bg-amber-400 flex-shrink-0" />
+                    <div className="max-w-md space-y-3">
+                      <p className="text-zinc-300 text-sm">
+                        To continue with your request, please connect{" "}
+                        {authRequired.map((i) => i.display_name).join(" and ")}
+                        .
+                      </p>
+                      <div className="space-y-2">
+                        {authRequired.map((integration) => {
+                          const config = integrationConfig.find(
+                            (c) => c.id === integration.connect_id
+                          );
+                          return (
+                            <div
+                              key={integration.connect_id}
+                              className="flex items-center gap-3 rounded-xl bg-[#1a1a1a] border border-white/[0.06] px-4 py-3"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-[#252525] flex items-center justify-center flex-shrink-0">
+                                {config?.icon ? (
+                                  <Image
+                                    src={config.icon}
+                                    alt={integration.display_name}
+                                    width={20}
+                                    height={20}
+                                    className="object-contain"
+                                  />
+                                ) : (
+                                  <span className="text-zinc-400 text-xs">
+                                    {integration.display_name.charAt(0)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-zinc-200 text-sm font-medium">
+                                  {integration.display_name}
+                                </p>
+                                {config?.description && (
+                                  <p className="text-zinc-500 text-xs truncate">
+                                    {config.description}
+                                  </p>
+                                )}
+                              </div>
+                              <a
+                                href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
+                                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-zinc-200 text-xs font-medium transition-colors"
+                              >
+                                Connect
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-zinc-600 text-xs">
+                        After connecting, try your request again.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Error display */}
-                {error && (
+                {error && !authRequired && (
                   <div className="flex items-start gap-4">
                     <div className="w-2 h-2 mt-2 rounded-full bg-red-400 flex-shrink-0" />
                     <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 px-4 py-3">
@@ -780,15 +908,17 @@ export default function ChatPage() {
             </div>
 
             {/* Fixed chat input at the bottom */}
-            <div className="flex-shrink-0 px-4 pb-6 pt-2 bg-[#0a0a0a] border-t border-white/5">
-              <ChatInputWithMentions
-                onSubmit={executeWorkflow}
-                placeholder={
-                  workflowStatus === "complete"
-                    ? "Send a follow-up message..."
-                    : "Send a message..."
-                }
-              />
+            <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-[#0a0a0a] border-t border-white/5">
+              <div className="max-w-5xl mx-auto [&>div]:pb-0">
+                <ChatInputWithMentions
+                  onSubmit={executeWorkflow}
+                  placeholder={
+                    workflowStatus === "complete"
+                      ? "Send a follow-up message..."
+                      : "Send a message..."
+                  }
+                />
+              </div>
             </div>
           </>
         )}
