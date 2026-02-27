@@ -5,16 +5,7 @@
 /* biome-ignore-all lint: auto-generated */
 
 declare module "sst" {
-  export interface Resource {
-    ApiService: {
-      service: string;
-      type: "sst.aws.Service";
-      url: string;
-    };
-    ApiVpc: {
-      type: "sst.aws.Vpc";
-    };
-  }
+  export interface Resource {}
 }
 /// <reference path="sst-env.d.ts" />
 
