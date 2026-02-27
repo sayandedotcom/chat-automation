@@ -1,54 +1,58 @@
+version: "3.1"
 services:
-  # ─── PostgreSQL Database ───
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: chatautomation
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    expose:
-      - "5432"
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
-    restart: unless-stopped
 
-  # ─── Express API Server ───
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile.dev
-    env_file:
-      - .env
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
     environment:
-      - NODE_ENV=development
-      - PORT=8000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
-      - APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
-      - API_BASE_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-      # BETTER_AUTH_URL must match the web app frontend domain so OAuth cookies are same-origin
-      - BETTER_AUTH_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
-      - AGENT_API_URL=http://agent:8001
-    command: sh -c "pnpm --filter @workspace/database db:push && pnpm --filter api dev"
-    expose:
-      - "8000"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      NODE_ENV: development
+      PORT: 8000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-32-chars-minimum}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:8000/auth/google/callback}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+      AGENT_API_URL: ${AGENT_API_URL:-http://agent:8001}
+      NOTION_CLIENT_ID: ${NOTION_CLIENT_ID:-}
+      NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET:-}
+      NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:8000/oauth/notion/callback}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/packages/database/node_modules
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
-  # ─── Next.js Web Frontend ───
   web:
     build:
       context: .
@@ -60,15 +64,8 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - NEXT_TELEMETRY_DISABLED=1
-      # NEXT_PUBLIC_* are read from runtime env in next dev mode (no build-time baking)
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-      # Internal URL for Next.js server-side requests
-      - INTERNAL_API_URL=http://api:8000
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chatautomation?schema=public
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - NEXT_PUBLIC_APP_URL=${APP_URL:-http://localhost:8080}
+      - NEXT_PUBLIC_API_URL=${API_BASE_URL:-http://localhost:8080}
     expose:
       - "3000"
     healthcheck:
@@ -82,7 +79,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ─── Python AI Agent (FastAPI) ───
   agent:
     build:
       context: ./apps/agent
@@ -97,24 +93,21 @@ services:
       - "8001"
     volumes:
       - agent_credentials:/root/.google_workspace_mcp
-    depends_on:
-      postgres:
-        condition: service_healthy
     healthcheck:
       test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8001/docs')",
-        ]
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8001/docs')"
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
-  # ─── Nginx Reverse Proxy ───
   nginx:
     build:
       context: ./nginx

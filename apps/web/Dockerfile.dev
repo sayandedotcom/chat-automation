@@ -33,9 +33,6 @@ RUN pnpm install --prefer-offline --ignore-scripts
 # Copy full source after install for better caching
 COPY --from=pruned /app/out/full/ .
 
-# Generate Prisma client (required by @workspace/database and @workspace/trpc)
-RUN pnpm --filter @workspace/database run db:generate
-
 # ============================================
 # Stage 4: Development runner
 # ============================================
