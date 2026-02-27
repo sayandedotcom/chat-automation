@@ -62,28 +62,16 @@ jobs:
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    outputs:
-      deployment_id: ${{ steps.deployment.outputs.deployment_id }}
 
     steps:
-      - name: Create GitHub Deployment
+      - name: Start Deployment
+        uses: bobheadxi/deployments@v1
         id: deployment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          deployment_id=$(gh api repos/${{ github.repository }}/deployments \
-            -X POST \
-            -f ref="${{ github.sha }}" \
-            -f environment="api-production" \
-            -f auto_merge=false \
-            -f required_contexts='[]' \
-            -f description="API deployment to production" \
-            --jq '.id')
-          echo "deployment_id=$deployment_id" >> $GITHUB_OUTPUT
-          gh api repos/${{ github.repository }}/deployments/$deployment_id/statuses \
-            -X POST \
-            -f state="in_progress" \
-            -f description="Deploying API to production..."
+        with:
+          step: start
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: api-production
+          desc: "API deployment to production"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -112,7 +100,6 @@ jobs:
         run: npx sst unlock --stage production || true
 
       - name: Deploy
-        id: deploy
         working-directory: apps/api
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -129,22 +116,22 @@ jobs:
         run: npx sst deploy --stage production
 
       - name: Update Deployment Status (Success)
-        if: success() && steps.deployment.outputs.deployment_id != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
-            -X POST \
-            -f state="success" \
-            -f description="API deployed successfully" \
-            -f environment_url="https://api.sayande.xyz"
+        if: success()
+        uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: success
+          env: api-production
+          env_url: https://api.sayande.xyz
+          desc: "API deployed successfully"
 
       - name: Update Deployment Status (Failure)
-        if: failure() && steps.deployment.outputs.deployment_id != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
-            -X POST \
-            -f state="failure" \
-            -f description="API deployment failed"
+        if: failure()
+        uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: failure
+          env: api-production
+          desc: "API deployment failed"
