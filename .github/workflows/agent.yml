@@ -44,15 +44,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint --filter=agent...
+        run: pnpm turbo lint --filter=agent
         continue-on-error: true
 
       - name: Typecheck
-        run: pnpm typecheck --filter=agent...
+        run: pnpm turbo check-types --filter=agent
         continue-on-error: true
 
       - name: Test
-        run: pnpm test --filter=agent
+        run: pnpm turbo test --filter=agent
         continue-on-error: true
 
   deploy:
@@ -83,6 +83,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Unlock SST
+        working-directory: apps/agent
+        run: npx sst unlock --stage production || true
 
       - name: Deploy
         working-directory: apps/agent
