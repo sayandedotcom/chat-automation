@@ -51,6 +51,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create GitHub Deployment
+        id: deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          deployment_id=$(gh api repos/${{ github.repository }}/deployments \
+            -X POST \
+            -f ref="${{ github.sha }}" \
+            -f environment="agent-production" \
+            -f auto_merge=false \
+            -f required_contexts='[]' \
+            -f description="Agent deployment to production" \
+            --jq '.id')
+          echo "deployment_id=$deployment_id" >> $GITHUB_OUTPUT
+          gh api repos/${{ github.repository }}/deployments/$deployment_id/statuses \
+            -X POST \
+            -f state="in_progress" \
+            -f description="Deploying Agent to production..."
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -78,6 +97,7 @@ jobs:
         run: npx sst unlock --stage production || true
 
       - name: Deploy
+        id: deploy
         working-directory: apps/agent
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -89,3 +109,24 @@ jobs:
           LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
           LANGSMITH_PROJECT: ${{ secrets.LANGSMITH_PROJECT }}
         run: npx sst deploy --stage production
+
+      - name: Update Deployment Status (Success)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
+            -X POST \
+            -f state="success" \
+            -f description="Agent deployed successfully" \
+            -f environment_url="https://agent.sayande.xyz"
+
+      - name: Update Deployment Status (Failure)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
+            -X POST \
+            -f state="failure" \
+            -f description="Agent deployment failed"
