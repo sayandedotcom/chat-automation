@@ -496,12 +496,14 @@ export default function ChatPage() {
       case "auth_required":
         // Workflow stopped — user needs to connect integrations
         if (event.integrations) {
-          setAuthRequired(event.integrations as Array<{
-            mcp_server: string;
-            display_name: string;
-            icon: string;
-            connect_id: string;
-          }>);
+          setAuthRequired(
+            event.integrations as unknown as Array<{
+              mcp_server: string;
+              display_name: string;
+              icon: string;
+              connect_id: string;
+            }>,
+          );
         }
         setWorkflowStatus("error");
         break;
@@ -838,13 +840,12 @@ export default function ChatPage() {
                     <div className="max-w-md space-y-3">
                       <p className="text-zinc-300 text-sm">
                         To continue with your request, please connect{" "}
-                        {authRequired.map((i) => i.display_name).join(" and ")}
-                        .
+                        {authRequired.map((i) => i.display_name).join(" and ")}.
                       </p>
                       <div className="space-y-2">
                         {authRequired.map((integration) => {
                           const config = integrationConfig.find(
-                            (c) => c.id === integration.connect_id
+                            (c) => c.id === integration.connect_id,
                           );
                           return (
                             <div
