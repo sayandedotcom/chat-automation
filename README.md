@@ -4,115 +4,72 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 
 ## Architecture
 
-| Service      | Tech                                 | Port   |
-| ------------ | ------------------------------------ | ------ |
-| **Web**      | Next.js 16, React 19, TailwindCSS    | `3000` |
-| **API**      | Express 5, tRPC, Better Auth, Prisma | `8000` |
-| **Agent**    | FastAPI, LangGraph, LangChain, MCP   | `8001` |
-| **Database** | PostgreSQL 16                        | `5432` |
-| **Proxy**    | Nginx (Docker only)                  | `8080` |
+| Service      | Tech                                      | Port   |
+| ------------ | ----------------------------------------- | ------ |
+| **Web**      | Next.js 16, React 19, TailwindCSS         | `3000` |
+| **API**      | Express 5, tRPC, Passport.js, Prisma, JWE | `8000` |
+| **Agent**    | FastAPI, LangGraph, LangChain, MCP        | `8001` |
+| **Database** | PostgreSQL 16                             | `5432` |
+| **Proxy**    | Nginx                                     | `8080` |
 
 ```
 ┌──────────────────────────────────────────────────┐
 │                   Nginx (:8080)                  │
 │                                                  │
 │   /          → Web (:3000)                       │
-│   /api/*     → API (:8000)                       │
+│   /auth/*    → API (:8000)  [Passport.js + JWE]  │
 │   /trpc/*    → API (:8000)                       │
+│   /oauth/*   → API (:8000)                       │
 │   /agent/*   → Agent (:8001)                     │
-└──────────────────────┬───────────────────────────┘
-                       │
-              ┌────────┴────────┐
-              │  PostgreSQL DB  │
-              └─────────────────┘
+└──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Prerequisites
+## Quick Start
 
-- **Node.js** ≥ 20
-- **pnpm** 10.4.1 (`corepack enable`)
-- **Python** ≥ 3.10 + [uv](https://docs.astral.sh/uv/)
-- **Docker** & **Docker Compose** (for Docker setup)
-- **PostgreSQL** (for local dev, or use Docker)
+### 1. Prerequisites
 
----
+- **Docker** & Docker Compose
+- **Google Cloud Console** account (for OAuth)
 
-## Environment Setup
-
-Copy the example env file and fill in your values:
+### 2. Setup Environment
 
 ```bash
+# Copy environment file
 cp .env.example .env
+
+# Generate session secret (32+ chars)
+openssl rand -base64 32
 ```
 
-Required variables:
+Edit `.env` and add:
 
 ```env
-# ─── Database ───
-DATABASE_URL="postgresql://postgres:password@localhost:5432/chatautomation?schema=public"
-
-# ─── API / Auth ───
-BETTER_AUTH_URL=http://localhost:8080
-BETTER_AUTH_SECRET=your_secret_here
-
-# ─── Google OAuth ───
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:8080/oauth/gmail/callback
-
-# ─── Notion OAuth ───
-NOTION_CLIENT_ID=your_notion_oauth_client_id
-NOTION_CLIENT_SECRET=your_notion_oauth_client_secret
-NOTION_REDIRECT_URI=http://localhost:8080/oauth/notion/callback
-
-# ─── Web ───
-NEXT_PUBLIC_APP_URL=http://localhost:8080
-NEXT_PUBLIC_API_URL=http://localhost:8080
-
-# ─── Agent ───
-GOOGLE_API_KEY=your_gemini_api_key
-GOOGLE_OAUTH_CLIENT_ID=your_google_oauth_client_id
-GOOGLE_OAUTH_CLIENT_SECRET=your_google_oauth_client_secret
-GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8080/oauth/gmail/callback
-TAVILY_API_KEY=tvly-your_tavily_api_key
+SESSION_SECRET=<paste-output-from-openssl>
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_API_KEY=your-gemini-api-key
+TAVILY_API_KEY=your-tavily-api-key
 ```
 
----
+### 3. Google Cloud Console
 
-## Option 1: Docker (Recommended)
+Add redirect URI: `http://localhost:8000/auth/google/callback`
 
-The fastest way to get everything running. No local installs needed beyond Docker.
-
-### 1. Setup Environment
+### 4. Start
 
 ```bash
-cp .env.example .env
-# Edit .env with your API keys and secrets
-```
-
-### 2. Build & Run
-
-```bash
-docker compose build
 docker compose up
 ```
 
-### 3. Access
+Access at **http://localhost:8080**
 
-- **App**: [http://localhost:8080/](http://localhost:8080/)
-- **API**: [http://localhost:8080/api/health](http://localhost:8080/api/health)
-- **Agent**: [http://localhost:8080/agent/docs](http://localhost:8080/agent/docs)
+---
 
-> **Note**: First build takes a while (~5–10 min) as it pulls base images and installs all dependencies. Subsequent builds are cached and much faster.
-
-### Docker Commands
+## Docker Commands
 
 ```bash
-# Build all services
-docker compose build
-
 # Start all services
 docker compose up
 
@@ -124,82 +81,102 @@ docker compose logs -f
 
 # View logs for specific service
 docker compose logs -f api
+docker compose logs -f agent
 
 # Stop all services
 docker compose down
 
-# Stop and remove volumes (reset database)
+# Stop and reset database
 docker compose down -v
 
 # Rebuild a specific service
 docker compose build api
+docker compose build agent
+
+# Access container shell
+docker compose exec api sh
+docker compose exec agent bash
 ```
 
 ---
 
-## Option 2: Local Development (pnpm dev)
+## Deployment (SST)
 
-Run each service locally with hot-reload for development.
-
-### 1. Install Dependencies
+The API is configured for deployment with SST to AWS ECS Fargate:
 
 ```bash
-# Install Node.js dependencies (from repo root)
-pnpm install
-
-# Install Python dependencies (agent)
-cd apps/agent
-uv sync
-cd ../..
+cd apps/api
+sst deploy
 ```
 
-### 2. Setup Database
+Required environment variables:
 
-Make sure PostgreSQL is running locally, then:
+- `DATABASE_URL`
+- `SESSION_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_CALLBACK_URL`
+- `APP_URL`
 
-```bash
-# Copy env files
-cp .env.example .env
-cp .env.example apps/api/.env
-cp apps/agent/chat/.env.example apps/agent/chat/.env
+For production, update URLs:
 
-# Edit each .env with your values
-
-# Generate Prisma client & push schema
-pnpm --filter @workspace/database run db:generate
-pnpm --filter @workspace/database run db:push
+```env
+GOOGLE_CALLBACK_URL=https://api.yourdomain.com/auth/google/callback
+APP_URL=https://yourdomain.com
 ```
 
-### 3. Run All Services
+---
 
-```bash
-# From repo root — starts web, api, and agent together
-pnpm dev
-```
+## API Endpoints
 
-This runs `turbo dev` which starts all three apps in parallel:
+### Authentication (`/auth/*`)
 
-| Service   | URL                                            | Hot-Reload     |
-| --------- | ---------------------------------------------- | -------------- |
-| **Web**   | [http://localhost:3000](http://localhost:3000) | ✅ Turbopack   |
-| **API**   | [http://localhost:8000](http://localhost:8000) | ✅ tsx watch   |
-| **Agent** | [http://localhost:8001](http://localhost:8001) | ✅ fastapi dev |
+| Endpoint                | Method | Description                      |
+| ----------------------- | ------ | -------------------------------- |
+| `/auth/google`          | GET    | Redirect to Google OAuth         |
+| `/auth/google/callback` | GET    | Handle Google OAuth callback     |
+| `/auth/logout`          | POST   | Destroy session & clear cookies  |
+| `/auth/me`              | GET    | Get current user (requires auth) |
+| `/auth/status`          | GET    | Check authentication status      |
 
-### Run Individual Services
+### OAuth Integrations (`/oauth/*`)
 
-```bash
-# Web only
-pnpm --filter web dev
+| Endpoint                          | Method | Description                           |
+| --------------------------------- | ------ | ------------------------------------- |
+| `/oauth/gmail`                    | GET    | Redirect to Gmail OAuth               |
+| `/oauth/gmail/callback`           | GET    | Handle Gmail OAuth callback           |
+| `/oauth/google-docs`              | GET    | Redirect to Google Docs OAuth         |
+| `/oauth/google-docs/callback`     | GET    | Handle Google Docs OAuth callback     |
+| `/oauth/google-sheets`            | GET    | Redirect to Google Sheets OAuth       |
+| `/oauth/google-sheets/callback`   | GET    | Handle Google Sheets OAuth callback   |
+| `/oauth/google-slides`            | GET    | Redirect to Google Slides OAuth       |
+| `/oauth/google-slides/callback`   | GET    | Handle Google Slides OAuth callback   |
+| `/oauth/google-drive`             | GET    | Redirect to Google Drive OAuth        |
+| `/oauth/google-drive/callback`    | GET    | Handle Google Drive OAuth callback    |
+| `/oauth/google-calendar`          | GET    | Redirect to Google Calendar OAuth     |
+| `/oauth/google-calendar/callback` | GET    | Handle Google Calendar OAuth callback |
+| `/oauth/notion`                   | GET    | Redirect to Notion OAuth              |
+| `/oauth/notion/callback`          | GET    | Handle Notion OAuth callback          |
+| `/oauth/vercel`                   | GET    | Redirect to Vercel OAuth              |
+| `/oauth/vercel/callback`          | GET    | Handle Vercel OAuth callback          |
 
-# API only
-pnpm --filter api dev
+### tRPC (`/trpc/*`)
 
-# Agent only
-pnpm --filter agent dev
+All tRPC procedures are available at `/trpc/[procedure]`.
 
-# Web + API (no agent)
-turbo dev --filter=web --filter=api
-```
+See `packages/trpc/src/routers/` for available procedures.
+
+### Agent (`/agent/*`)
+
+| Endpoint                         | Method | Description                    |
+| -------------------------------- | ------ | ------------------------------ |
+| `/agent/health`                  | GET    | Health check                   |
+| `/agent/chat`                    | POST   | Send chat message              |
+| `/agent/chat/stream`             | POST   | Send chat message (SSE stream) |
+| `/agent/chat/status/{thread_id}` | GET    | Get chat thread status         |
+| `/agent/chat/retry`              | POST   | Retry failed message           |
+| `/agent/chat/resume`             | POST   | Resume interrupted chat        |
+| `/agent/sync-gmail-credentials`  | POST   | Sync Gmail OAuth credentials   |
 
 ---
 
@@ -208,16 +185,16 @@ turbo dev --filter=web --filter=api
 ```
 chat-automation/
 ├── apps/
-│   ├── api/          # Express API server (tRPC + Better Auth)
-│   ├── web/          # Next.js frontend
-│   └── agent/        # Python AI agent (FastAPI + LangGraph)
+│   ├── api/                  # Express API server
+│   ├── web/                  # Next.js frontend
+│   └── agent/                # Python AI agent (FastAPI + LangGraph)
 ├── packages/
-│   ├── database/     # Prisma schema & client
-│   ├── trpc/         # Shared tRPC routers & adapters
-│   ├── ui/           # Shared UI components
+│   ├── database/             # Prisma schema & client
+│   ├── trpc/                 # Shared tRPC routers & adapters
+│   ├── ui/                   # Shared UI components
 │   ├── eslint-config/
 │   └── typescript-config/
-├── nginx/            # Nginx reverse proxy config
+├── nginx/                    # Nginx reverse proxy config
 ├── docker-compose.yml
 ├── turbo.json
 └── pnpm-workspace.yaml
@@ -225,21 +202,89 @@ chat-automation/
 
 ---
 
-## Useful Commands
+## AI Agent Architecture
 
-```bash
-# Type checking
-pnpm --filter api typecheck
-pnpm --filter web typecheck
+LangGraph workflow implementing **Plan → Route → Execute (Auto/Approval) → Loop** pattern with Human-in-the-Loop (HITL) support.
 
-# Linting
-pnpm lint
-
-# Format code
-pnpm format
-
-# Database
-pnpm --filter @workspace/database run db:studio    # Open Prisma Studio
-pnpm --filter @workspace/database run db:migrate   # Run migrations
-pnpm --filter @workspace/database run db:push      # Push schema changes
 ```
+                   ┌─────────┐
+                   │  START  │
+                   └────┬────┘
+                        │
+                        ▼
+              ┌──────────────────┐
+              │  SMART_ROUTER    │  ← Dynamic integration loading
+              │ (if registry)    │
+              └────────┬─────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │    PLANNER      │  ← LLM creates plan with HITL flags
+              │ (structured out)│
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌────────────────────┐
+              │  ROUTE_EXECUTOR    │  ← Routes based on requires_human_approval
+              └───────┬────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+    approval=false           approval=true
+         │                         │
+         ▼                         ▼
+   ┌──────────┐          ┌────────────────────────┐
+   │ EXECUTOR │◄──┐      │ EXECUTOR_WITH_APPROVAL │◄──┐
+   │  (auto)  │   │      │   (state-based HITL)   │   │
+   └────┬─────┘   │      └───────────┬────────────┘   │
+        │         │                  │                │
+        │         │                  │                │
+        ▼         │                  ▼                │
+   ┌────────┐     │             ┌────────┐            │
+   │ TOOLS  │─────┴─────────────│ TOOLS  │────────────┘
+   └────────┘                   └────────┘
+        │                           │
+        ▼                           ▼
+   ┌───────────────────┐
+   │   STEP_COMPLETE   │  ← Clears executor state
+   └─────────┬─────────┘
+             │
+             ▼
+   ┌───────────────────────┐
+   │ should_execute_next   │
+   └───────────┬───────────┘
+               │
+       ┌───────┴───────┐
+       │               │
+   more steps        done
+       │               │
+       ▼               ▼
+   (loop)           ┌─────┐
+                    │ END │
+                    └─────┘
+```
+
+### Workflow Nodes
+
+| Node                     | Description                                  |
+| ------------------------ | -------------------------------------------- |
+| `smart_router`           | Dynamic integration loading, auth pre-flight |
+| `planner`                | LLM creates structured plan with HITL flags  |
+| `executor`               | Auto-execution (no approval needed)          |
+| `executor_with_approval` | State-based Human-in-the-Loop execution      |
+| `tools`                  | MCP tool calling (multi-hop supported)       |
+| `step_complete`          | Clears executor state, prepares next step    |
+
+### Key Features
+
+- **Multi-hop tool calling**: Executor can call tools multiple times
+- **HITL (Human-in-the-Loop)**: LLM decides which steps need approval
+- **State-based approval**: Approval state persists across tool calls
+- **Smart routing**: Dynamic integration loading based on user's connected services
+- **Checkpointing**: MemorySaver for workflow state persistence
+
+---
+
+## License
+
+MIT
