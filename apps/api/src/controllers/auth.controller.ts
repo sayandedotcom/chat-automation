@@ -5,6 +5,7 @@ import { createSession, destroySession } from "../services/session.service.js";
 import type { SessionUser } from "../@types/index.js";
 
 export function googleLogin(req: Request, res: Response, next: NextFunction) {
+  console.log("[Auth] Starting Google OAuth login");
   passport.authenticate("google", {
     scope: ["profile", "email"],
     session: false,
@@ -16,16 +17,20 @@ export function googleCallback(
   res: Response,
   next: NextFunction,
 ) {
+  console.log("[Auth] Processing Google OAuth callback");
   passport.authenticate(
     "google",
     { session: false },
     async (err: Error | null, user: SessionUser | false) => {
       if (err || !user) {
+        console.error("[Auth] Google OAuth failed:", err?.message ?? "No user");
         return res.redirect(`${config.appUrl}/?error=oauth_failed`);
       }
 
       try {
+        console.log("[Auth] Creating session for user:", user.email);
         await createSession(user, res);
+        console.log("[Auth] Session created, redirecting to /chat");
         res.redirect(`${config.appUrl}/chat`);
       } catch (sessionErr) {
         console.error("[Auth] Session creation error:", sessionErr);
@@ -36,6 +41,7 @@ export function googleCallback(
 }
 
 export async function logout(req: Request, res: Response) {
+  console.log("[Auth] Logout request from:", req.user?.email ?? "unknown");
   try {
     await destroySession(req, res);
     res.json({ success: true, message: "Logged out successfully" });
@@ -46,6 +52,10 @@ export async function logout(req: Request, res: Response) {
 }
 
 export function getCurrentUser(req: Request, res: Response) {
+  console.log(
+    "[Auth] Get current user:",
+    req.user?.email ?? "not authenticated",
+  );
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }
@@ -60,6 +70,13 @@ export function getCurrentUser(req: Request, res: Response) {
 }
 
 export function getAuthStatus(req: Request, res: Response) {
+  const hasCookie = !!req.cookies?.session_token;
+  console.log(
+    "[Auth] Status check - cookie present:",
+    hasCookie,
+    "- authenticated:",
+    !!req.user,
+  );
   res.json({
     authenticated: !!req.user,
     user: req.user

@@ -23,6 +23,7 @@ export interface CookieConfig {
   path: string;
   secure: boolean;
   sameSite: "strict" | "lax" | "none";
+  domain?: string;
 }
 
 export interface OAuthProfile {

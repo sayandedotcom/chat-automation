@@ -9,7 +9,8 @@ export const cookieConfig: CookieConfig = {
   httpOnly: true,
   path: "/",
   secure: config.isProduction,
-  sameSite: config.isProduction ? "strict" : "lax",
+  sameSite: config.isProduction ? "none" : "lax",
+  domain: config.isProduction ? ".sayande.xyz" : undefined,
 };
 
 export function setAuthCookies(
@@ -23,6 +24,7 @@ export function setAuthCookies(
     sameSite: cookieConfig.sameSite,
     maxAge: cookieConfig.maxAge * 1000,
     path: cookieConfig.path,
+    domain: cookieConfig.domain,
   });
 
   res.cookie(cookieConfig.idName, sessionId, {
@@ -31,10 +33,17 @@ export function setAuthCookies(
     sameSite: cookieConfig.sameSite,
     maxAge: cookieConfig.maxAge * 1000,
     path: cookieConfig.path,
+    domain: cookieConfig.domain,
   });
 }
 
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(cookieConfig.name, { path: cookieConfig.path });
-  res.clearCookie(cookieConfig.idName, { path: cookieConfig.path });
+  res.clearCookie(cookieConfig.name, { 
+    path: cookieConfig.path,
+    domain: cookieConfig.domain,
+  });
+  res.clearCookie(cookieConfig.idName, { 
+    path: cookieConfig.path,
+    domain: cookieConfig.domain,
+  });
 }

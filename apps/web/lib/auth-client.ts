@@ -25,21 +25,66 @@ export interface SessionData {
   };
 }
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+const FETCH_TIMEOUT = 8000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1000;
 
-  if (!res.ok) {
-    throw new Error(`Auth error: ${res.status}`);
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout<T>(
+  path: string,
+  options?: RequestInit,
+  timeout = FETCH_TIMEOUT,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      credentials: "include",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Auth error: ${res.status}`);
+    }
+
+    return res.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchWithRetry<T>(
+  path: string,
+  options?: RequestInit,
+  retries = MAX_RETRIES,
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fetchWithTimeout<T>(path, options);
+    } catch (error) {
+      lastError = error as Error;
+      if (i < retries) {
+        await delay(RETRY_DELAY * (i + 1));
+      }
+    }
   }
 
-  return res.json();
+  throw lastError;
+}
+
+async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+  return fetchWithRetry<T>(path, options);
 }
 
 export const authClient = {
@@ -107,7 +152,9 @@ export function useSession() {
       setData(sessionData);
       notifyListeners();
     } catch (err) {
+      console.error("[useSession] Error fetching session:", err);
       setError(err as Error);
+      sessionCache = { data: null, timestamp: Date.now() };
       setData(null);
     } finally {
       setIsPending(false);
@@ -136,4 +183,8 @@ export function useSession() {
   }, [refetch]);
 
   return { data, isPending, error, refetch };
+}
+
+export function clearSessionCache() {
+  sessionCache = null;
 }
