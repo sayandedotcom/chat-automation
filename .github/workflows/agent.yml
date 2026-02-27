@@ -5,18 +5,14 @@ on:
     branches: [master]
     paths:
       - "apps/agent/**"
-      - "packages/**"
       - "package.json"
       - "pnpm-lock.yaml"
-      - "turbo.json"
   pull_request:
     branches: [master]
     paths:
       - "apps/agent/**"
-      - "packages/**"
       - "package.json"
       - "pnpm-lock.yaml"
-      - "turbo.json"
 
 concurrency:
   group: agent-${{ github.ref }}
@@ -31,28 +27,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "20"
-          cache: "pnpm"
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm turbo lint --filter=agent
-        continue-on-error: true
-
-      - name: Typecheck
-        run: pnpm turbo check-types --filter=agent
-        continue-on-error: true
+        working-directory: apps/agent
+        run: uv sync --all-extras
 
       - name: Test
-        run: pnpm turbo test --filter=agent
+        working-directory: apps/agent/chat
+        run: uv run pytest tests/ -v
         continue-on-error: true
 
   deploy:
