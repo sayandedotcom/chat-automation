@@ -5,14 +5,17 @@ on:
     branches: [master]
     paths:
       - "apps/agent/**"
+      - ".github/workflows/agent.yml"
       - "package.json"
       - "pnpm-lock.yaml"
   pull_request:
     branches: [master]
     paths:
       - "apps/agent/**"
+      - ".github/workflows/agent.yml"
       - "package.json"
       - "pnpm-lock.yaml"
+  workflow_dispatch:
 
 permissions:
   contents: read

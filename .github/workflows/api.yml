@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/api/**"
       - "packages/**"
+      - ".github/workflows/api.yml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "turbo.json"
@@ -14,9 +15,11 @@ on:
     paths:
       - "apps/api/**"
       - "packages/**"
+      - ".github/workflows/api.yml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "turbo.json"
+  workflow_dispatch:
 
 permissions:
   contents: read
