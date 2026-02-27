@@ -1,27 +1,47 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Routes that require authentication
 const PROTECTED_ROUTES = ["/chat", "/integrations", "/greetings"];
-
-// Routes only accessible to unauthenticated users
 const PUBLIC_ONLY_ROUTES = ["/"];
-
-// JWE session cookie names
 const SESSION_COOKIE = "session_token";
 const SESSION_ID_COOKIE = "session_id";
 
-// Old Better Auth cookies to clear (migration)
 const OLD_COOKIES = [
   "better-auth.session_token",
   "__Secure-better-auth.session_token",
   "better-auth.csrf_token",
+  "connect.sid",
 ];
+
+function isProductionHost(request: NextRequest): boolean {
+  const host = request.headers.get("host") ?? "";
+  return host.includes("sayande.xyz");
+}
+
+function deleteOldCookies(response: NextResponse, isProduction: boolean) {
+  OLD_COOKIES.forEach((cookieName) => {
+    response.cookies.delete(cookieName);
+  });
+
+  if (isProduction) {
+    OLD_COOKIES.forEach((cookieName) => {
+      response.cookies.set(cookieName, "", {
+        expires: new Date(0),
+        path: "/",
+        domain: ".sayande.xyz",
+      });
+      response.cookies.set(cookieName, "", {
+        expires: new Date(0),
+        path: "/",
+      });
+    });
+  }
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isProduction = isProductionHost(request);
 
-  // Check for old Better Auth cookies and clear them
   const hasOldCookies = OLD_COOKIES.some((cookie) =>
     request.cookies.has(cookie),
   );
@@ -30,40 +50,27 @@ export function proxy(request: NextRequest) {
     request.cookies.has(SESSION_COOKIE) ||
     request.cookies.has(SESSION_ID_COOKIE);
 
-  // Check if the current path matches a protected route
   const isProtectedRoute = PROTECTED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route + "/"),
   );
 
-  // Check if the current path is a public-only route (homepage)
   const isPublicOnlyRoute = PUBLIC_ONLY_ROUTES.includes(pathname);
 
-  // If old cookies exist, clear them and reload
   if (hasOldCookies) {
     const response =
       isProtectedRoute && !hasSession
         ? NextResponse.redirect(new URL("/", request.url))
         : NextResponse.next();
-
-    OLD_COOKIES.forEach((cookie) => {
-      response.cookies.delete(cookie);
-    });
-
+    deleteOldCookies(response, isProduction);
     return response;
   }
 
-  // Unauthenticated user trying to access a protected route → redirect to homepage
   if (isProtectedRoute && !hasSession) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Authenticated user trying to access the homepage → redirect to /chat
   if (isPublicOnlyRoute && hasSession) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/chat";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/chat", request.url));
   }
 
   return NextResponse.next();
