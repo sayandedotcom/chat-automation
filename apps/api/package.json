@@ -8,6 +8,8 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -33,6 +35,8 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.160",
+    "@workspace/eslint-config": "workspace:*",
+    "eslint": "^9.32.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

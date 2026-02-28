@@ -22,6 +22,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
     "postinstall": "prisma generate"
   },
   "keywords": [
@@ -38,6 +40,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.32",
+    "@workspace/eslint-config": "workspace:*",
+    "eslint": "^9.32.0",
     "@types/pg": "^8.16.0",
     "@workspace/typescript-config": "workspace:*",
     "prisma": "^6.8.0",
