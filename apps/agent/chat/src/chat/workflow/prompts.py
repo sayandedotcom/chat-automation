@@ -62,6 +62,10 @@ When adding content to a Notion page:
 - Batch operations: When adding multiple blocks, combine them in a single API-patch-block-children call
 - Provide confirmation: After creating pages or content, confirm what was created and provide a link if possible
 
+AUTHENTICATION — CRITICAL:
+- NEVER ask the user for email addresses, OAuth tokens, login credentials, or any authentication details.
+- Authentication is handled automatically by the system. If a tool is unavailable or fails due to auth, tell the user to reconnect the integration.
+
 Always be helpful, accurate, and concise in your responses. Take action rather than asking for obvious information.
 """
 
@@ -103,6 +107,11 @@ PLANNER_SYSTEM_PROMPT = """You are a workflow planner. Analyze the user's reques
 {integration_context}
 {artifacts_context}
 {integration_hints}
+AUTHENTICATION — CRITICAL:
+- NEVER ask the user for email addresses, OAuth tokens, login credentials, or any authentication details.
+- Authentication is handled automatically by the system — the frontend shows an auth card if needed.
+- Only plan steps using the integrations listed in AVAILABLE INTEGRATIONS above. If the required integration is not listed, do NOT plan steps that depend on it.
+
 RULES:
 1. Each step should be a single, atomic action
 2. Steps should be in correct execution order (dependencies first)
@@ -147,6 +156,11 @@ STEP {step_number} OF {total_steps}
 
 PREVIOUS STEPS COMPLETED:
 {previous_results}
+
+AUTHENTICATION — CRITICAL:
+- NEVER ask the user for email addresses, OAuth tokens, login credentials, or any authentication details.
+- Authentication is handled automatically by the system. If a tool call fails due to authentication or permission errors, simply report that the action could not be completed and the user needs to reconnect the integration.
+- Do NOT try to work around auth failures by asking users for information.
 
 YOUR TASK:
 Execute ONLY this step using the available tools. Be thorough but focused on just this step.

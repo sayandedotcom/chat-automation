@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { StickToBottom } from "use-stick-to-bottom";
 import { useMutation } from "@tanstack/react-query";
 import { useTRPC } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
@@ -79,49 +80,8 @@ export default function ChatPage() {
     connect_id: string;
   }> | null>(null);
   const threadIdRef = useRef<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
   // Multi-turn: completed previous turns
   const [completedTurns, setCompletedTurns] = useState<ConversationTurn[]>([]);
-
-  // Auto-scroll to bottom only when user is already near the bottom
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isNearBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return true;
-    // "Near bottom" = within 150px of the bottom edge
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 150;
-  }, []);
-  const scrollToBottom = useCallback(() => {
-    if (scrollTimerRef.current) {
-      clearTimeout(scrollTimerRef.current);
-    }
-    scrollTimerRef.current = setTimeout(() => {
-      requestAnimationFrame(() => {
-        if (scrollRef.current && isNearBottom()) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      });
-    }, 50);
-  }, [isNearBottom]);
-
-  // Use stable scalar deps instead of object references to avoid excessive triggers
-  const stepsLength = steps.length;
-  const statusMessagesLength = statusMessages.length;
-  const integrationsLength = loadedIntegrations.length;
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [
-    completedTurns.length,
-    stepsLength,
-    currentStep,
-    workflowStatus,
-    planThinking,
-    statusMessagesLength,
-    integrationsLength,
-    scrollToBottom,
-  ]);
 
   // Restore session from URL param + sessionStorage on mount
   useEffect(() => {
@@ -616,18 +576,34 @@ export default function ChatPage() {
     ) => {
       try {
         // First update UI optimistically — keep tool_calls for collapsed card view
+        // When action is "edit", also update tool_call arguments so the preview
+        // shows the edited content (even if the component remounts).
+        const editedToolCalls =
+          action === "edit" && content?.tool_calls
+            ? (content.tool_calls as Array<{ id: string; arguments: Record<string, unknown> }>)
+            : null;
+
         setSteps((prev) =>
-          prev.map((step) =>
-            step.step_number === stepNumber
-              ? {
-                  ...step,
-                  status:
-                    action === "skip"
-                      ? ("skipped" as const)
-                      : ("in_progress" as const),
-                }
-              : step,
-          ),
+          prev.map((step) => {
+            if (step.step_number !== stepNumber) return step;
+            let updatedToolCalls = step.tool_calls;
+            if (editedToolCalls && step.tool_calls) {
+              updatedToolCalls = step.tool_calls.map((tc) => {
+                const edited = editedToolCalls.find((e) => e.id === tc.id);
+                return edited
+                  ? { ...tc, arguments: { ...tc.arguments, ...edited.arguments } }
+                  : tc;
+              });
+            }
+            return {
+              ...step,
+              tool_calls: updatedToolCalls,
+              status:
+                action === "skip"
+                  ? ("skipped" as const)
+                  : ("in_progress" as const),
+            };
+          }),
         );
 
         const data = await resumeMutation.mutateAsync({
@@ -779,140 +755,146 @@ export default function ChatPage() {
         {isChatActive && (
           <>
             {/* Scrollable content area - takes remaining space */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto px-4 pt-6 pb-4 scroll-smooth"
+            <StickToBottom
+              className="flex-1 overflow-hidden relative"
+              resize="smooth"
+              initial="smooth"
             >
-              <div className="max-w-5xl mx-auto space-y-6">
-                {/* Completed previous turns */}
-                {completedTurns.map((turn) => (
-                  <div key={turn.id} className="space-y-4">
-                    {/* Previous turn: user message bubble */}
-                    <div className="flex justify-end">
-                      <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
-                        <MarkdownRenderer content={turn.userMessage} />
+              <StickToBottom.Content className="px-4 pt-6 pb-4">
+                <div className="max-w-5xl mx-auto space-y-6">
+                  {/* Completed previous turns */}
+                  {completedTurns.map((turn) => (
+                    <div key={turn.id} className="space-y-4">
+                      {/* Previous turn: user message bubble */}
+                      <div className="flex justify-end">
+                        <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
+                          <MarkdownRenderer content={turn.userMessage} />
+                        </div>
                       </div>
+
+                      {/* Previous turn: completed workflow timeline */}
+                      <WorkflowTimeline
+                        steps={turn.steps}
+                        currentStep={turn.steps.length}
+                        planThinking={turn.planThinking || undefined}
+                        statusMessages={turn.statusMessages}
+                        loadedIntegrations={turn.loadedIntegrations}
+                        isComplete={true}
+                      />
                     </div>
+                  ))}
 
-                    {/* Previous turn: completed workflow timeline */}
-                    <WorkflowTimeline
-                      steps={turn.steps}
-                      currentStep={turn.steps.length}
-                      planThinking={turn.planThinking || undefined}
-                      statusMessages={turn.statusMessages}
-                      loadedIntegrations={turn.loadedIntegrations}
-                      isComplete={true}
-                    />
-                  </div>
-                ))}
-
-                {/* Current turn: user message bubble */}
-                <div className="flex justify-end">
-                  <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
-                    <MarkdownRenderer content={originalRequest} />
-                  </div>
-                </div>
-
-                {/* Shimmer loading indicator while planning */}
-                {workflowStatus === "planning" && steps.length === 0 && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#1a1a1a] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm">🤖</span>
+                  {/* Current turn: user message bubble */}
+                  <div className="flex justify-end">
+                    <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
+                      <MarkdownRenderer content={originalRequest} />
                     </div>
-                    <ShimmerText
-                      text="Working on it..."
-                      className="!text-base !font-medium"
-                      wrapperClassName="p-0 justify-start"
-                    />
                   </div>
-                )}
 
-                {/* Current turn: active workflow timeline */}
-                <WorkflowTimeline
-                  steps={steps}
-                  currentStep={currentStep}
-                  planThinking={planThinking || undefined}
-                  statusMessages={statusMessages}
-                  loadedIntegrations={loadedIntegrations}
-                  onRetry={handleRetry}
-                  onApprove={handleApprove}
-                  isComplete={workflowStatus === "complete"}
-                />
+                  {/* Shimmer loading indicator while planning */}
+                  {workflowStatus === "planning" && steps.length === 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#1a1a1a] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm">🤖</span>
+                      </div>
+                      <ShimmerText
+                        text="Working on it..."
+                        className="!text-base !font-medium"
+                        wrapperClassName="p-0 justify-start"
+                      />
+                    </div>
+                  )}
 
-                {/* Auth required card */}
-                {authRequired && authRequired.length > 0 && (
-                  <div className="flex items-start gap-4">
-                    <div className="w-2 h-2 mt-2 rounded-full bg-amber-400 flex-shrink-0" />
-                    <div className="max-w-md space-y-3">
-                      <p className="text-zinc-300 text-sm">
-                        To continue with your request, please connect{" "}
-                        {authRequired.map((i) => i.display_name).join(" and ")}.
-                      </p>
-                      <div className="space-y-2">
-                        {authRequired.map((integration) => {
-                          const config = integrationConfig.find(
-                            (c) => c.id === integration.connect_id,
-                          );
-                          return (
-                            <div
-                              key={integration.connect_id}
-                              className="flex items-center gap-3 rounded-xl bg-[#1a1a1a] border border-white/[0.06] px-4 py-3"
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-[#252525] flex items-center justify-center flex-shrink-0">
-                                {config?.icon ? (
-                                  <Image
-                                    src={config.icon}
-                                    alt={integration.display_name}
-                                    width={20}
-                                    height={20}
-                                    className="object-contain"
-                                  />
-                                ) : (
-                                  <span className="text-zinc-400 text-xs">
-                                    {integration.display_name.charAt(0)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-zinc-200 text-sm font-medium">
-                                  {integration.display_name}
-                                </p>
-                                {config?.description && (
-                                  <p className="text-zinc-500 text-xs truncate">
-                                    {config.description}
-                                  </p>
-                                )}
-                              </div>
-                              <a
-                                href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
-                                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-zinc-200 text-xs font-medium transition-colors"
+                  {/* Current turn: active workflow timeline */}
+                  <WorkflowTimeline
+                    steps={steps}
+                    currentStep={currentStep}
+                    planThinking={planThinking || undefined}
+                    statusMessages={statusMessages}
+                    loadedIntegrations={loadedIntegrations}
+                    onRetry={handleRetry}
+                    onApprove={handleApprove}
+                    isComplete={workflowStatus === "complete"}
+                  />
+
+                  {/* Auth required card */}
+                  {authRequired && authRequired.length > 0 && (
+                    <div className="flex items-start gap-4">
+                      <div className="w-2 h-2 mt-2 rounded-full bg-amber-400 flex-shrink-0" />
+                      <div className="max-w-md space-y-3">
+                        <p className="text-zinc-300 text-sm">
+                          To continue with your request, please connect{" "}
+                          {authRequired
+                            .map((i) => i.display_name)
+                            .join(" and ")}
+                          .
+                        </p>
+                        <div className="space-y-2">
+                          {authRequired.map((integration) => {
+                            const config = integrationConfig.find(
+                              (c) => c.id === integration.connect_id,
+                            );
+                            return (
+                              <div
+                                key={integration.connect_id}
+                                className="flex items-center gap-3 rounded-xl bg-[#1a1a1a] border border-white/[0.06] px-4 py-3"
                               >
-                                Connect
-                              </a>
-                            </div>
-                          );
-                        })}
+                                <div className="w-8 h-8 rounded-lg bg-[#252525] flex items-center justify-center flex-shrink-0">
+                                  {config?.icon ? (
+                                    <Image
+                                      src={config.icon}
+                                      alt={integration.display_name}
+                                      width={20}
+                                      height={20}
+                                      className="object-contain"
+                                    />
+                                  ) : (
+                                    <span className="text-zinc-400 text-xs">
+                                      {integration.display_name.charAt(0)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-zinc-200 text-sm font-medium">
+                                    {integration.display_name}
+                                  </p>
+                                  {config?.description && (
+                                    <p className="text-zinc-500 text-xs truncate">
+                                      {config.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <a
+                                  href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
+                                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-zinc-200 text-xs font-medium transition-colors"
+                                >
+                                  Connect
+                                </a>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-zinc-600 text-xs">
+                          After connecting, try your request again.
+                        </p>
                       </div>
-                      <p className="text-zinc-600 text-xs">
-                        After connecting, try your request again.
-                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Error display */}
-                {error && !authRequired && (
-                  <div className="flex items-start gap-4">
-                    <div className="w-2 h-2 mt-2 rounded-full bg-red-400 flex-shrink-0" />
-                    <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 px-4 py-3">
-                      <p className="text-red-400 text-sm">
-                        <strong>Error:</strong> {error}
-                      </p>
+                  {/* Error display */}
+                  {error && !authRequired && (
+                    <div className="flex items-start gap-4">
+                      <div className="w-2 h-2 mt-2 rounded-full bg-red-400 flex-shrink-0" />
+                      <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 px-4 py-3">
+                        <p className="text-red-400 text-sm">
+                          <strong>Error:</strong> {error}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
+              </StickToBottom.Content>
+            </StickToBottom>
 
             {/* Fixed chat input at the bottom */}
             <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-[#0a0a0a] border-t border-white/5">

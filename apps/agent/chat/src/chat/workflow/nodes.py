@@ -653,7 +653,15 @@ class WorkflowNodes:
         if "slide" in name or "presentation" in name: return "google_slides"
         if "calendar" in name or "event" in name: return "google_calendar"
         if "drive" in name:            return "google_drive"
-        return "unknown"
+        if "notion" in name:           return "notion"
+        if "slack" in name:            return "slack"
+        if "github" in name:           return "github"
+        if "linear" in name:           return "linear"
+        if "vercel" in name:           return "vercel"
+        if "supabase" in name:         return "supabase"
+        if "sentry" in name:           return "sentry"
+        if "search" in name or "tavily" in name: return "web_search"
+        return name
 
     def _apply_edited_args(self, ai_message: AIMessage, edited_content: dict) -> AIMessage:
         """Merge user-edited arguments into an AIMessage's tool_calls."""

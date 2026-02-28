@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   Globe,
-  Shield,
   Mail,
   Calendar,
   FileText,
@@ -381,61 +380,22 @@ export function WorkflowTimeline({
                     ) : step.status === "awaiting_approval" ? (
                       (() => {
                         const integration = step.tool_calls?.[0]?.integration;
-                        if (integration === "gmail") {
-                          return (
-                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
-                              <Image
-                                src="/integrations/gmail.svg"
-                                alt="Gmail"
-                                width={12}
-                                height={12}
-                                className="object-contain grayscale"
-                              />
-                            </div>
-                          );
-                        }
-                        if (integration === "google_docs") {
-                          return (
-                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
-                              <Image
-                                src="/integrations/google_docs.svg"
-                                alt="Google Docs"
-                                width={12}
-                                height={12}
-                                className="object-contain grayscale"
-                              />
-                            </div>
-                          );
-                        }
-                        if (integration === "notion") {
-                          return (
-                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
-                              <Image
-                                src="/integrations/notion.svg"
-                                alt="Notion"
-                                width={12}
-                                height={12}
-                                className="object-contain grayscale"
-                              />
-                            </div>
-                          );
-                        }
-                        if (integration === "google_calendar") {
-                          return (
-                            <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
-                              <Image
-                                src="/integrations/google_calendar.svg"
-                                alt="Google Calendar"
-                                width={12}
-                                height={12}
-                                className="object-contain grayscale"
-                              />
-                            </div>
-                          );
-                        }
+                        const iconPath = integration
+                          ? `/integrations/${integration}.svg`
+                          : null;
                         return (
-                          <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/40 flex items-center justify-center animate-pulse">
-                            <Shield className="w-3 h-3 text-white/70" />
+                          <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
+                            {iconPath ? (
+                              <Image
+                                src={iconPath}
+                                alt={integration || ""}
+                                width={12}
+                                height={12}
+                                className="object-contain grayscale"
+                              />
+                            ) : (
+                              <Loader2 className="w-3 h-3 animate-spin text-white/60" />
+                            )}
                           </div>
                         );
                       })()
@@ -597,58 +557,7 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // Fallback for awaiting_approval without tool-specific UI
-                        if (step.status === "awaiting_approval") {
-                          return (
-                            <div className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden">
-                              <div className="px-4 py-3">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <Shield className="w-4 h-4 text-white/70" />
-                                    <span className="text-sm font-medium text-white/80">
-                                      Awaiting Approval
-                                    </span>
-                                  </div>
-                                  {onApprove && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                          onApprove(step.step_number, "approve")
-                                        }
-                                        className="h-7 px-3 text-xs border-white/20 text-white hover:bg-white/10 bg-transparent"
-                                      >
-                                        Approve
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                          onApprove(step.step_number, "skip")
-                                        }
-                                        className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
-                                      >
-                                        Skip
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                                <p className="text-sm text-white/60">
-                                  {step.description}
-                                </p>
-                                {step.approval_reason && (
-                                  <p className="text-xs text-white/40 mt-1">
-                                    {step.approval_reason}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        // Completed steps with unknown tool_calls — don't render card
-                        return null;
+                        // All integrations have tool-specific UI above — no fallback needed                        return null;
                       })()
                     ) : step.status === "awaiting_approval" ? (
                       // Generic approval card (no tool_calls) — with Google Calendar fallback
@@ -707,53 +616,8 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // Generic fallback
-                        return (
-                          <div className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden">
-                            <div className="px-4 py-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <Shield className="w-4 h-4 text-white/70" />
-                                  <span className="text-sm font-medium text-white/80">
-                                    Awaiting Approval
-                                  </span>
-                                </div>
-                                {onApprove && (
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        onApprove(step.step_number, "approve")
-                                      }
-                                      className="h-7 px-3 text-xs border-white/20 text-white hover:bg-white/10 bg-transparent"
-                                    >
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        onApprove(step.step_number, "skip")
-                                      }
-                                      className="h-7 px-2 text-xs border-white/20 text-white/60 hover:bg-white/10 bg-transparent"
-                                    >
-                                      Skip
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                              <p className="text-sm text-white/60">
-                                {step.description}
-                              </p>
-                              {step.approval_reason && (
-                                <p className="text-xs text-white/40 mt-1">
-                                  {step.approval_reason}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        );
+                        // All integrations have tool-specific UI — no generic fallback needed
+                        return null;
                       })()
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
