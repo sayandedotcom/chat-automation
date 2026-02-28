@@ -13,6 +13,8 @@ help:
 	@echo "  make clean       - Clean build artifacts"
 	@echo "  make knip        - Find unused code"
 	@echo "  make type-coverage - Check TypeScript coverage"
+	@echo "  make lint-python - Lint Python files (agent)"
+	@echo "  make format-python - Format Python files (agent)"
 
 # Install dependencies
 install:
@@ -59,6 +61,14 @@ knip:
 # Check TypeScript coverage
 type-coverage:
 	pnpm type-coverage
+
+# Lint Python files
+lint-python:
+	cd apps/agent && uv run ruff check
+
+# Format Python files
+format-python:
+	cd apps/agent && uv run ruff format
 
 # Database commands
 db-generate:
