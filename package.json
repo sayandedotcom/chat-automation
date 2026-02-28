@@ -11,6 +11,8 @@
     "typecheck": "turbo check-types",
     "test": "turbo test",
     "knip": "knip",
+    "type-coverage": "type-coverage",
+    "bundlewatch": "bundlewatch",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -19,10 +21,12 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/prettier-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "bundlewatch": "^0.4.0",
     "husky": "^9.1.7",
     "knip": "^5.46.0",
     "lint-staged": "^15.5.0",
     "prettier": "^3.7.4",
+    "type-coverage": "^2.29.7",
     "turbo": "^2.6.3",
     "typescript": "5.7.3"
   },

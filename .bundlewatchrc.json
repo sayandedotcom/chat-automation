@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/bundlewatch.json",
+  "files": [
+    {
+      "path": "apps/web/.next/static/**/*.js",
+      "maxSize": "500kb"
+    }
+  ],
+  "ci": {
+    "trackBranches": ["master", "main"],
+    "repoBranchBase": "master"
+  },
+  "normalizeFileNames": ["/\\.[a-f0-9]+\\./", "."]
+}
