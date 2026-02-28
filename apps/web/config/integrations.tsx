@@ -30,7 +30,7 @@ export const integrations: Integration[] = [
     description: "Manage Google Slides presentations",
     icon: "/integrations/google_slides.svg",
     oauth: true,
-    isLive: true,
+    isLive: false,
   },
   {
     id: "google-docs",
@@ -78,7 +78,7 @@ export const integrations: Integration[] = [
     description: "Deploy and manage apps on Vercel",
     icon: "/integrations/vercel_dark.svg",
     oauth: true,
-    isLive: true,
+    isLive: false,
   },
   {
     id: "notion",
