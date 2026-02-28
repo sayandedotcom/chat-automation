@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"app/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"app/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -38,8 +40,10 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@workspace/eslint-config": "workspace:^",
+    "@workspace/prettier-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.1",
+    "prettier": "^3.7.4",
     "typescript": "^5.9.3"
   }
 }

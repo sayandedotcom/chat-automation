@@ -15,6 +15,9 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:packages/eslint-config
+      '@workspace/prettier-config':
+        specifier: workspace:*
+        version: link:packages/prettier-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:packages/typescript-config
@@ -99,12 +102,18 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@workspace/prettier-config':
+        specifier: workspace:*
+        version: link:../../packages/prettier-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       eslint:
         specifier: ^9.32.0
         version: 9.39.1(jiti@2.6.1)
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -187,12 +196,18 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:^
         version: link:../../packages/eslint-config
+      '@workspace/prettier-config':
+        specifier: workspace:*
+        version: link:../../packages/prettier-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -218,12 +233,18 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@workspace/prettier-config':
+        specifier: workspace:*
+        version: link:../prettier-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       eslint:
         specifier: ^9.32.0
         version: 9.39.1(jiti@2.6.1)
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
       prisma:
         specifier: ^6.8.0
         version: 6.19.2(typescript@5.9.3)
@@ -276,6 +297,8 @@ importers:
         specifier: ^8.39.0
         version: 8.39.0(eslint@9.32.0(jiti@2.6.1))(typescript@5.9.2)
 
+  packages/prettier-config: {}
+
   packages/trpc:
     dependencies:
       '@tanstack/react-query':
@@ -321,12 +344,18 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@workspace/prettier-config':
+        specifier: workspace:*
+        version: link:../prettier-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       eslint:
         specifier: ^9.32.0
         version: 9.39.1(jiti@2.6.1)
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -444,12 +473,18 @@ importers:
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@workspace/prettier-config':
+        specifier: workspace:*
+        version: link:../prettier-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       eslint:
         specifier: ^9.32.0
         version: 9.39.1(jiti@2.6.1)
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
       tailwindcss:
         specifier: ^4.1.11
         version: 4.1.11

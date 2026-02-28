@@ -10,6 +10,8 @@
     "start": "tsx src/index.ts",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -36,7 +38,9 @@
   "devDependencies": {
     "@types/aws-lambda": "8.10.160",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/prettier-config": "workspace:*",
     "eslint": "^9.32.0",
+    "prettier": "^3.7.4",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

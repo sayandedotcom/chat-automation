@@ -35,6 +35,8 @@
     "build": "tsc",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.tsx\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"src/**/*.tsx\"",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -67,7 +69,9 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/prettier-config": "workspace:*",
     "eslint": "^9.32.0",
+    "prettier": "^3.7.4",
     "@types/express-serve-static-core": "^5.1.1",
     "@types/node": "^22.15.32",
     "@types/qs": "^6.14.0",
