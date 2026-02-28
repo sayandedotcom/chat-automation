@@ -81,5 +81,6 @@ async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
     except Exception as e:
         print(f"Error syncing Gmail credentials: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

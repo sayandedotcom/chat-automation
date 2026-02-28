@@ -36,7 +36,7 @@ _INTEGRATION_EXTRACTORS = {
         "id_fields": ["documentId"],
         "url_fields": [],
         "type": "document",
-        "url_pattern": r'https://docs\.google\.com/document/d/([A-Za-z0-9_-]+)',
+        "url_pattern": r"https://docs\.google\.com/document/d/([A-Za-z0-9_-]+)",
     },
     "gmail": {
         "id_fields": ["messageId", "id"],
@@ -48,7 +48,7 @@ _INTEGRATION_EXTRACTORS = {
         "id_fields": ["id"],
         "url_fields": ["url"],
         "type": "page",
-        "url_pattern": r'https://(?:www\.)?notion\.(?:so|site)/[^\s]+',
+        "url_pattern": r"https://(?:www\.)?notion\.(?:so|site)/[^\s]+",
     },
     "google_calendar": {
         "id_fields": ["id"],
@@ -66,13 +66,13 @@ _INTEGRATION_EXTRACTORS = {
         "id_fields": ["spreadsheetId"],
         "url_fields": ["spreadsheetUrl"],
         "type": "spreadsheet",
-        "url_pattern": r'https://docs\.google\.com/spreadsheets/d/([A-Za-z0-9_-]+)',
+        "url_pattern": r"https://docs\.google\.com/spreadsheets/d/([A-Za-z0-9_-]+)",
     },
     "google_slides": {
         "id_fields": ["presentationId"],
         "url_fields": [],
         "type": "presentation",
-        "url_pattern": r'https://docs\.google\.com/presentation/d/([A-Za-z0-9_-]+)',
+        "url_pattern": r"https://docs\.google\.com/presentation/d/([A-Za-z0-9_-]+)",
     },
 }
 
@@ -80,6 +80,7 @@ _INTEGRATION_EXTRACTORS = {
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _find_field_recursive(data: dict, field: str) -> Optional[str]:
     """Recursively search a nested dict for a field; return its string value."""
@@ -172,7 +173,10 @@ def _build_artifact_from_match(
 # Public API
 # ---------------------------------------------------------------------------
 
-def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optional[List[SearchResultItem]]:
+
+def extract_search_results_from_messages(
+    messages: List[BaseMessage],
+) -> Optional[List[SearchResultItem]]:
     """
     Extract structured search results from tool messages.
     Tavily MCP returns JSON with a 'results' array containing title, url, content, etc.
@@ -188,7 +192,9 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
             if isinstance(content, str):
                 if "```json" in content:
                     content = content.split("```json")[1].split("```")[0]
-                elif not (content.strip().startswith("{") or content.strip().startswith("[")):
+                elif not (
+                    content.strip().startswith("{") or content.strip().startswith("[")
+                ):
                     continue
                 data = json.loads(content.strip())
             elif isinstance(content, dict):
@@ -196,7 +202,11 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
             else:
                 continue
 
-            results = data.get("results") if isinstance(data, dict) else (data if isinstance(data, list) else None)
+            results = (
+                data.get("results")
+                if isinstance(data, dict)
+                else (data if isinstance(data, list) else None)
+            )
 
             if results and isinstance(results, list):
                 for item in results[:10]:
@@ -204,17 +214,22 @@ def extract_search_results_from_messages(messages: List[BaseMessage]) -> Optiona
                         url = item.get("url", "")
                         try:
                             from urllib.parse import urlparse
+
                             domain = urlparse(url).netloc.replace("www.", "")
                         except Exception:
-                            domain = url.split("/")[2] if len(url.split("/")) > 2 else ""
+                            domain = (
+                                url.split("/")[2] if len(url.split("/")) > 2 else ""
+                            )
 
-                        search_results.append(SearchResultItem(
-                            title=item.get("title", domain),
-                            url=url,
-                            domain=domain,
-                            favicon=f"https://www.google.com/s2/favicons?domain={domain}&sz=32",
-                            date=item.get("published_date") or item.get("date"),
-                        ))
+                        search_results.append(
+                            SearchResultItem(
+                                title=item.get("title", domain),
+                                url=url,
+                                domain=domain,
+                                favicon=f"https://www.google.com/s2/favicons?domain={domain}&sz=32",
+                                date=item.get("published_date") or item.get("date"),
+                            )
+                        )
 
                 if search_results:
                     return search_results
@@ -255,8 +270,11 @@ def extract_artifacts_from_step(
         raw_text = None
         if isinstance(content, list):
             text_parts = [
-                block.get("text", "") if isinstance(block, dict) and block.get("type") == "text"
-                else block if isinstance(block, str) else ""
+                block.get("text", "")
+                if isinstance(block, dict) and block.get("type") == "text"
+                else block
+                if isinstance(block, str)
+                else ""
                 for block in content
             ]
             raw_text = "\n".join(text_parts) or None
@@ -287,7 +305,9 @@ def extract_artifacts_from_step(
 
         # Phase 1a: Structured JSON — run extractors
         if data and isinstance(data, dict):
-            logger.info(f"[ARTIFACT_EXTRACT] Parsed JSON dict keys: {list(data.keys())[:10]}")
+            logger.info(
+                f"[ARTIFACT_EXTRACT] Parsed JSON dict keys: {list(data.keys())[:10]}"
+            )
 
             # Pass 1: unique id fields (documentId, spreadsheetId, …)
             matched = False
@@ -297,10 +317,18 @@ def extract_artifacts_from_step(
                         continue
                     artifact_id = _find_field_recursive(data, id_field)
                     if artifact_id:
-                        logger.info(f"[ARTIFACT_EXTRACT] Pass 1 MATCH: {ext_name}.{id_field}={artifact_id}")
+                        logger.info(
+                            f"[ARTIFACT_EXTRACT] Pass 1 MATCH: {ext_name}.{id_field}={artifact_id}"
+                        )
                         result = _build_artifact_from_match(
-                            ext_name, ext_config, data, artifact_id,
-                            messages, step_number, turn_number, seen_ids,
+                            ext_name,
+                            ext_config,
+                            data,
+                            artifact_id,
+                            messages,
+                            step_number,
+                            turn_number,
+                            seen_ids,
                         )
                         if result:
                             artifacts.append(result)
@@ -319,18 +347,33 @@ def extract_artifacts_from_step(
                     if "id" not in ext_config["id_fields"]:
                         continue
                     if ext_config["url_fields"]:
-                        if any(_find_field_recursive(data, uf) for uf in ext_config["url_fields"]):
+                        if any(
+                            _find_field_recursive(data, uf)
+                            for uf in ext_config["url_fields"]
+                        ):
                             result = _build_artifact_from_match(
-                                ext_name, ext_config, data, generic_id,
-                                messages, step_number, turn_number, seen_ids,
+                                ext_name,
+                                ext_config,
+                                data,
+                                generic_id,
+                                messages,
+                                step_number,
+                                turn_number,
+                                seen_ids,
                             )
                             if result:
                                 artifacts.append(result)
                             break
                     elif ext_name == integration_hint:
                         result = _build_artifact_from_match(
-                            ext_name, ext_config, data, generic_id,
-                            messages, step_number, turn_number, seen_ids,
+                            ext_name,
+                            ext_config,
+                            data,
+                            generic_id,
+                            messages,
+                            step_number,
+                            turn_number,
+                            seen_ids,
                         )
                         if result:
                             artifacts.append(result)
@@ -348,7 +391,7 @@ def extract_artifacts_from_step(
                 if url_match:
                     artifact_id = url_match.group(1) if url_match.lastindex else None
                     if not artifact_id:
-                        id_m = re.search(r'\(ID:\s*([A-Za-z0-9_-]+)\)', raw_text)
+                        id_m = re.search(r"\(ID:\s*([A-Za-z0-9_-]+)\)", raw_text)
                         if id_m:
                             artifact_id = id_m.group(1)
                     artifact_url = url_match.group(0)
@@ -364,15 +407,17 @@ def extract_artifacts_from_step(
                             f"[ARTIFACT_EXTRACT] Phase 1b text MATCH: {ext_name}, "
                             f"id={artifact_id}, url={artifact_url}, name={name}"
                         )
-                        artifacts.append(Artifact(
-                            type=ext_config["type"],
-                            name=name,
-                            url=artifact_url,
-                            id=artifact_id,
-                            integration=ext_name,
-                            step_number=step_number,
-                            turn_number=turn_number,
-                        ).model_dump())
+                        artifacts.append(
+                            Artifact(
+                                type=ext_config["type"],
+                                name=name,
+                                url=artifact_url,
+                                id=artifact_id,
+                                integration=ext_name,
+                                step_number=step_number,
+                                turn_number=turn_number,
+                            ).model_dump()
+                        )
                         text_matched = True
                         break
 
@@ -380,7 +425,7 @@ def extract_artifacts_from_step(
                 continue
 
             # (ID: ...) pattern without URL — for integrations like gmail
-            id_m = re.search(r'\(ID:\s*([A-Za-z0-9_-]+)\)', raw_text)
+            id_m = re.search(r"\(ID:\s*([A-Za-z0-9_-]+)\)", raw_text)
             if id_m and integration_hint:
                 ext_config = _INTEGRATION_EXTRACTORS.get(integration_hint)
                 if ext_config:
@@ -391,34 +436,42 @@ def extract_artifacts_from_step(
                         name_m = re.search(r"['\"]([^'\"]{2,200})['\"]", raw_text)
                         if name_m:
                             name = name_m.group(1)
-                        artifacts.append(Artifact(
-                            type=ext_config["type"],
-                            name=name,
-                            url=None,
-                            id=artifact_id,
-                            integration=integration_hint,
-                            step_number=step_number,
-                            turn_number=turn_number,
-                        ).model_dump())
+                        artifacts.append(
+                            Artifact(
+                                type=ext_config["type"],
+                                name=name,
+                                url=None,
+                                id=artifact_id,
+                                integration=integration_hint,
+                                step_number=step_number,
+                                turn_number=turn_number,
+                            ).model_dump()
+                        )
 
     # --- Phase 2: URL regex on AIMessage content (last resort) ---
     if not artifacts:
-        logger.info("[ARTIFACT_EXTRACT] Phase 1 found nothing, falling back to URL regex on AIMessages")
+        logger.info(
+            "[ARTIFACT_EXTRACT] Phase 1 found nothing, falling back to URL regex on AIMessages"
+        )
         for msg in messages:
             if isinstance(msg, AIMessage) and msg.content:
-                content = msg.content if isinstance(msg.content, str) else str(msg.content)
-                for url in re.findall(r'https?://[^\s\)\"\'>\]]+', content):
+                content = (
+                    msg.content if isinstance(msg.content, str) else str(msg.content)
+                )
+                for url in re.findall(r"https?://[^\s\)\"\'>\]]+", content):
                     artifact_type = _classify_url_type(url)
                     if artifact_type and url not in seen_ids:
                         seen_ids.add(url)
-                        artifacts.append(Artifact(
-                            type=artifact_type,
-                            name="Untitled",
-                            url=url,
-                            id=None,
-                            integration=integration_hint or "unknown",
-                            step_number=step_number,
-                            turn_number=turn_number,
-                        ).model_dump())
+                        artifacts.append(
+                            Artifact(
+                                type=artifact_type,
+                                name="Untitled",
+                                url=url,
+                                id=None,
+                                integration=integration_hint or "unknown",
+                                step_number=step_number,
+                                turn_number=turn_number,
+                            ).model_dump()
+                        )
 
     return artifacts

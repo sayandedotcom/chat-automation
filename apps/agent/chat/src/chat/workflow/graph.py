@@ -24,7 +24,9 @@ if TYPE_CHECKING:
     from chat.integrations.registry import IntegrationRegistry
 
 
-_checkpointer = None  # Module-level singleton — shared across all DynamicWorkflow instances
+_checkpointer = (
+    None  # Module-level singleton — shared across all DynamicWorkflow instances
+)
 
 
 def get_checkpointer():
@@ -44,62 +46,62 @@ def get_checkpointer():
 
 class DynamicWorkflow:
     """
-    Dynamic workflow with LLM-driven Human-in-the-Loop.
+        Dynamic workflow with LLM-driven Human-in-the-Loop.
 
-    The LLM decides during planning which steps need human approval.
-    Steps are routed to the appropriate executor based on this classification.
+        The LLM decides during planning which steps need human approval.
+        Steps are routed to the appropriate executor based on this classification.
 
-    Graph (with multi-hop tool calling):
+        Graph (with multi-hop tool calling):
 
-        ┌─────────┐
-        │  START  │
-        └────┬────┘
-             │
-             ▼
-    ┌─────────────────┐
-    │     PLANNER     │ ← LLM creates plan with HITL flags
-    │ (structured out)│
-    └────────┬────────┘
-             │
-             ▼
-    ┌────────────────────┐
-    │   ROUTE_EXECUTOR   │ ← Routes based on requires_human_approval
-    └───────┬────────────┘
-            │
-    ┌───────┴───────────────────┐
-    │                           │
-    │ approval=false            │ approval=true
-    │                           │
-    ▼                           ▼
-┌──────────┐            ┌────────────────────────┐
-│ EXECUTOR │◄───┐       │ EXECUTOR_WITH_APPROVAL │◄───┐
-│ (auto)   │    │       │ (state-based HITL)     │    │
-└────┬─────┘    │       └───────────┬────────────┘    │
-     │          │                   │                 │
-     │ should_  │                   │ should_         │
-     │ continue │                   │ continue        │
-     ▼          │                   ▼                 │
-┌────────┐      │              ┌────────┐             │
-│ TOOLS  │──────┘              │ TOOLS  │─────────────┘
-└────────┘ route_after_tools   └────────┘ route_after_tools
-     │ (no more tool calls)        │
-     ▼                             ▼
-    ┌───────────────────┐
-    │   STEP_COMPLETE   │ ← Clears executor state
-    └─────────┬─────────┘
-              │
-    ┌─────────▼────────────┐
-    │ should_execute_next  │
-    └─────────┬────────────┘
-              │
-      ┌───────┴───────┐
-      │               │
-  route_executor     end
-      │               │
-      ▼               ▼
-    (loop)         ┌─────┐
-                   │ END │
-                   └─────┘
+            ┌─────────┐
+            │  START  │
+            └────┬────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │     PLANNER     │ ← LLM creates plan with HITL flags
+        │ (structured out)│
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌────────────────────┐
+        │   ROUTE_EXECUTOR   │ ← Routes based on requires_human_approval
+        └───────┬────────────┘
+                │
+        ┌───────┴───────────────────┐
+        │                           │
+        │ approval=false            │ approval=true
+        │                           │
+        ▼                           ▼
+    ┌──────────┐            ┌────────────────────────┐
+    │ EXECUTOR │◄───┐       │ EXECUTOR_WITH_APPROVAL │◄───┐
+    │ (auto)   │    │       │ (state-based HITL)     │    │
+    └────┬─────┘    │       └───────────┬────────────┘    │
+         │          │                   │                 │
+         │ should_  │                   │ should_         │
+         │ continue │                   │ continue        │
+         ▼          │                   ▼                 │
+    ┌────────┐      │              ┌────────┐             │
+    │ TOOLS  │──────┘              │ TOOLS  │─────────────┘
+    └────────┘ route_after_tools   └────────┘ route_after_tools
+         │ (no more tool calls)        │
+         ▼                             ▼
+        ┌───────────────────┐
+        │   STEP_COMPLETE   │ ← Clears executor state
+        └─────────┬─────────┘
+                  │
+        ┌─────────▼────────────┐
+        │ should_execute_next  │
+        └─────────┬────────────┘
+                  │
+          ┌───────┴───────┐
+          │               │
+      route_executor     end
+          │               │
+          ▼               ▼
+        (loop)         ┌─────┐
+                       │ END │
+                       └─────┘
     """
 
     def __init__(
@@ -131,7 +133,9 @@ class DynamicWorkflow:
 
         workflow.add_node("planner", self.nodes.planner_node)
         workflow.add_node("executor", self.nodes.executor_node)
-        workflow.add_node("executor_with_approval", self.nodes.executor_with_approval_node)
+        workflow.add_node(
+            "executor_with_approval", self.nodes.executor_with_approval_node
+        )
         workflow.add_node("step_complete", self.nodes.step_complete_node)
 
         if self.tools or self.registry:
@@ -157,7 +161,7 @@ class DynamicWorkflow:
                 "executor": "executor",
                 "executor_with_approval": "executor_with_approval",
                 "end": END,
-            }
+            },
         )
 
         # EXECUTOR (auto) can either call tools or complete the step
@@ -168,7 +172,7 @@ class DynamicWorkflow:
                 {
                     "tools": "tools",
                     "step_complete": "step_complete",
-                }
+                },
             )
         else:
             workflow.add_edge("executor", "step_complete")
@@ -182,7 +186,7 @@ class DynamicWorkflow:
                     "tools": "tools",
                     "step_complete": "step_complete",
                     "end": END,  # When awaiting_approval=True
-                }
+                },
             )
         else:
             workflow.add_edge("executor_with_approval", "step_complete")
@@ -196,7 +200,7 @@ class DynamicWorkflow:
                 {
                     "executor": "executor",
                     "executor_with_approval": "executor_with_approval",
-                }
+                },
             )
 
         # After step complete, either continue to next step or end
@@ -208,7 +212,7 @@ class DynamicWorkflow:
                 "executor": "executor",
                 "executor_with_approval": "executor_with_approval",
                 "end": END,
-            }
+            },
         )
 
         return workflow.compile(checkpointer=self.checkpointer)

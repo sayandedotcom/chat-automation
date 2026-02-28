@@ -60,13 +60,13 @@ class IntegrationClassifier:
             self._indexes[name] = IntegrationIndex(
                 name=name,
                 description=config.get("description", config.get("display_name", name)),
-                identity_keywords=[kw.lower() for kw in config.get("identity_keywords", [])],
+                identity_keywords=[
+                    kw.lower() for kw in config.get("identity_keywords", [])
+                ],
             )
 
         self._initialized = True
-        logger.info(
-            f"Classifier index built: {len(self._indexes)} integrations"
-        )
+        logger.info(f"Classifier index built: {len(self._indexes)} integrations")
 
     # ── Classification ────────────────────────
 
@@ -119,7 +119,9 @@ class IntegrationClassifier:
 
             integrations = json.loads(content)
 
-            if isinstance(integrations, list) and all(isinstance(i, str) for i in integrations):
+            if isinstance(integrations, list) and all(
+                isinstance(i, str) for i in integrations
+            ):
                 valid = [i for i in integrations if i in self._indexes]
                 if valid:
                     return ClassificationResult(

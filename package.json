@@ -5,7 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "lint": "turbo lint",
+    "lint": "turbo lint && cd apps/agent && uv run ruff check && uv run ruff format",
     "format": "turbo format",
     "format:check": "turbo format:check",
     "typecheck": "turbo check-types",

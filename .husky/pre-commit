@@ -1,2 +1,11 @@
 #!/usr/bin/env sh
+
+# Lint Python files
+if git diff --cached --name-only | grep -q "apps/agent/.*\.py$"; then
+  echo "Running ruff on Python files..."
+  cd apps/agent && uv run ruff check --fix && uv run ruff format
+  cd ../..
+  git add apps/agent/
+fi
+
 pnpm lint-staged

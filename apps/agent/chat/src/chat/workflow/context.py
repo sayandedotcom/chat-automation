@@ -30,13 +30,15 @@ def build_conversation_summary(
 
     Returns None if this is the first turn (only one HumanMessage).
     """
-    human_indices = [i for i, msg in enumerate(messages) if isinstance(msg, HumanMessage)]
+    human_indices = [
+        i for i, msg in enumerate(messages) if isinstance(msg, HumanMessage)
+    ]
 
     if len(human_indices) <= 1:
         return None
 
     artifacts_by_turn: dict[int, list[dict]] = {}
-    for a in (artifacts or []):
+    for a in artifacts or []:
         artifacts_by_turn.setdefault(a.get("turn_number", 1), []).append(a)
 
     turn_summaries = []
@@ -50,7 +52,9 @@ def build_conversation_summary(
         turn_result = ""
         for msg in reversed(messages[start_idx:end_idx]):
             if isinstance(msg, AIMessage) and msg.content:
-                content = msg.content if isinstance(msg.content, str) else str(msg.content)
+                content = (
+                    msg.content if isinstance(msg.content, str) else str(msg.content)
+                )
                 if "Workflow Complete" in content:
                     turn_result = content[:1500]
                     break
@@ -60,10 +64,14 @@ def build_conversation_summary(
         if not turn_result:
             turn_result = "(Workflow completed)"
 
-        success = "FAILED" if any(
-            kw in turn_result.lower()
-            for kw in ["can't", "cannot", "failed", "error", "unable"]
-        ) else "SUCCESS"
+        success = (
+            "FAILED"
+            if any(
+                kw in turn_result.lower()
+                for kw in ["can't", "cannot", "failed", "error", "unable"]
+            )
+            else "SUCCESS"
+        )
 
         summary = f"Turn {turn_number} [{success}]:\n  User request: {user_msg}\n  Outcome: {turn_result}"
 
@@ -73,18 +81,22 @@ def build_conversation_summary(
             for a in turn_artifacts:
                 summary += f'\n    - [{a.get("type", "unknown")}] "{a.get("name", "Untitled")}"'
                 if a.get("url"):
-                    summary += f'\n      URL: {a["url"]}'
+                    summary += f"\n      URL: {a['url']}"
                 if a.get("id"):
-                    summary += f'\n      ID: {a["id"]}'
-                summary += f'\n      Integration: {a.get("integration", "unknown")}'
+                    summary += f"\n      ID: {a['id']}"
+                summary += f"\n      Integration: {a.get('integration', 'unknown')}"
                 for mk, mv in (a.get("metadata") or {}).items():
                     summary += f"\n      {mk}: {mv}"
         else:
             fallback_urls = []
             for msg in messages[start_idx:end_idx]:
                 if isinstance(msg, AIMessage) and msg.content:
-                    content = msg.content if isinstance(msg.content, str) else str(msg.content)
-                    for url in re.findall(r'https?://[^\s\)\"\'>\]]+', content):
+                    content = (
+                        msg.content
+                        if isinstance(msg.content, str)
+                        else str(msg.content)
+                    )
+                    for url in re.findall(r"https?://[^\s\)\"\'>\]]+", content):
                         if url not in fallback_urls:
                             fallback_urls.append(url)
             if fallback_urls:
@@ -92,7 +104,11 @@ def build_conversation_summary(
 
         turn_summaries.append(summary)
 
-    return ("PREVIOUS CONVERSATION:\n" + "\n\n".join(turn_summaries)) if turn_summaries else None
+    return (
+        ("PREVIOUS CONVERSATION:\n" + "\n\n".join(turn_summaries))
+        if turn_summaries
+        else None
+    )
 
 
 def format_integration_context(integrations: list[str] | None) -> str:
@@ -112,10 +128,14 @@ def format_artifacts_context(artifacts: List[dict]) -> str:
     if not artifacts:
         return ""
 
-    lines = ["AVAILABLE ARTIFACTS (from previous steps/turns — use exact URLs and IDs):"]
+    lines = [
+        "AVAILABLE ARTIFACTS (from previous steps/turns — use exact URLs and IDs):"
+    ]
     for a in artifacts:
-        lines.append(f'  - [{a.get("type", "unknown")}] "{a.get("name", "Untitled")}" '
-                     f'(step {a.get("step_number", "?")}, turn {a.get("turn_number", "?")})')
+        lines.append(
+            f'  - [{a.get("type", "unknown")}] "{a.get("name", "Untitled")}" '
+            f"(step {a.get('step_number', '?')}, turn {a.get('turn_number', '?')})"
+        )
         if a.get("url"):
             lines.append(f"    URL: {a['url']}")
         if a.get("id"):

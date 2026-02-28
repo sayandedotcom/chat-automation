@@ -6,14 +6,13 @@ Use this for multi-step, variable-length workflows.
 """
 
 from langchain_core.messages import HumanMessage
-from typing import Optional, AsyncGenerator
+from typing import Optional
+from collections.abc import AsyncGenerator
 import uuid
 import logging
 
 from chat.workflow.graph import DynamicWorkflow
-from chat.schemas import WorkflowState, WorkflowPlan
-from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
-from chat.integrations.registry import IntegrationRegistry, get_registry, get_registry_sync
+from chat.integrations.registry import get_registry, get_registry_sync
 
 logger = logging.getLogger(__name__)
 
@@ -21,17 +20,17 @@ logger = logging.getLogger(__name__)
 class ChatService:
     """
     Service for executing dynamic multi-step workflows.
-    
+
     Usage:
         service = ChatService(notion_token="...", tavily_api_key="...")
         await service.initialize()
-        
+
         # Execute workflow
         result = await service.execute(
             request="research auth services, create notion doc, share on slack"
         )
     """
-    
+
     def __init__(
         self,
         gmail_token: Optional[str] = None,
@@ -50,7 +49,7 @@ class ChatService:
         self.slack_token = slack_token
         self.google_client_id = google_client_id
         self.google_client_secret = google_client_secret
-        
+
         self._client = None
         self._tools = []
         self._workflow = None
@@ -70,21 +69,25 @@ class ChatService:
             logger.info("Using pre-warmed global registry (fast path)")
             self._registry = global_registry
             # Load any MCP servers for OAuth tokens that weren't available at startup
-            await self._registry.load_missing_servers({
-                "notion_token": self.notion_token,
-                "vercel_token": self.vercel_token,
-            })
+            await self._registry.load_missing_servers(
+                {
+                    "notion_token": self.notion_token,
+                    "vercel_token": self.vercel_token,
+                }
+            )
         else:
             # Fallback: Create new registry (slow path - 5-15s)
             logger.info("Global registry not available, creating new one (slow path)")
-            self._registry = await get_registry({
-                "gmail_token": self.gmail_token,
-                "vercel_token": self.vercel_token,
-                "notion_token": self.notion_token,
-                "tavily_api_key": self.tavily_api_key,
-                "google_client_id": self.google_client_id,
-                "google_client_secret": self.google_client_secret,
-            })
+            self._registry = await get_registry(
+                {
+                    "gmail_token": self.gmail_token,
+                    "vercel_token": self.vercel_token,
+                    "notion_token": self.notion_token,
+                    "tavily_api_key": self.tavily_api_key,
+                    "google_client_id": self.google_client_id,
+                    "google_client_secret": self.google_client_secret,
+                }
+            )
 
         # Get all tools (for fallback)
         self._tools = self._registry.get_all_tools()
@@ -106,23 +109,23 @@ class ChatService:
     ) -> dict:
         """
         Execute a dynamic workflow based on user request.
-        
+
         Args:
             request: Natural language request (e.g., "research X, create doc, share")
             thread_id: Optional thread ID for conversation continuity
-            
+
         Returns:
             dict with workflow results
         """
         if not self._initialized:
             await self.initialize()
-        
+
         thread_id = thread_id or str(uuid.uuid4())
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": 100,  # Allow more tool call loops
         }
-        
+
         # Initial state (simplified - no more awaiting_approval in state)
         initial_state = {
             "messages": [HumanMessage(content=request)],
@@ -134,14 +137,14 @@ class ChatService:
             "_executor_chat": None,
             "_step_tool_calls": 0,
         }
-        
+
         # Execute the workflow
         result = await self._workflow.get_app().ainvoke(initial_state, config=config)
-        
+
         # Extract results
         messages = result.get("messages", [])
         plan = result.get("plan")
-        
+
         # Build response
         response = {
             "thread_id": thread_id,
@@ -152,7 +155,7 @@ class ChatService:
             "is_complete": False,
             "artifacts": result.get("artifacts", []),
         }
-        
+
         # Extract plan info
         if plan:
             response["plan"] = {
@@ -174,16 +177,13 @@ class ChatService:
             }
             response["is_complete"] = plan.is_complete
             response["final_response"] = plan.final_summary or ""
-        
+
         # Extract messages
         for msg in messages:
-            if hasattr(msg, 'type') and hasattr(msg, 'content'):
+            if hasattr(msg, "type") and hasattr(msg, "content"):
                 role = "user" if msg.type == "human" else "assistant"
-                response["messages"].append({
-                    "role": role,
-                    "content": msg.content
-                })
-        
+                response["messages"].append({"role": role, "content": msg.content})
+
         return response
 
     async def execute_stream(
@@ -195,23 +195,23 @@ class ChatService:
         """
         Execute a workflow with streaming updates.
         Yields progress updates as each step completes.
-        
+
         Args:
             request: Natural language request
             thread_id: Optional thread ID
-            
+
         Yields:
             Progress updates for each step
         """
         if not self._initialized:
             await self.initialize()
-        
+
         thread_id = thread_id or str(uuid.uuid4())
         config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": 100,  # Allow more tool call loops
         }
-        
+
         initial_state = {
             "messages": [HumanMessage(content=request)],
             "plan": None,
@@ -250,7 +250,10 @@ class ChatService:
         async for chunk in self._workflow.get_app().astream(
             initial_state,
             config=config,
-            stream_mode=["updates", "messages"],  # Get both node updates and message tokens
+            stream_mode=[
+                "updates",
+                "messages",
+            ],  # Get both node updates and message tokens
         ):
             # Handle message-level chunks (token streaming)
             if isinstance(chunk, tuple):
@@ -261,7 +264,7 @@ class ChatService:
                     if isinstance(data, list) and len(data) > 0:
                         for msg_chunk in data:
                             # Check if it's an AIMessage with content
-                            if hasattr(msg_chunk, 'content') and msg_chunk.content:
+                            if hasattr(msg_chunk, "content") and msg_chunk.content:
                                 content = msg_chunk.content
                                 # Extract text from various content formats
                                 if isinstance(content, list):
@@ -319,7 +322,9 @@ class ChatService:
                     total_tool_count = output.get("total_tool_count", 0)
 
                     if loaded_integrations:
-                        logger.debug(f"Smart router: {len(loaded_integrations)} integrations, {total_tool_count} tools")
+                        logger.debug(
+                            f"Smart router: {len(loaded_integrations)} integrations, {total_tool_count} tools"
+                        )
                         yield {
                             "type": "integrations_ready",
                             "thread_id": thread_id,
@@ -349,7 +354,11 @@ class ChatService:
                 current_step_index = output.get("current_step_index")
 
                 # Track which step is currently executing for token attribution
-                if plan and current_step_index is not None and 0 <= current_step_index < len(plan.steps):
+                if (
+                    plan
+                    and current_step_index is not None
+                    and 0 <= current_step_index < len(plan.steps)
+                ):
                     step = plan.steps[current_step_index]
                     if step.status == "in_progress":
                         current_executing_step = step.step_number
@@ -357,7 +366,9 @@ class ChatService:
                 # Check for STATE-BASED HITL approval request
                 if output.get("awaiting_approval") and output.get("approval_step_info"):
                     approval_info = output["approval_step_info"]
-                    logger.debug(f"Awaiting approval: step {approval_info.get('step_number')}")
+                    logger.debug(
+                        f"Awaiting approval: step {approval_info.get('step_number')}"
+                    )
                     yield {
                         "type": "approval_required",
                         "thread_id": thread_id,
@@ -367,7 +378,6 @@ class ChatService:
 
                 # Always yield progress events with plan updates
                 if plan:
-
                     # Yield thinking event if this is the first time we see thinking content
                     if plan.thinking and node_name == "planner":
                         yield {
@@ -379,7 +389,10 @@ class ChatService:
 
                     # Yield step thinking events for executor nodes
                     if node_name in ("executor", "executor_with_approval"):
-                        if current_step_index is not None and 0 <= current_step_index < len(plan.steps):
+                        if (
+                            current_step_index is not None
+                            and 0 <= current_step_index < len(plan.steps)
+                        ):
                             step = plan.steps[current_step_index]
                             if step.thinking_duration_ms:
                                 yield {
@@ -421,14 +434,16 @@ class ChatService:
                                             "date": r.date,
                                         }
                                         for r in s.search_results
-                                    ] if s.search_results else None,
+                                    ]
+                                    if s.search_results
+                                    else None,
                                 }
                                 for s in plan.steps
                             ],
                             "is_complete": plan.is_complete,
-                        }
+                        },
                     }
-        
+
         logger.debug("astream completed")
 
         # After stream ends, check if there's a pending interrupt
@@ -437,9 +452,9 @@ class ChatService:
             state_snapshot = await self._workflow.get_app().aget_state(config)
             if state_snapshot and state_snapshot.tasks:
                 for task in state_snapshot.tasks:
-                    if hasattr(task, 'interrupts') and task.interrupts:
+                    if hasattr(task, "interrupts") and task.interrupts:
                         for interrupt in task.interrupts:
-                            if hasattr(interrupt, 'value'):
+                            if hasattr(interrupt, "value"):
                                 value = interrupt.value
                                 logger.debug(f"Found pending interrupt: {value}")
                                 yield {
@@ -455,9 +470,9 @@ class ChatService:
         """Get the current state of a workflow."""
         if not self._initialized:
             await self.initialize()
-        
+
         config = {"configurable": {"thread_id": thread_id}}
-        
+
         try:
             state = await self._workflow.get_app().aget_state(config)
             return state.values if state else None
@@ -466,35 +481,35 @@ class ChatService:
             return None
 
     async def resume_workflow(
-        self, 
+        self,
         thread_id: str,
         decision: dict = None,
     ) -> dict:
         """
         Resume a paused workflow with a decision.
-        
+
         Uses state-based HITL pattern - injects approval decision into state.
-        
+
         Args:
             thread_id: The workflow thread ID
             decision: Decision for HITL approval
                 - action: "approve" | "edit" | "skip"
                 - content: Optional edited content (if action is "edit")
         """
-        
+
         if not self._initialized:
             await self.initialize()
-        
+
         config = {"configurable": {"thread_id": thread_id}}
-        
+
         # Get current state to verify workflow exists
         state_snapshot = await self._workflow.get_app().aget_state(config)
         if not state_snapshot or not state_snapshot.values:
             return {"error": "Workflow not found", "thread_id": thread_id}
-        
+
         # Resume with decision by injecting approval_decision into state
         logger.debug(f"Resuming workflow {thread_id} with decision: {decision}")
-        
+
         # Update state with the decision and clear awaiting_approval
         await self._workflow.get_app().aupdate_state(
             config,
@@ -504,7 +519,7 @@ class ChatService:
             },
             as_node="planner",  # Resume from planner to re-route to executor_with_approval
         )
-        
+
         # Invoke to continue execution
         result = await self._workflow.get_app().ainvoke(None, config=config)
 
@@ -551,66 +566,66 @@ class ChatService:
     ) -> dict:
         """
         Retry a failed step and continue execution.
-        
+
         Args:
             thread_id: The workflow thread ID
             step_number: The step number to retry (1-indexed)
-            
+
         Returns:
             Updated workflow state after retry
         """
         if not self._initialized:
             await self.initialize()
-        
+
         config = {"configurable": {"thread_id": thread_id}}
-        
+
         # Get current state
         state_snapshot = await self._workflow.get_app().aget_state(config)
         if not state_snapshot or not state_snapshot.values:
             return {"error": "Workflow not found", "thread_id": thread_id}
-        
+
         state = state_snapshot.values
         plan = state.get("plan")
-        
+
         if not plan or not plan.steps:
             return {"error": "No plan found in workflow", "thread_id": thread_id}
-        
+
         # Validate step number
         if step_number < 1 or step_number > len(plan.steps):
             return {
                 "error": f"Invalid step number. Must be between 1 and {len(plan.steps)}",
                 "thread_id": thread_id,
             }
-        
+
         # Reset the failed step and all subsequent steps
         for step in plan.steps:
             if step.step_number >= step_number:
                 step.status = "pending"
                 step.result = None
                 step.error = None
-        
+
         # Update the current step index to the step before the retry
         new_step_index = step_number - 1  # 0-indexed
-        
+
         # Update the state
         updated_state = {
             "plan": plan,
             "current_step_index": new_step_index,
         }
-        
+
         # Update state in the checkpointer
         await self._workflow.get_app().aupdate_state(
             config,
             updated_state,
         )
-        
+
         # Resume execution from the updated state
         result = await self._workflow.get_app().ainvoke(None, config=config)
-        
+
         # Build response
         messages = result.get("messages", [])
         updated_plan = result.get("plan")
-        
+
         response = {
             "thread_id": thread_id,
             "retried_from_step": step_number,
@@ -618,7 +633,7 @@ class ChatService:
             "messages": [],
             "is_complete": False,
         }
-        
+
         if updated_plan:
             response["plan"] = {
                 "steps": [
@@ -634,14 +649,10 @@ class ChatService:
                 "final_summary": updated_plan.final_summary,
             }
             response["is_complete"] = updated_plan.is_complete
-        
-        for msg in messages:
-            if hasattr(msg, 'type') and hasattr(msg, 'content'):
-                role = "user" if msg.type == "human" else "assistant"
-                response["messages"].append({
-                    "role": role,
-                    "content": msg.content
-                })
-        
-        return response
 
+        for msg in messages:
+            if hasattr(msg, "type") and hasattr(msg, "content"):
+                role = "user" if msg.type == "human" else "assistant"
+                response["messages"].append({"role": role, "content": msg.content})
+
+        return response

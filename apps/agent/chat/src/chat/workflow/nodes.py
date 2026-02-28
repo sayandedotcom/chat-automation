@@ -15,25 +15,30 @@ import json
 import logging
 import re
 import time
-from typing import List, Literal, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolNode
 
 from chat.schemas import (
-    Artifact,
     IntegrationInfo,
     WorkflowPlan,
     WorkflowPlanOutput,
     WorkflowState,
     WorkflowStep,
 )
-from chat.workflow.artifacts import extract_artifacts_from_step, extract_search_results_from_messages
-from chat.workflow.context import build_conversation_summary, format_artifacts_context, format_integration_context
+from chat.workflow.artifacts import (
+    extract_artifacts_from_step,
+    extract_search_results_from_messages,
+)
+from chat.workflow.context import (
+    build_conversation_summary,
+    format_artifacts_context,
+    format_integration_context,
+)
 from chat.workflow.llm import get_executor_llm, get_planner_llm
 from chat.workflow.prompts import EXECUTOR_SYSTEM_PROMPT, PLANNER_SYSTEM_PROMPT
-from chat.workflow.routing import MAX_TOOL_CALLS_PER_STEP
 
 # Re-export routing symbols so graph.py can import them from here (single source)
 from chat.workflow.routing import (  # noqa: F401
@@ -53,15 +58,21 @@ logger = logging.getLogger(__name__)
 class WorkflowNodes:
     """Nodes for the dynamic workflow graph with LLM-driven HITL."""
 
-    def __init__(self, tools: List[BaseTool] = None, registry: "IntegrationRegistry" = None):
+    def __init__(
+        self, tools: List[BaseTool] = None, registry: "IntegrationRegistry" = None
+    ):
         self.tools = tools or []
         self.registry = registry
         self.planner_llm = get_planner_llm()
         self.executor_llm = get_executor_llm()
         self.executor_with_tools = (
-            self.executor_llm.bind_tools(self.tools) if self.tools else self.executor_llm
+            self.executor_llm.bind_tools(self.tools)
+            if self.tools
+            else self.executor_llm
         )
-        self.tool_node = ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
+        self.tool_node = (
+            ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
+        )
 
     # ------------------------------------------------------------------
     # Smart Router
@@ -76,7 +87,12 @@ class WorkflowNodes:
 
         messages = state["messages"]
         user_request = next(
-            (msg.content for msg in reversed(messages) if isinstance(msg, HumanMessage)), ""
+            (
+                msg.content
+                for msg in reversed(messages)
+                if isinstance(msg, HumanMessage)
+            ),
+            "",
         )
 
         if not self.registry:
@@ -90,7 +106,9 @@ class WorkflowNodes:
             }
 
         integrations = await classify_integrations(user_request, self.registry)
-        integrations = self._inject_artifact_integrations(integrations, state, user_request)
+        integrations = self._inject_artifact_integrations(
+            integrations, state, user_request
+        )
 
         # Pre-flight auth check: detect unauthenticated integrations before planning
         # connected_integrations is a per-request list of integration IDs whose cookies are present
@@ -105,15 +123,19 @@ class WorkflowNodes:
             # Convert integration name to kebab-case ID (e.g. "google_docs" → "google-docs")
             connect_id = name.replace("_", "-")
             if connect_id not in connected_set:
-                unauthenticated.append({
-                    "mcp_server": config.mcp_server,
-                    "display_name": config.display_name,  # e.g. "Google Docs", "Notion"
-                    "icon": config.icon,
-                    "connect_id": connect_id,  # e.g. "google-docs" → oauth/google-docs
-                })
+                unauthenticated.append(
+                    {
+                        "mcp_server": config.mcp_server,
+                        "display_name": config.display_name,  # e.g. "Google Docs", "Notion"
+                        "icon": config.icon,
+                        "connect_id": connect_id,  # e.g. "google-docs" → oauth/google-docs
+                    }
+                )
 
         if unauthenticated:
-            logger.info(f"Smart router: auth required for {[u['mcp_server'] for u in unauthenticated]}")
+            logger.info(
+                f"Smart router: auth required for {[u['mcp_server'] for u in unauthenticated]}"
+            )
             return {
                 "auth_required_integrations": unauthenticated,
                 "loaded_integrations": [
@@ -145,10 +167,14 @@ class WorkflowNodes:
         ]
 
         self.tools = tools
-        self.executor_with_tools = self.executor_llm.bind_tools(tools) if tools else self.executor_llm
+        self.executor_with_tools = (
+            self.executor_llm.bind_tools(tools) if tools else self.executor_llm
+        )
         self.tool_node = ToolNode(tools, handle_tool_errors=True) if tools else None
 
-        logger.info(f"Smart router: bound {len(tools)} tools from {len(integrations)} integrations")
+        logger.info(
+            f"Smart router: bound {len(tools)} tools from {len(integrations)} integrations"
+        )
         return {
             "loaded_integrations": loaded_integrations,
             "executor_bound_tools": [t.name for t in tools],
@@ -166,16 +192,21 @@ class WorkflowNodes:
             return integrations
 
         from chat.integrations.classifier import get_classifier
+
         classifier = get_classifier()
         request_lower = user_request.lower()
 
-        is_continuation = bool(re.search(
-            r'\b(similar|same|copy|duplicate|replicate|like\s+(?:that|the|this)|'
-            r'based\s+on|from\s+(?:the\s+)?(?:previous|earlier|last|above))\b',
-            request_lower,
-        ))
+        is_continuation = bool(
+            re.search(
+                r"\b(similar|same|copy|duplicate|replicate|like\s+(?:that|the|this)|"
+                r"based\s+on|from\s+(?:the\s+)?(?:previous|earlier|last|above))\b",
+                request_lower,
+            )
+        )
 
-        artifact_integrations = {a.get("integration") for a in artifacts if a.get("integration")}
+        artifact_integrations = {
+            a.get("integration") for a in artifacts if a.get("integration")
+        }
         for name in artifact_integrations:
             if name in integrations or not self.registry.get_integration_config(name):
                 continue
@@ -196,14 +227,16 @@ class WorkflowNodes:
                     if a.get("integration") == name and a.get("name"):
                         artifact_name = a["name"].lower()
                         if len(artifact_name) > 3 and re.search(
-                            r'\b' + re.escape(artifact_name) + r'\b', request_lower
+                            r"\b" + re.escape(artifact_name) + r"\b", request_lower
                         ):
                             referenced = True
                             break
 
             if referenced:
                 integrations.append(name)
-                logger.info(f"Smart router: auto-included '{name}' (referenced in request)")
+                logger.info(
+                    f"Smart router: auto-included '{name}' (referenced in request)"
+                )
             else:
                 logger.debug(f"Smart router: skipped '{name}' (not referenced)")
 
@@ -217,39 +250,57 @@ class WorkflowNodes:
         """Create a step-by-step plan with HITL flags using structured LLM output."""
         messages = state["messages"]
         user_request = next(
-            (msg.content for msg in reversed(messages) if isinstance(msg, HumanMessage)), ""
+            (
+                msg.content
+                for msg in reversed(messages)
+                if isinstance(msg, HumanMessage)
+            ),
+            "",
         )
 
         state_artifacts = state.get("artifacts", [])
         logger.info(f"[PLANNER_DIAG] Turn start — artifacts: {state_artifacts}")
-        logger.info(f"[PLANNER_DIAG] Messages: {len(messages)}, "
-                    f"HumanMessages: {sum(1 for m in messages if isinstance(m, HumanMessage))}")
+        logger.info(
+            f"[PLANNER_DIAG] Messages: {len(messages)}, "
+            f"HumanMessages: {sum(1 for m in messages if isinstance(m, HumanMessage))}"
+        )
 
-        conversation_summary = build_conversation_summary(messages, artifacts=state_artifacts)
-        logger.info(f"[PLANNER_DIAG] conversation_summary: "
-                    f"{conversation_summary[:500] if conversation_summary else 'None'}")
+        conversation_summary = build_conversation_summary(
+            messages, artifacts=state_artifacts
+        )
+        logger.info(
+            f"[PLANNER_DIAG] conversation_summary: "
+            f"{conversation_summary[:500] if conversation_summary else 'None'}"
+        )
 
         initial_integrations = state.get("initial_integrations") or []
         artifacts_context = format_artifacts_context(state_artifacts)
-        logger.info(f"[PLANNER_DIAG] artifacts_context: "
-                    f"{artifacts_context[:500] if artifacts_context else 'EMPTY'}")
+        logger.info(
+            f"[PLANNER_DIAG] artifacts_context: "
+            f"{artifacts_context[:500] if artifacts_context else 'EMPTY'}"
+        )
 
         integration_hints = (
             self.registry.get_hints(initial_integrations, "planner")
-            if self.registry and initial_integrations else ""
+            if self.registry and initial_integrations
+            else ""
         )
 
         system_prompt = PLANNER_SYSTEM_PROMPT.format(
-            conversation_context=f"\n{conversation_summary}\n" if conversation_summary else "",
+            conversation_context=f"\n{conversation_summary}\n"
+            if conversation_summary
+            else "",
             integration_context=format_integration_context(initial_integrations),
             artifacts_context=artifacts_context,
             integration_hints=integration_hints,
         )
 
-        plan_output: WorkflowPlanOutput = await self.planner_llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"Create a plan for: {user_request}"),
-        ])
+        plan_output: WorkflowPlanOutput = await self.planner_llm.ainvoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=f"Create a plan for: {user_request}"),
+            ]
+        )
         logger.debug(f"Plan: {len(plan_output.steps)} steps")
 
         workflow_steps = [
@@ -300,28 +351,44 @@ class WorkflowNodes:
 
         current_step = plan.steps[current_index]
 
-        if state.get("_executor_chat") and isinstance(state["messages"][-1], ToolMessage):
+        if state.get("_executor_chat") and isinstance(
+            state["messages"][-1], ToolMessage
+        ):
             return await self._continue_after_tools(state)
 
         current_step.status = "in_progress"
         initial_integrations = state.get("initial_integrations", [])
         step_artifacts = state.get("artifacts", [])
-        previous_results = self._get_previous_results(plan, current_index, artifacts=step_artifacts)
+        previous_results = self._get_previous_results(
+            plan, current_index, artifacts=step_artifacts
+        )
         incremental_load_events = state.get("incremental_load_events", [])
 
         start_time = time.time()
         try:
             response, executor_chat = await self._start_step_execution(
-                current_step, plan, previous_results,
-                state.get("conversation_summary", ""), initial_integrations,
+                current_step,
+                plan,
+                previous_results,
+                state.get("conversation_summary", ""),
+                initial_integrations,
                 artifacts=step_artifacts,
             )
         except Exception as e:
-            response, executor_chat, initial_integrations, incremental_load_events = (
-                await self._try_incremental_load(
-                    e, state, current_step, plan, previous_results,
-                    initial_integrations, step_artifacts, incremental_load_events,
-                )
+            (
+                response,
+                executor_chat,
+                initial_integrations,
+                incremental_load_events,
+            ) = await self._try_incremental_load(
+                e,
+                state,
+                current_step,
+                plan,
+                previous_results,
+                initial_integrations,
+                step_artifacts,
+                incremental_load_events,
             )
 
         current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
@@ -358,12 +425,16 @@ class WorkflowNodes:
 
         current_step = plan.steps[current_index]
 
-        if state.get("_executor_chat") and isinstance(state["messages"][-1], ToolMessage):
+        if state.get("_executor_chat") and isinstance(
+            state["messages"][-1], ToolMessage
+        ):
             return await self._continue_after_tools(state)
 
         approval_decision = state.get("approval_decision")
         if approval_decision:
-            return await self._handle_approval_decision(state, plan, current_step, approval_decision)
+            return await self._handle_approval_decision(
+                state, plan, current_step, approval_decision
+            )
 
         # First entry: generate tool-call preview then pause
         return await self._request_approval(state, plan, current_step)
@@ -377,7 +448,9 @@ class WorkflowNodes:
             current_step.status = "skipped"
             current_step.result = "Skipped by user"
             return {
-                "messages": [AIMessage(content=f"Step {current_step.step_number} skipped.")],
+                "messages": [
+                    AIMessage(content=f"Step {current_step.step_number} skipped.")
+                ],
                 "plan": plan,
                 "awaiting_approval": False,
                 "approval_step_info": None,
@@ -392,9 +465,12 @@ class WorkflowNodes:
 
         if pending_msg_data:
             from langchain_core.messages import messages_from_dict
+
             ai_message = messages_from_dict([pending_msg_data])[0]
             if action == "edit":
-                ai_message = self._apply_edited_args(ai_message, approval_decision.get("content", {}))
+                ai_message = self._apply_edited_args(
+                    ai_message, approval_decision.get("content", {})
+                )
             return {
                 "messages": [ai_message],
                 "_executor_chat": state.get("_executor_chat") or [],
@@ -408,9 +484,13 @@ class WorkflowNodes:
 
         # Fallback: re-run from scratch
         step_artifacts = state.get("artifacts", [])
-        previous_results = self._get_previous_results(plan, state["current_step_index"], artifacts=step_artifacts)
+        previous_results = self._get_previous_results(
+            plan, state["current_step_index"], artifacts=step_artifacts
+        )
         kwargs = dict(
-            step=current_step, plan=plan, previous_results=previous_results,
+            step=current_step,
+            plan=plan,
+            previous_results=previous_results,
             conversation_summary=state.get("conversation_summary", ""),
             initial_integrations=state.get("initial_integrations", []),
             artifacts=step_artifacts,
@@ -444,7 +524,9 @@ class WorkflowNodes:
         try:
             start_time = time.time()
             response, executor_chat = await self._start_step_execution(
-                current_step, plan, previous_results,
+                current_step,
+                plan,
+                previous_results,
                 state.get("conversation_summary", ""),
                 state.get("initial_integrations", []),
                 artifacts=step_artifacts,
@@ -454,21 +536,28 @@ class WorkflowNodes:
             if hasattr(response, "tool_calls") and response.tool_calls:
                 for tc in response.tool_calls:
                     tool_name = tc.get("name", "")
-                    tool_calls_preview.append({
-                        "id": tc.get("id", ""),
-                        "tool_name": tool_name,
-                        "integration": self._resolve_tool_integration(tool_name),
-                        "arguments": tc.get("args", {}),
-                    })
+                    tool_calls_preview.append(
+                        {
+                            "id": tc.get("id", ""),
+                            "tool_name": tool_name,
+                            "integration": self._resolve_tool_integration(tool_name),
+                            "arguments": tc.get("args", {}),
+                        }
+                    )
 
                 from langchain_core.messages import message_to_dict
+
                 pending_message = message_to_dict(response)
 
                 # Enrich spreadsheet preview with sheet/column structure
                 for idx, tc_preview in enumerate(tool_calls_preview):
                     if tc_preview["tool_name"] == "create_spreadsheet":
                         args = tc_preview.get("arguments", {})
-                        if not (args.get("sheets") or args.get("headers") or args.get("columns")):
+                        if not (
+                            args.get("sheets")
+                            or args.get("headers")
+                            or args.get("columns")
+                        ):
                             try:
                                 structure = await self._generate_spreadsheet_structure(
                                     current_step, previous_results
@@ -477,13 +566,18 @@ class WorkflowNodes:
                                 if not enriched.get("title"):
                                     enriched["title"] = structure.get("title", "")
                                 enriched["sheets"] = structure.get("sheets", [])
-                                tool_calls_preview[idx] = {**tc_preview, "arguments": enriched}
+                                tool_calls_preview[idx] = {
+                                    **tc_preview,
+                                    "arguments": enriched,
+                                }
                             except Exception as e:
                                 logger.warning(f"Spreadsheet enrichment failed: {e}")
                         break
 
         except Exception as e:
-            logger.warning(f"Failed to generate preview for step {current_step.step_number}: {e}")
+            logger.warning(
+                f"Failed to generate preview for step {current_step.step_number}: {e}"
+            )
 
         return {
             "plan": plan,
@@ -519,7 +613,9 @@ class WorkflowNodes:
             if isinstance(msg, AIMessage) and msg.content:
                 if isinstance(msg.content, list):
                     last_message = "\n".join(
-                        item["text"] if isinstance(item, dict) and "text" in item else str(item)
+                        item["text"]
+                        if isinstance(item, dict) and "text" in item
+                        else str(item)
                         for item in msg.content
                     )
                 else:
@@ -536,10 +632,17 @@ class WorkflowNodes:
                 current_step.search_results = search_results
 
         turn_number = sum(1 for m in messages if isinstance(m, HumanMessage))
-        msg_types = [(type(m).__name__, (m.content[:100] if hasattr(m, "content") and m.content else ""))
-                     for m in messages[-10:]]
-        logger.info(f"[ARTIFACT_DIAG] step_complete step={current_step.step_number}, "
-                    f"total_msgs={len(messages)}, last_10_types={msg_types}")
+        msg_types = [
+            (
+                type(m).__name__,
+                (m.content[:100] if hasattr(m, "content") and m.content else ""),
+            )
+            for m in messages[-10:]
+        ]
+        logger.info(
+            f"[ARTIFACT_DIAG] step_complete step={current_step.step_number}, "
+            f"total_msgs={len(messages)}, last_10_types={msg_types}"
+        )
         logger.info(f"[ARTIFACT_DIAG] existing artifacts: {state.get('artifacts', [])}")
 
         new_artifacts = extract_artifacts_from_step(
@@ -553,7 +656,13 @@ class WorkflowNodes:
             plan.is_complete = True
             summary = f"✅ **Workflow Complete!**\n\nCompleted all {len(plan.steps)} steps for: {plan.original_request}\n\n**Results:**\n"
             for step in plan.steps:
-                icon = "✓" if step.status == "completed" else "⏭️" if step.status == "skipped" else "?"
+                icon = (
+                    "✓"
+                    if step.status == "completed"
+                    else "⏭️"
+                    if step.status == "skipped"
+                    else "?"
+                )
                 summary += f"{step.step_number}. {icon} {step.description}\n   → {(step.result or 'N/A')[:100]}...\n\n"
             plan.final_summary = summary
             return {
@@ -567,7 +676,11 @@ class WorkflowNodes:
 
         next_step = plan.steps[next_index]
         return {
-            "messages": [AIMessage(content=f"✓ Step {current_index + 1} complete. Moving to step {next_index + 1}: {next_step.description}\n")],
+            "messages": [
+                AIMessage(
+                    content=f"✓ Step {current_index + 1} complete. Moving to step {next_index + 1}: {next_step.description}\n"
+                )
+            ],
             "plan": plan,
             "current_step_index": next_index,
             "artifacts": new_artifacts,
@@ -583,13 +696,23 @@ class WorkflowNodes:
     # ------------------------------------------------------------------
 
     async def _try_incremental_load(
-        self, exc, state, current_step, plan, previous_results,
-        initial_integrations, step_artifacts, incremental_load_events
+        self,
+        exc,
+        state,
+        current_step,
+        plan,
+        previous_results,
+        initial_integrations,
+        step_artifacts,
+        incremental_load_events,
     ):
         """Attempt to load a missing integration when a tool is not found."""
         error_msg = str(exc).lower()
-        if not (self.registry and "tool" in error_msg and
-                ("not found" in error_msg or "unknown" in error_msg)):
+        if not (
+            self.registry
+            and "tool" in error_msg
+            and ("not found" in error_msg or "unknown" in error_msg)
+        ):
             raise exc
 
         missing_tool = self._extract_tool_name_from_error(str(exc))
@@ -603,7 +726,9 @@ class WorkflowNodes:
         logger.warning(
             "Incremental loading triggered",
             extra={
-                "request": state["messages"][-1].content[:100] if state["messages"] else "",
+                "request": state["messages"][-1].content[:100]
+                if state["messages"]
+                else "",
                 "initially_classified": initial_integrations,
                 "missing_integration": missing_integration,
                 "missing_tool": missing_tool,
@@ -616,19 +741,29 @@ class WorkflowNodes:
         self.tool_node = ToolNode(self.tools, handle_tool_errors=True)
 
         cfg = self.registry.get_integration_config(missing_integration)
-        incremental_load_events.append({
-            "integration": missing_integration,
-            "display_name": cfg.display_name if cfg else missing_integration,
-            "tools_added": len(new_tools),
-            "triggered_by_tool": missing_tool,
-        })
+        incremental_load_events.append(
+            {
+                "integration": missing_integration,
+                "display_name": cfg.display_name if cfg else missing_integration,
+                "tools_added": len(new_tools),
+                "triggered_by_tool": missing_tool,
+            }
+        )
 
         response, executor_chat = await self._start_step_execution(
-            current_step, plan, previous_results,
+            current_step,
+            plan,
+            previous_results,
             state.get("conversation_summary", ""),
-            initial_integrations, artifacts=step_artifacts,
+            initial_integrations,
+            artifacts=step_artifacts,
         )
-        return response, executor_chat, [*initial_integrations, missing_integration], incremental_load_events
+        return (
+            response,
+            executor_chat,
+            [*initial_integrations, missing_integration],
+            incremental_load_events,
+        )
 
     def _extract_tool_name_from_error(self, error: str) -> Optional[str]:
         for pattern in [
@@ -647,30 +782,47 @@ class WorkflowNodes:
             if integration:
                 return integration
         name = tool_name.lower()
-        if "gmail" in name:            return "gmail"
-        if "doc" in name:              return "google_docs"
-        if "sheet" in name or "spreadsheet" in name: return "google_sheets"
-        if "slide" in name or "presentation" in name: return "google_slides"
-        if "calendar" in name or "event" in name: return "google_calendar"
-        if "drive" in name:            return "google_drive"
-        if "notion" in name:           return "notion"
-        if "slack" in name:            return "slack"
-        if "github" in name:           return "github"
-        if "linear" in name:           return "linear"
-        if "vercel" in name:           return "vercel"
-        if "supabase" in name:         return "supabase"
-        if "sentry" in name:           return "sentry"
-        if "search" in name or "tavily" in name: return "web_search"
+        if "gmail" in name:
+            return "gmail"
+        if "doc" in name:
+            return "google_docs"
+        if "sheet" in name or "spreadsheet" in name:
+            return "google_sheets"
+        if "slide" in name or "presentation" in name:
+            return "google_slides"
+        if "calendar" in name or "event" in name:
+            return "google_calendar"
+        if "drive" in name:
+            return "google_drive"
+        if "notion" in name:
+            return "notion"
+        if "slack" in name:
+            return "slack"
+        if "github" in name:
+            return "github"
+        if "linear" in name:
+            return "linear"
+        if "vercel" in name:
+            return "vercel"
+        if "supabase" in name:
+            return "supabase"
+        if "sentry" in name:
+            return "sentry"
+        if "search" in name or "tavily" in name:
+            return "web_search"
         return name
 
-    def _apply_edited_args(self, ai_message: AIMessage, edited_content: dict) -> AIMessage:
+    def _apply_edited_args(
+        self, ai_message: AIMessage, edited_content: dict
+    ) -> AIMessage:
         """Merge user-edited arguments into an AIMessage's tool_calls."""
         if not getattr(ai_message, "tool_calls", None):
             return ai_message
 
         edits_by_id = (
             {tc["id"]: tc["arguments"] for tc in edited_content["tool_calls"]}
-            if "tool_calls" in edited_content else None
+            if "tool_calls" in edited_content
+            else None
         )
         applied = False
         new_tool_calls = []
@@ -684,7 +836,9 @@ class WorkflowNodes:
                 applied = True
             new_tool_calls.append(new_tc)
 
-        return AIMessage(content=ai_message.content, tool_calls=new_tool_calls, id=ai_message.id)
+        return AIMessage(
+            content=ai_message.content, tool_calls=new_tool_calls, id=ai_message.id
+        )
 
     def _get_previous_results(
         self, plan: WorkflowPlan, current_index: int, artifacts: list[dict] = None
@@ -694,9 +848,13 @@ class WorkflowNodes:
             if step.result:
                 parts.append(f"Step {step.step_number}: {step.result}")
                 if artifacts:
-                    step_artifacts = [a for a in artifacts if a.get("step_number") == step.step_number]
+                    step_artifacts = [
+                        a for a in artifacts if a.get("step_number") == step.step_number
+                    ]
                     if step_artifacts:
-                        parts.append("  ↳ EXACT RESOURCE IDs (authoritative — use these, not IDs from text above):")
+                        parts.append(
+                            "  ↳ EXACT RESOURCE IDs (authoritative — use these, not IDs from text above):"
+                        )
                         for a in step_artifacts:
                             line = f"    [{a.get('type', 'resource')}] {a.get('name', 'Untitled')}"
                             if a.get("id"):
@@ -706,7 +864,9 @@ class WorkflowNodes:
                             parts.append(line)
         return "\n".join(parts) if parts else "None yet - this is the first step."
 
-    async def _generate_spreadsheet_structure(self, step: WorkflowStep, previous_results: str) -> dict:
+    async def _generate_spreadsheet_structure(
+        self, step: WorkflowStep, previous_results: str
+    ) -> dict:
         """Generate sheet/column structure for the approval preview (lightweight LLM call)."""
         prompt = (
             f"A workflow step will create a Google Spreadsheet.\n\n"
@@ -715,10 +875,14 @@ class WorkflowNodes:
             '{"title": "...", "sheets": [{"name": "...", "columns": [{"name": "...", "type": "text|number|date|boolean|currency|percentage"}]}]}\n\n'
             "Infer title and columns from the step description. Use 'text' for strings, 'number' for numerics, 'currency' for prices, 'date' for dates."
         )
-        response = await self.executor_llm.ainvoke([
-            SystemMessage(content="You are a planning assistant. Respond with valid JSON only."),
-            HumanMessage(content=prompt),
-        ])
+        response = await self.executor_llm.ainvoke(
+            [
+                SystemMessage(
+                    content="You are a planning assistant. Respond with valid JSON only."
+                ),
+                HumanMessage(content=prompt),
+            ]
+        )
         try:
             content = response.content
             if "```" in content:
@@ -727,7 +891,10 @@ class WorkflowNodes:
                     content = content[4:]
             return json.loads(content.strip())
         except Exception:
-            return {"title": step.description, "sheets": [{"name": "Sheet1", "columns": []}]}
+            return {
+                "title": step.description,
+                "sheets": [{"name": "Sheet1", "columns": []}],
+            }
 
     async def _start_step_execution(
         self,
@@ -741,12 +908,15 @@ class WorkflowNodes:
     ) -> tuple:
         """Build the executor conversation and invoke the LLM."""
         system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
-            conversation_context=f"\nCONVERSATION HISTORY:\n{conversation_summary}\n" if conversation_summary else "",
+            conversation_context=f"\nCONVERSATION HISTORY:\n{conversation_summary}\n"
+            if conversation_summary
+            else "",
             integration_context=format_integration_context(initial_integrations),
             artifacts_context=format_artifacts_context(artifacts or []),
             integration_hints=(
                 self.registry.get_hints(initial_integrations, "executor")
-                if self.registry and initial_integrations else ""
+                if self.registry and initial_integrations
+                else ""
             ),
             current_step=step.description,
             step_number=step.step_number,
@@ -758,7 +928,8 @@ class WorkflowNodes:
         if approved_content:
             content_str = (
                 json.dumps(approved_content, indent=2)
-                if isinstance(approved_content, dict) else str(approved_content)
+                if isinstance(approved_content, dict)
+                else str(approved_content)
             )
             human_content += f"\n\nUse this approved content:\n{content_str}"
 

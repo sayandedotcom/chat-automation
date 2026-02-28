@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ Failed to pre-warm registry: {e}")
         import traceback
+
         traceback.print_exc()
 
     yield  # App runs here
@@ -63,4 +64,5 @@ app.include_router(chat_router.router)
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

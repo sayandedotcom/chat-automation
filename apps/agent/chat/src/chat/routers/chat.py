@@ -28,8 +28,11 @@ _services: dict[str, ChatService] = {}
 # -------------------
 class WorkflowRequestSchema(BaseModel):
     """Request schema for workflow execution."""
+
     request: str = Field(..., description="Natural language workflow request")
-    thread_id: Optional[str] = Field(default=None, description="Thread ID for workflow continuity")
+    thread_id: Optional[str] = Field(
+        default=None, description="Thread ID for workflow continuity"
+    )
     # Optional OAuth tokens
     gmail_token: Optional[str] = Field(default=None)
     notion_token: Optional[str] = Field(default=None)
@@ -41,9 +44,12 @@ class WorkflowRequestSchema(BaseModel):
 
 class WorkflowResumeSchema(BaseModel):
     """Request schema for resuming workflow with HITL decision."""
+
     thread_id: str = Field(..., description="Thread ID of the workflow to resume")
     action: str = Field(..., description="Decision: 'approve', 'edit', or 'skip'")
-    content: Optional[dict] = Field(default=None, description="Edited content (if action is 'edit')")
+    content: Optional[dict] = Field(
+        default=None, description="Edited content (if action is 'edit')"
+    )
     # Optional OAuth tokens
     gmail_token: Optional[str] = Field(default=None)
     notion_token: Optional[str] = Field(default=None)
@@ -53,6 +59,7 @@ class WorkflowResumeSchema(BaseModel):
 
 class WorkflowRetrySchema(BaseModel):
     """Request schema for workflow retry."""
+
     thread_id: str = Field(..., description="Thread ID of the workflow to retry")
     step_number: int = Field(..., description="Step number to retry from (1-indexed)")
     # Optional OAuth tokens
@@ -119,6 +126,7 @@ async def execute_workflow(data: WorkflowRequestSchema):
     except Exception as e:
         print(f"Error in workflow endpoint: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -129,6 +137,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
     Execute a workflow with streaming progress updates.
     Returns Server-Sent Events (SSE) with real-time step progress.
     """
+
     async def generate():
         waiting_for_approval = False
         captured_thread_id = data.thread_id  # May be None initially
@@ -155,11 +164,15 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                 event_type = event.get("type", "unknown")
                 print(f"📤 SSE EVENT SENT: type={event_type}")
                 if event_type == "approval_required":
-                    print(f"   📋 Approval data: step={event.get('interrupt', {}).get('step_number')}")
+                    print(
+                        f"   📋 Approval data: step={event.get('interrupt', {}).get('step_number')}"
+                    )
                     waiting_for_approval = True
                 elif event_type == "progress":
                     steps_info = event.get("plan", {}).get("steps", [])
-                    statuses = [f"{s.get('step_number')}:{s.get('status')}" for s in steps_info]
+                    statuses = [
+                        f"{s.get('step_number')}:{s.get('status')}" for s in steps_info
+                    ]
                     print(f"   📊 Steps: {statuses}")
 
                 yield f"data: {json.dumps(event)}\n\n"
@@ -168,7 +181,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
             print(f"📤 Stream ended. waiting_for_approval={waiting_for_approval}")
             if not waiting_for_approval:
                 print("📤 SSE EVENT SENT: type=done")
-                yield "data: {\"type\": \"done\"}\n\n"
+                yield 'data: {"type": "done"}\n\n'
             else:
                 print("📤 NOT sending done - workflow paused for approval")
 
@@ -186,36 +199,51 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
             else:
                 # This error typically happens when interrupt() is called
                 # Check if there's a pending interrupt to yield
-                print(f"Filtered benign error (workflow paused for approval): {error_message}")
+                print(
+                    f"Filtered benign error (workflow paused for approval): {error_message}"
+                )
                 print(f"   Checking for interrupt with thread_id: {captured_thread_id}")
 
                 if service and captured_thread_id:
                     try:
                         # Get the workflow state to check for pending interrupts
                         config = {"configurable": {"thread_id": captured_thread_id}}
-                        state_snapshot = await service._workflow.get_app().aget_state(config)
+                        state_snapshot = await service._workflow.get_app().aget_state(
+                            config
+                        )
 
-                        print(f"   State snapshot tasks: {state_snapshot.tasks if state_snapshot else 'None'}")
+                        print(
+                            f"   State snapshot tasks: {state_snapshot.tasks if state_snapshot else 'None'}"
+                        )
 
                         if state_snapshot and state_snapshot.tasks:
                             for task in state_snapshot.tasks:
-                                print(f"   Task: {task}, has interrupts: {hasattr(task, 'interrupts')}")
-                                if hasattr(task, 'interrupts') and task.interrupts:
+                                print(
+                                    f"   Task: {task}, has interrupts: {hasattr(task, 'interrupts')}"
+                                )
+                                if hasattr(task, "interrupts") and task.interrupts:
                                     for interrupt in task.interrupts:
-                                        print(f"   Interrupt: {interrupt}, has value: {hasattr(interrupt, 'value')}")
-                                        if hasattr(interrupt, 'value'):
+                                        print(
+                                            f"   Interrupt: {interrupt}, has value: {hasattr(interrupt, 'value')}"
+                                        )
+                                        if hasattr(interrupt, "value"):
                                             value = interrupt.value
-                                            print(f"🔐 Found pending interrupt from exception handler: {value}")
+                                            print(
+                                                f"🔐 Found pending interrupt from exception handler: {value}"
+                                            )
                                             yield f"data: {json.dumps({'type': 'approval_required', 'thread_id': captured_thread_id, 'interrupt': value})}\n\n"
                                             waiting_for_approval = True
                         else:
                             print("   No tasks found in state snapshot")
                     except Exception as inner_e:
                         import traceback
+
                         print(f"⚠️ Error checking interrupt state: {inner_e}")
                         traceback.print_exc()
                 else:
-                    print(f"   Cannot check interrupt: service={service is not None}, thread_id={captured_thread_id}")
+                    print(
+                        f"   Cannot check interrupt: service={service is not None}, thread_id={captured_thread_id}"
+                    )
 
     return StreamingResponse(
         generate(),
@@ -223,7 +251,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-        }
+        },
     )
 
 
@@ -281,6 +309,7 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
     except Exception as e:
         print(f"Error in workflow retry endpoint: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -322,5 +351,6 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
     except Exception as e:
         print(f"Error in workflow resume endpoint: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

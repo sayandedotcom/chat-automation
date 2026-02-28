@@ -9,11 +9,10 @@ Tests cover:
 - Invalid integration names filtered out
 """
 
-import json
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from chat.integrations.classifier import IntegrationClassifier, ClassificationResult, IntegrationIndex
+from chat.integrations.classifier import IntegrationClassifier
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -35,12 +34,14 @@ class TestBuildIndex:
 
     def test_build_index_lowercases_identity_keywords(self):
         clf = IntegrationClassifier()
-        clf.build_index({
-            "test": {
-                "description": "Test",
-                "identity_keywords": ["GitHub", "JIRA"],
+        clf.build_index(
+            {
+                "test": {
+                    "description": "Test",
+                    "identity_keywords": ["GitHub", "JIRA"],
+                }
             }
-        })
+        )
         assert clf._indexes["test"].identity_keywords == ["github", "jira"]
 
     def test_build_index_empty_config(self):
@@ -87,7 +88,9 @@ class TestClassifyWithFallback:
         classifier._llm = AsyncMock()
         classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
 
-        result = await classifier.classify_with_fallback("research Python and create a doc")
+        result = await classifier.classify_with_fallback(
+            "research Python and create a doc"
+        )
         assert "web_search" in result.integrations
         assert "google_docs" in result.integrations
         assert result.method == "llm"

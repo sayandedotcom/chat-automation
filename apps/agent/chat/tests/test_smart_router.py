@@ -51,7 +51,9 @@ def _make_registry(*known_names: str) -> MagicMock:
     configs = {}
     tools_by_integration = {}
     for name in known_names:
-        cfg = IntegrationConfig(name, {"display_name": name.replace("_", " ").title(), "icon": "default"})
+        cfg = IntegrationConfig(
+            name, {"display_name": name.replace("_", " ").title(), "icon": "default"}
+        )
         configs[name] = cfg
         fake_tool = MagicMock()
         fake_tool.name = f"{name}_tool"
@@ -105,16 +107,24 @@ class TestSmartRouterArtifactInjection:
 
     @patch("chat.integrations.classifier.get_classifier")
     @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
-    async def test_artifact_injected_when_referenced_by_identity_keyword(self, mock_classify, mock_get_classifier):
+    async def test_artifact_injected_when_referenced_by_identity_keyword(
+        self, mock_classify, mock_get_classifier
+    ):
         """Artifact integration injected when request contains its identity keyword."""
         mock_classify.return_value = ["notion"]
-        mock_get_classifier.return_value = _make_classifier_mock("notion", "google_docs")
+        mock_get_classifier.return_value = _make_classifier_mock(
+            "notion", "google_docs"
+        )
         registry = _make_registry("notion", "google_docs")
         nodes = _make_nodes(registry)
 
         # "google doc" identity keyword appears in "update the google doc too"
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
-        result = await nodes.smart_router_node(_make_state("update the google doc too", artifacts))
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Test Doc"}
+        ]
+        result = await nodes.smart_router_node(
+            _make_state("update the google doc too", artifacts)
+        )
 
         call_args = registry.get_toolset.call_args[0][0]
         assert "notion" in call_args
@@ -122,16 +132,24 @@ class TestSmartRouterArtifactInjection:
 
     @patch("chat.integrations.classifier.get_classifier")
     @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
-    async def test_artifact_not_injected_when_not_referenced(self, mock_classify, mock_get_classifier):
+    async def test_artifact_not_injected_when_not_referenced(
+        self, mock_classify, mock_get_classifier
+    ):
         """Artifact integration NOT injected when request doesn't reference it."""
         mock_classify.return_value = ["notion"]
-        mock_get_classifier.return_value = _make_classifier_mock("notion", "google_docs")
+        mock_get_classifier.return_value = _make_classifier_mock(
+            "notion", "google_docs"
+        )
         registry = _make_registry("notion", "google_docs")
         nodes = _make_nodes(registry)
 
         # Request mentions only "notion doc", no reference to google_docs
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
-        result = await nodes.smart_router_node(_make_state("also build a notion doc", artifacts))
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Test Doc"}
+        ]
+        result = await nodes.smart_router_node(
+            _make_state("also build a notion doc", artifacts)
+        )
 
         call_args = registry.get_toolset.call_args[0][0]
         assert "notion" in call_args
@@ -144,7 +162,9 @@ class TestSmartRouterArtifactInjection:
         registry = _make_registry("google_docs", "notion")
         nodes = _make_nodes(registry)
 
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Test Doc"}
+        ]
         result = await nodes.smart_router_node(_make_state("update the doc", artifacts))
 
         call_args = registry.get_toolset.call_args[0][0]
@@ -166,10 +186,14 @@ class TestSmartRouterArtifactInjection:
 
     @patch("chat.integrations.classifier.get_classifier")
     @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
-    async def test_only_referenced_artifacts_injected(self, mock_classify, mock_get_classifier):
+    async def test_only_referenced_artifacts_injected(
+        self, mock_classify, mock_get_classifier
+    ):
         """When multiple artifact integrations exist, only referenced ones are injected."""
         mock_classify.return_value = ["gmail"]
-        mock_get_classifier.return_value = _make_classifier_mock("gmail", "google_docs", "notion")
+        mock_get_classifier.return_value = _make_classifier_mock(
+            "gmail", "google_docs", "notion"
+        )
         registry = _make_registry("gmail", "google_docs", "notion")
         nodes = _make_nodes(registry)
 
@@ -189,7 +213,9 @@ class TestSmartRouterArtifactInjection:
 
     @patch("chat.integrations.classifier.get_classifier")
     @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
-    async def test_artifact_injected_by_name_match(self, mock_classify, mock_get_classifier):
+    async def test_artifact_injected_by_name_match(
+        self, mock_classify, mock_get_classifier
+    ):
         """Artifact injected when its name appears in the request."""
         mock_classify.return_value = ["gmail"]
         mock_get_classifier.return_value = _make_classifier_mock("gmail", "google_docs")
@@ -197,9 +223,17 @@ class TestSmartRouterArtifactInjection:
         nodes = _make_nodes(registry)
 
         # Artifact name "Backend Languages Report" appears in the request
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Backend Languages Report"}]
+        artifacts = [
+            {
+                "integration": "google_docs",
+                "type": "document",
+                "name": "Backend Languages Report",
+            }
+        ]
         result = await nodes.smart_router_node(
-            _make_state("email the backend languages report to test@example.com", artifacts)
+            _make_state(
+                "email the backend languages report to test@example.com", artifacts
+            )
         )
 
         call_args = registry.get_toolset.call_args[0][0]
@@ -229,7 +263,9 @@ class TestSmartRouterArtifactInjection:
         registry = _make_registry("notion", "google_docs")
         nodes = _make_nodes(registry)
 
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Test Doc"}
+        ]
         result = await nodes.smart_router_node(
             _make_state("Create a similar Notion Document also", artifacts)
         )
@@ -245,7 +281,9 @@ class TestSmartRouterArtifactInjection:
         registry = _make_registry("notion", "google_docs")
         nodes = _make_nodes(registry)
 
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Test Doc"}
+        ]
         result = await nodes.smart_router_node(
             _make_state("create the same thing in Notion", artifacts)
         )
@@ -260,9 +298,13 @@ class TestSmartRouterArtifactInjection:
         registry = _make_registry("notion", "google_docs")
         nodes = _make_nodes(registry)
 
-        artifacts = [{"integration": "google_docs", "type": "document", "name": "Test Doc"}]
+        artifacts = [
+            {"integration": "google_docs", "type": "document", "name": "Test Doc"}
+        ]
         result = await nodes.smart_router_node(
-            _make_state("create a Notion page based on the previous document", artifacts)
+            _make_state(
+                "create a Notion page based on the previous document", artifacts
+            )
         )
 
         call_args = registry.get_toolset.call_args[0][0]
@@ -270,10 +312,14 @@ class TestSmartRouterArtifactInjection:
 
     @patch("chat.integrations.classifier.get_classifier")
     @patch("chat.integrations.registry.classify_integrations", new_callable=AsyncMock)
-    async def test_no_continuation_keyword_no_blanket_injection(self, mock_classify, mock_get_classifier):
+    async def test_no_continuation_keyword_no_blanket_injection(
+        self, mock_classify, mock_get_classifier
+    ):
         """Without continuation keywords, non-referenced artifacts are NOT injected."""
         mock_classify.return_value = ["gmail"]
-        mock_get_classifier.return_value = _make_classifier_mock("gmail", "google_docs", "notion")
+        mock_get_classifier.return_value = _make_classifier_mock(
+            "gmail", "google_docs", "notion"
+        )
         registry = _make_registry("gmail", "google_docs", "notion")
         nodes = _make_nodes(registry)
 
@@ -296,7 +342,10 @@ class TestSmartRouterArtifactInjection:
 # Tests for _get_previous_results artifact enrichment
 # ---------------------------------------------------------------------------
 
-def _make_plan_with_completed_steps(n_steps: int, results: dict[int, str] | None = None) -> WorkflowPlan:
+
+def _make_plan_with_completed_steps(
+    n_steps: int, results: dict[int, str] | None = None
+) -> WorkflowPlan:
     """Build a WorkflowPlan with n_steps, optionally setting results by step_number."""
     steps = []
     for i in range(1, n_steps + 1):
@@ -326,10 +375,18 @@ class TestGetPreviousResultsArtifactEnrichment:
         """Artifacts whose step_number matches a completed step are appended."""
         registry = _make_registry("google_docs")
         nodes = _make_nodes(registry)
-        plan = _make_plan_with_completed_steps(3, results={1: "Created doc.", 2: "Wrote content."})
+        plan = _make_plan_with_completed_steps(
+            3, results={1: "Created doc.", 2: "Wrote content."}
+        )
 
         artifacts = [
-            {"step_number": 1, "type": "document", "name": "Test Doc", "id": "1hK-LoFzab_xZZK", "url": "https://docs.google.com/1hK-LoFzab_xZZK"},
+            {
+                "step_number": 1,
+                "type": "document",
+                "name": "Test Doc",
+                "id": "1hK-LoFzab_xZZK",
+                "url": "https://docs.google.com/1hK-LoFzab_xZZK",
+            },
             {"step_number": 2, "type": "document", "name": "Another", "id": "abc123"},
         ]
         result = nodes._get_previous_results(plan, current_index=3, artifacts=artifacts)
@@ -352,7 +409,12 @@ class TestGetPreviousResultsArtifactEnrichment:
 
         # Artifact belongs to step 2, but we're only looking at steps up to index 2 (step 1)
         artifacts = [
-            {"step_number": 2, "type": "document", "name": "Future Doc", "id": "xyz789"},
+            {
+                "step_number": 2,
+                "type": "document",
+                "name": "Future Doc",
+                "id": "xyz789",
+            },
         ]
         result = nodes._get_previous_results(plan, current_index=2, artifacts=artifacts)
 

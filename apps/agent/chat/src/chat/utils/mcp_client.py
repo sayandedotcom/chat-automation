@@ -27,7 +27,7 @@ def create_mcp_client(
     """
     Create MCP client with connected integrations.
     Only includes servers for which we have tokens.
-    
+
     Args:
         gmail_token: Google OAuth access token for Gmail/Workspace (used as user identifier)
         vercel_token: Vercel access token
@@ -35,7 +35,7 @@ def create_mcp_client(
         tavily_api_key: Tavily API key for web search
         google_client_id: Google OAuth Client ID (for workspace-mcp)
         google_client_secret: Google OAuth Client Secret (for workspace-mcp)
-    
+
     Returns:
         Configured MultiServerMCPClient instance
     """
@@ -46,7 +46,7 @@ def create_mcp_client(
     # The sync happens when user connects Gmail on frontend, tokens are written to MCP credentials dir
     client_id = google_client_id or os.getenv("GOOGLE_CLIENT_ID")
     client_secret = google_client_secret or os.getenv("GOOGLE_CLIENT_SECRET")
-    
+
     if client_id and client_secret:
         # Use /tmp for credentials — the only writable path in Lambda/serverless envs.
         # Must match MCP_CREDENTIALS_DIR in credentials.py (overridable via env var).
@@ -54,25 +54,38 @@ def create_mcp_client(
             "GOOGLE_MCP_CREDENTIALS_DIR", "/tmp/.google_workspace_mcp/credentials"
         )
         workspace_env = os.environ.copy()
-        workspace_env.update({
-            "GOOGLE_CLIENT_ID": client_id,
-            "GOOGLE_CLIENT_SECRET": client_secret,
-            "GOOGLE_MCP_CREDENTIALS_DIR": mcp_creds_dir,
-        })
-        
+        workspace_env.update(
+            {
+                "GOOGLE_CLIENT_ID": client_id,
+                "GOOGLE_CLIENT_SECRET": client_secret,
+                "GOOGLE_MCP_CREDENTIALS_DIR": mcp_creds_dir,
+            }
+        )
+
         servers["google_workspace"] = {
             "transport": "stdio",
             "command": "uv",
             # Use --single-user for simplified authentication flow
             # Credentials are pre-synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
-            "args": ["tool", "run", "workspace-mcp@1.11.1", "--single-user", "--tools", "gmail", "drive", "calendar", "docs", "sheets", "slides"],
+            "args": [
+                "tool",
+                "run",
+                "workspace-mcp@1.11.1",
+                "--single-user",
+                "--tools",
+                "gmail",
+                "drive",
+                "calendar",
+                "docs",
+                "sheets",
+                "slides",
+            ],
             "env": workspace_env,
             # Lambda CWD is /var/task (read-only). workspace-mcp creates tmp/attachments
             # relative to CWD, so set CWD to /tmp which is writable.
             "cwd": "/tmp",
         }
-        print(f"🔐 Google Workspace MCP configured (single-user mode, stdio)")
-
+        print("🔐 Google Workspace MCP configured (single-user mode, stdio)")
 
     if vercel_token:
         servers["vercel"] = {
@@ -105,7 +118,7 @@ def sanitize_tool_schema(schema: dict) -> dict:
     """
     Recursively sanitize a tool schema to remove null values and fix
     compatibility issues with Gemini's function calling.
-    
+
     Handles:
     - null values at any nesting level
     - anyOf/oneOf validators (simplifies to first non-null type)
@@ -114,19 +127,19 @@ def sanitize_tool_schema(schema: dict) -> dict:
     """
     if not isinstance(schema, dict):
         return schema
-    
+
     sanitized = {}
     for key, value in schema.items():
         if value is None:
             # Skip null values - Gemini doesn't accept them
             continue
-        elif key in ('anyOf', 'oneOf'):
+        elif key in ("anyOf", "oneOf"):
             # Handle anyOf/oneOf: pick the first non-null type definition
             if isinstance(value, list) and value:
                 for item in value:
                     if isinstance(item, dict):
                         # Skip "null" type definitions
-                        if item.get('type') == 'null':
+                        if item.get("type") == "null":
                             continue
                         # Use the first valid type definition
                         sanitized_item = sanitize_tool_schema(item)
@@ -136,7 +149,7 @@ def sanitize_tool_schema(schema: dict) -> dict:
                                 if k not in sanitized:
                                     sanitized[k] = v
                             break
-        elif key == 'properties' and isinstance(value, dict):
+        elif key == "properties" and isinstance(value, dict):
             # Sanitize each property, removing any with None values
             sanitized_props = {}
             for prop_name, prop_value in value.items():
@@ -160,11 +173,11 @@ def sanitize_tool_schema(schema: dict) -> dict:
                 for item in value
                 if item is not None
             ]
-            if sanitized_list or key == 'required':  # Keep required even if empty
+            if sanitized_list or key == "required":  # Keep required even if empty
                 sanitized[key] = sanitized_list
         else:
             sanitized[key] = value
-    
+
     return sanitized
 
 
@@ -174,37 +187,38 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
     """
     try:
         # Access and sanitize the args_schema if it exists
-        if hasattr(tool, 'args_schema') and tool.args_schema:
+        if hasattr(tool, "args_schema") and tool.args_schema:
             # Handle both Pydantic models and plain dicts (JSON Schema)
             if isinstance(tool.args_schema, dict):
                 schema = tool.args_schema
-            elif hasattr(tool.args_schema, 'model_json_schema'):
+            elif hasattr(tool.args_schema, "model_json_schema"):
                 schema = tool.args_schema.model_json_schema()
             else:
                 return tool
-            
+
             sanitized_schema = sanitize_tool_schema(schema)
             # The schema is read-only, so we just log if there were issues
             if schema != sanitized_schema:
                 print(f"⚠️ Sanitized schema for tool: {tool.name}")
     except Exception as e:
         print(f"⚠️ Could not sanitize tool {tool.name}: {e}")
-    
+
     return tool
 
 
-async def load_mcp_tools(client: MultiServerMCPClient, retries: int = 3, base_delay: float = 1.0) -> list[BaseTool]:
+async def load_mcp_tools(
+    client: MultiServerMCPClient, retries: int = 3, base_delay: float = 1.0
+) -> list[BaseTool]:
     """
     Load tools from the MCP client and sanitize their schemas.
-    
+
     Args:
         client: Configured MCP client
-    
+
     Returns:
         List of available tools with sanitized schemas
     """
-    from langchain_core.tools import StructuredTool
-    
+
     # workspace-mcp internal tools that should never be exposed to the LLM.
     # Auth is handled by frontend OAuth, not workspace-mcp's built-in flows.
     _BLOCKED_TOOLS = {"start_google_auth"}
@@ -223,8 +237,10 @@ async def load_mcp_tools(client: MultiServerMCPClient, retries: int = 3, base_de
             except Exception as exc:
                 last_exc = exc
                 if attempt < retries - 1:
-                    delay = base_delay * (2 ** attempt)
-                    print(f"⚠️ MCP connection attempt {attempt + 1}/{retries} failed: {exc}. Retrying in {delay:.1f}s...")
+                    delay = base_delay * (2**attempt)
+                    print(
+                        f"⚠️ MCP connection attempt {attempt + 1}/{retries} failed: {exc}. Retrying in {delay:.1f}s..."
+                    )
                     await asyncio.sleep(delay)
         else:
             # All retries exhausted — propagate to outer except for uniform handling
@@ -240,54 +256,59 @@ async def load_mcp_tools(client: MultiServerMCPClient, retries: int = 3, base_de
                 continue
             try:
                 # Get the schema (handle both dict and Pydantic model formats)
-                if hasattr(tool, 'args_schema') and tool.args_schema:
+                if hasattr(tool, "args_schema") and tool.args_schema:
                     if isinstance(tool.args_schema, dict):
                         original_schema = tool.args_schema
-                    elif hasattr(tool.args_schema, 'model_json_schema'):
+                    elif hasattr(tool.args_schema, "model_json_schema"):
                         original_schema = tool.args_schema.model_json_schema()
                     else:
-                        print(f"⚠️ Unknown args_schema type for {tool.name}: {type(tool.args_schema)}")
+                        print(
+                            f"⚠️ Unknown args_schema type for {tool.name}: {type(tool.args_schema)}"
+                        )
                         safe_tools.append(tool)
                         continue
-                    
+
                     # Sanitize the schema
                     sanitized_schema = sanitize_tool_schema(original_schema)
-                    
+
                     # Check if sanitization removed essential parts
-                    if not sanitized_schema.get('properties'):
+                    if not sanitized_schema.get("properties"):
                         # If no properties left, add a minimal schema
                         sanitized_schema = {
                             "type": "object",
                             "properties": {},
-                            "required": []
+                            "required": [],
                         }
-                    
+
                     # Ensure 'type' is set
-                    if 'type' not in sanitized_schema:
-                        sanitized_schema['type'] = 'object'
-                    
+                    if "type" not in sanitized_schema:
+                        sanitized_schema["type"] = "object"
+
                     # Create a new tool with the sanitized schema
                     # We need to modify the args_schema directly since it's a dict
                     if isinstance(tool.args_schema, dict):
                         tool.args_schema = sanitized_schema
-                    
+
                     if original_schema != sanitized_schema:
                         print(f"🔧 Sanitized schema for tool: {tool.name}")
-                
+
                 safe_tools.append(tool)
-                
+
             except Exception as e:
                 print(f"⚠️ Skipping problematic tool {tool.name}: {e}")
                 problematic_tools.append(tool.name)
-        
+
         if problematic_tools:
-            print(f"⚠️ Skipped {len(problematic_tools)} tools with incompatible schemas: {problematic_tools}")
-        
+            print(
+                f"⚠️ Skipped {len(problematic_tools)} tools with incompatible schemas: {problematic_tools}"
+            )
+
         print(f"✅ Loaded {len(safe_tools)} MCP tools: {[t.name for t in safe_tools]}")
         return safe_tools
     except Exception as e:
         print(f"❌ Warning: Failed to load MCP tools: {e}")
         import traceback
+
         traceback.print_exc()
         return []
 

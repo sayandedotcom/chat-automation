@@ -7,4 +7,3 @@ class Resource:
     class App:
         name: str
         stage: str
-

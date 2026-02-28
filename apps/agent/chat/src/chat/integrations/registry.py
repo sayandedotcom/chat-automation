@@ -45,7 +45,9 @@ class IntegrationRegistry:
     """
 
     def __init__(self, config_path: Optional[Path] = None):
-        self._config_path = config_path or Path(__file__).parent / "integration_config.yaml"
+        self._config_path = (
+            config_path or Path(__file__).parent / "integration_config.yaml"
+        )
         self._integrations: dict[str, IntegrationConfig] = {}
         self._tools_by_integration: dict[str, list[BaseTool]] = {}
         self._all_tools: list[BaseTool] = []
@@ -103,7 +105,9 @@ class IntegrationRegistry:
                 self._tools_by_integration[integration_name].append(tool)
                 self._tool_to_integration[tool.name] = integration_name
             else:
-                logger.warning(f"Tool '{tool.name}' not listed in any integration config")
+                logger.warning(
+                    f"Tool '{tool.name}' not listed in any integration config"
+                )
 
         self._initialized = True
 
@@ -147,8 +151,12 @@ class IntegrationRegistry:
         # Only pass the missing tokens — explicitly None-out everything else
         # so create_mcp_client doesn't re-create servers from env vars.
         all_keys = {
-            "gmail_token", "vercel_token", "notion_token",
-            "tavily_api_key", "google_client_id", "google_client_secret",
+            "gmail_token",
+            "vercel_token",
+            "notion_token",
+            "tavily_api_key",
+            "google_client_id",
+            "google_client_secret",
         }
         call_args = {k: None for k in all_keys}
         call_args.update(missing_tokens)
@@ -169,7 +177,9 @@ class IntegrationRegistry:
                 self._tools_by_integration.setdefault(integration_name, []).append(tool)
                 self._tool_to_integration[tool.name] = integration_name
             else:
-                logger.warning(f"Tool '{tool.name}' not listed in any integration config")
+                logger.warning(
+                    f"Tool '{tool.name}' not listed in any integration config"
+                )
 
             self._all_tools.append(tool)
             existing_tool_names.add(tool.name)
@@ -227,7 +237,11 @@ class IntegrationRegistry:
             config = self._integrations.get(name)
             if not config:
                 continue
-            hint = config.planner_hints if hint_type == "planner" else config.executor_hints
+            hint = (
+                config.planner_hints
+                if hint_type == "planner"
+                else config.executor_hints
+            )
             if hint and hint.strip():
                 parts.append(hint.strip())
 
@@ -245,7 +259,9 @@ class IntegrationRegistry:
         return self._initialized
 
 
-async def classify_integrations(request: str, registry: IntegrationRegistry) -> list[str]:
+async def classify_integrations(
+    request: str, registry: IntegrationRegistry
+) -> list[str]:
     """
     Classify which integrations are needed using two-phase approach.
 
@@ -267,7 +283,9 @@ async def classify_integrations(request: str, registry: IntegrationRegistry) -> 
     classifier = get_classifier()
 
     if not classifier.is_initialized:
-        logger.warning("Classifier not initialised, falling back to legacy regex matching")
+        logger.warning(
+            "Classifier not initialised, falling back to legacy regex matching"
+        )
         return _legacy_classify(request, registry)
 
     result = await classifier.classify_with_fallback(request)
@@ -349,7 +367,9 @@ async def get_registry(tokens: dict) -> IntegrationRegistry:
         logger.info("Initializing global registry singleton...")
         _global_registry = IntegrationRegistry()
         await _global_registry.load_all(tokens)
-        logger.info(f"Registry initialized with {len(_global_registry.get_all_tools())} tools")
+        logger.info(
+            f"Registry initialized with {len(_global_registry.get_all_tools())} tools"
+        )
 
     return _global_registry
 
