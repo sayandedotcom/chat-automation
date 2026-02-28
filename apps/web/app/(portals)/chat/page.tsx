@@ -84,20 +84,26 @@ export default function ChatPage() {
   // Multi-turn: completed previous turns
   const [completedTurns, setCompletedTurns] = useState<ConversationTurn[]>([]);
 
-  // Auto-scroll to bottom when new content arrives (debounced to prevent flicker)
+  // Auto-scroll to bottom only when user is already near the bottom
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isNearBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    // "Near bottom" = within 150px of the bottom edge
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+  }, []);
   const scrollToBottom = useCallback(() => {
     if (scrollTimerRef.current) {
       clearTimeout(scrollTimerRef.current);
     }
     scrollTimerRef.current = setTimeout(() => {
       requestAnimationFrame(() => {
-        if (scrollRef.current) {
+        if (scrollRef.current && isNearBottom()) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
       });
     }, 50);
-  }, []);
+  }, [isNearBottom]);
 
   // Use stable scalar deps instead of object references to avoid excessive triggers
   const stepsLength = steps.length;

@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
   Check,
   X,
-  Pencil,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
+import { MarkdownEditor } from "./markdown-editor";
 import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
 
@@ -40,14 +40,10 @@ export function DocumentEditor({
   const [content, setContent] = useState(() => String(args.content ?? ""));
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
-  const [isEditing, setIsEditing] = useState(false);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
     completed ? "created" : null,
   );
 
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-
-  // When completed prop changes externally, collapse
   useEffect(() => {
     if (completed && !actionTaken) {
       setActionTaken("created");
@@ -61,20 +57,11 @@ export function DocumentEditor({
     return false;
   }, [title, content, args]);
 
-  useEffect(() => {
-    const el = contentRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 400) + "px";
-    }
-  }, [content, isEditing]);
-
   const handleCreate = useCallback(() => {
     if (isCreating || actionTaken) return;
     setIsCreating(true);
     setActionTaken("created");
     setIsCollapsed(true);
-    setIsEditing(false);
 
     if (isDirty()) {
       onApprove(stepNumber, "edit", {
@@ -94,7 +81,6 @@ export function DocumentEditor({
     onApprove(stepNumber, "skip");
   }, [onApprove, stepNumber, actionTaken]);
 
-  // Cmd+Enter / Ctrl+Enter
   useEffect(() => {
     if (actionTaken) return;
     const handler = (e: KeyboardEvent) => {
@@ -176,7 +162,7 @@ export function DocumentEditor({
         <>
           <div className="px-5 py-5 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             {/* Title */}
-            {actionTaken || !isEditing ? (
+            {actionTaken ? (
               <h2 className="text-2xl font-bold text-white mb-4 leading-tight tracking-tight">
                 {title}
               </h2>
@@ -195,20 +181,14 @@ export function DocumentEditor({
             )}
 
             {/* Content */}
-            {actionTaken || !isEditing ? (
+            {actionTaken ? (
               <MarkdownRenderer content={content} />
             ) : (
-              <textarea
-                ref={contentRef}
+              <MarkdownEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 placeholder="Document content..."
-                rows={6}
-                className={cn(
-                  "w-full bg-transparent text-sm text-white/70 placeholder:text-white/25",
-                  "outline-none resize-none leading-relaxed",
-                  "max-h-[320px] overflow-y-auto",
-                )}
+                maxHeight={320}
               />
             )}
           </div>
@@ -216,19 +196,6 @@ export function DocumentEditor({
           {/* ── Footer ── */}
           {!actionTaken && (
             <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
-              <button
-                className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  isEditing
-                    ? "bg-white/10 text-white/70"
-                    : "hover:bg-white/5 text-white/40",
-                )}
-                tabIndex={-1}
-                title={isEditing ? "Preview" : "Edit content"}
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
               <button
                 className="p-2 rounded-lg hover:bg-white/5 transition-colors"
                 tabIndex={-1}

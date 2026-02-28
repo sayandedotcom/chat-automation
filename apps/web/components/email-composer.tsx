@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   X,
   ChevronDown,
@@ -8,18 +8,12 @@ import {
   RotateCcw,
   Users,
   AtSign,
-  Bold,
-  Italic,
-  Strikethrough,
-  List,
-  ListOrdered,
-  Link2,
   Check,
-  Pencil,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
+import { MarkdownEditor } from "./markdown-editor";
 import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
 
@@ -75,12 +69,9 @@ export function EmailComposer({
   const [bccInput, setBccInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
-  const [isEditing, setIsEditing] = useState(false);
   const [actionTaken, setActionTaken] = useState<"sent" | "skipped" | null>(
     completed ? "sent" : null,
   );
-
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // When completed prop changes externally, collapse
   useEffect(() => {
@@ -102,20 +93,11 @@ export function EmailComposer({
     return false;
   }, [toList, ccList, bccList, subject, body, args]);
 
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 320) + "px";
-    }
-  }, [body, isEditing]);
-
   const handleSend = useCallback(() => {
     if (isSending || actionTaken) return;
     setIsSending(true);
     setActionTaken("sent");
     setIsCollapsed(true);
-    setIsEditing(false);
 
     const currentArgs: Record<string, unknown> = {
       to: toList.join(", "),
@@ -411,89 +393,55 @@ export function EmailComposer({
 
           {/* ── Body ── */}
           <div className="px-5 py-4 max-h-[360px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-            {actionTaken || !isEditing ? (
+            {actionTaken ? (
               <MarkdownRenderer content={body} />
             ) : (
-              <textarea
-                ref={bodyRef}
+              <MarkdownEditor
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
                 placeholder="Write your email..."
-                rows={4}
-                className={cn(
-                  "w-full bg-transparent text-sm text-white/70 placeholder:text-white/25",
-                  "outline-none resize-none leading-relaxed",
-                  "max-h-[320px] overflow-y-auto",
-                )}
+                maxHeight={280}
               />
             )}
           </div>
 
-          {/* ── Footer: Toolbar + Actions ── */}
+          {/* ── Footer ── */}
           {!actionTaken && (
-            <div className="px-4 py-2.5 flex items-center justify-between border-t border-white/5 bg-[#151515]">
-              <div className="flex items-center gap-0.5">
-                <button
-                  className={cn(
-                    "p-1.5 rounded-md transition-colors",
-                    isEditing
-                      ? "bg-white/10 text-white/70"
-                      : "text-white/25 hover:text-white/45 hover:bg-white/[0.04]",
-                  )}
-                  tabIndex={-1}
-                  title={isEditing ? "Preview" : "Edit body"}
-                  onClick={() => setIsEditing(!isEditing)}
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                {[Link2, Bold, Italic, Strikethrough, ListOrdered, List].map(
-                  (Icon, i) => (
-                    <button
-                      key={i}
-                      className="p-1.5 rounded-md text-white/25 hover:text-white/45 hover:bg-white/[0.04] transition-colors"
-                      tabIndex={-1}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </button>
-                  ),
+            <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
+              <button
+                className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                tabIndex={-1}
+                title="Regenerate"
+              >
+                <RotateCcw className="w-4 h-4 text-white/40" />
+              </button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancel}
+                disabled={isSending}
+                className="px-4 h-9 bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSend}
+                disabled={isSending}
+                className="px-4 h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2"
+              >
+                {isSending ? (
+                  "Sending..."
+                ) : (
+                  <>
+                    Send Email
+                    <span className="flex items-center gap-0.5 text-xs text-white/60">
+                      <span className="text-[10px]">⌘</span>
+                      <span>↵</span>
+                    </span>
+                  </>
                 )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-                  tabIndex={-1}
-                  title="Regenerate"
-                >
-                  <RotateCcw className="w-4 h-4 text-white/40" />
-                </button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancel}
-                  disabled={isSending}
-                  className="px-4 h-9 bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSend}
-                  disabled={isSending}
-                  className="px-4 h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2"
-                >
-                  {isSending ? (
-                    "Sending..."
-                  ) : (
-                    <>
-                      Send Email
-                      <span className="flex items-center gap-0.5 text-xs text-white/60">
-                        <span className="text-[10px]">⌘</span>
-                        <span>↵</span>
-                      </span>
-                    </>
-                  )}
-                </Button>
-              </div>
+              </Button>
             </div>
           )}
         </>

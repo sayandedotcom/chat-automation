@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
   Check,
   X,
-  Pencil,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
+import { MarkdownEditor } from "./markdown-editor";
 import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
 
@@ -27,24 +27,14 @@ interface NotionPageEditorProps {
   className?: string;
 }
 
-/**
- * Extract the page title from Notion's API-post-page arguments.
- * The title can live in several places depending on how the LLM structures the call:
- *   - properties.title[0].text.content  (rich-text array)
- *   - properties.title (plain string — simplified by some models)
- *   - properties.Name.title[0].text.content
- *   - title (top-level shorthand)
- */
 function extractTitle(args: Record<string, unknown>): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const props = args.properties as any;
   if (props) {
-    // Standard: properties.title = [{text:{content:"..."}}]
     const tryExtract = (field: unknown): string | null => {
       if (typeof field === "string") return field;
       if (Array.isArray(field) && field[0]?.text?.content)
         return field[0].text.content;
-      // Wrapped: { title: [...] }
       if (field && typeof field === "object" && "title" in (field as Record<string, unknown>)) {
         const inner = (field as Record<string, unknown>).title;
         if (typeof inner === "string") return inner;
@@ -64,10 +54,6 @@ function extractTitle(args: Record<string, unknown>): string {
   return "";
 }
 
-/**
- * Extract body/content from the children blocks array.
- * We concatenate all paragraph rich_text into a single string for editing.
- */
 function extractContent(args: Record<string, unknown>): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const children = args.children as any[];
@@ -103,12 +89,9 @@ export function NotionPageEditor({
   const [content, setContent] = useState(() => extractContent(args));
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
-  const [isEditing, setIsEditing] = useState(false);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
     completed ? "created" : null,
   );
-
-  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (completed && !actionTaken) {
@@ -121,20 +104,11 @@ export function NotionPageEditor({
     return title !== extractTitle(args) || content !== extractContent(args);
   }, [title, content, args]);
 
-  useEffect(() => {
-    const el = contentRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 400) + "px";
-    }
-  }, [content, isEditing]);
-
   const handleCreate = useCallback(() => {
     if (isCreating || actionTaken) return;
     setIsCreating(true);
     setActionTaken("created");
     setIsCollapsed(true);
-    setIsEditing(false);
 
     if (isDirty()) {
       onApprove(stepNumber, "edit", {
@@ -197,7 +171,7 @@ export function NotionPageEditor({
             />
           </div>
           <span className="text-sm font-medium text-white/90">
-            Create Notion Page
+            Create Page
           </span>
           {actionTaken && (
             <div className={cn(
@@ -235,7 +209,7 @@ export function NotionPageEditor({
         <>
           <div className="px-5 py-5 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             {/* Title */}
-            {actionTaken || !isEditing ? (
+            {actionTaken ? (
               <h2 className="text-2xl font-bold text-white mb-4 leading-tight tracking-tight">
                 {title}
               </h2>
@@ -254,20 +228,14 @@ export function NotionPageEditor({
             )}
 
             {/* Content */}
-            {actionTaken || !isEditing ? (
+            {actionTaken ? (
               <MarkdownRenderer content={content} />
             ) : (
-              <textarea
-                ref={contentRef}
+              <MarkdownEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 placeholder="Page content..."
-                rows={6}
-                className={cn(
-                  "w-full bg-transparent text-sm text-white/70 placeholder:text-white/25",
-                  "outline-none resize-none leading-relaxed",
-                  "max-h-[320px] overflow-y-auto",
-                )}
+                maxHeight={320}
               />
             )}
           </div>
@@ -275,19 +243,6 @@ export function NotionPageEditor({
           {/* ── Footer ── */}
           {!actionTaken && (
             <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
-              <button
-                className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  isEditing
-                    ? "bg-white/10 text-white/70"
-                    : "hover:bg-white/5 text-white/40",
-                )}
-                tabIndex={-1}
-                title={isEditing ? "Preview" : "Edit content"}
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
               <button
                 className="p-2 rounded-lg hover:bg-white/5 transition-colors"
                 tabIndex={-1}
