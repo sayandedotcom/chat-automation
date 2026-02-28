@@ -44,8 +44,8 @@ def create_mcp_client(
     # Google Workspace MCP Server (https://github.com/taylorwilsdon/google_workspace_mcp)
     # Uses single-user mode with credentials synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
     # The sync happens when user connects Gmail on frontend, tokens are written to MCP credentials dir
-    client_id = google_client_id or os.getenv("GOOGLE_OAUTH_CLIENT_ID")
-    client_secret = google_client_secret or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    client_id = google_client_id or os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = google_client_secret or os.getenv("GOOGLE_CLIENT_SECRET")
     
     if client_id and client_secret:
         # Use /tmp for credentials — the only writable path in Lambda/serverless envs.
@@ -55,8 +55,8 @@ def create_mcp_client(
         )
         workspace_env = os.environ.copy()
         workspace_env.update({
-            "GOOGLE_OAUTH_CLIENT_ID": client_id,
-            "GOOGLE_OAUTH_CLIENT_SECRET": client_secret,
+            "GOOGLE_CLIENT_ID": client_id,
+            "GOOGLE_CLIENT_SECRET": client_secret,
             "GOOGLE_MCP_CREDENTIALS_DIR": mcp_creds_dir,
         })
         

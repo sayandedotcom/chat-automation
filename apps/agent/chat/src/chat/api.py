@@ -30,8 +30,8 @@ async def lifespan(app: FastAPI):
         "notion_token": os.getenv("NOTION_TOKEN"),
         "vercel_token": os.getenv("VERCEL_TOKEN"),
         "tavily_api_key": TAVILY_API_KEY,
-        "google_client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
-        "google_client_secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+        "google_client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "google_client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
     }
 
     try:

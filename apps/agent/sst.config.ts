@@ -34,9 +34,8 @@ export default $config({
       environment: {
         GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ?? "",
         TAVILY_API_KEY: process.env.TAVILY_API_KEY ?? "",
-        GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID ?? "",
-        GOOGLE_OAUTH_CLIENT_SECRET:
-          process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "",
+        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
+        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "",
         LANGSMITH_TRACING: process.env.LANGSMITH_TRACING ?? "false",
         LANGSMITH_ENDPOINT: process.env.LANGSMITH_ENDPOINT ?? "",
         LANGSMITH_API_KEY: process.env.LANGSMITH_API_KEY ?? "",
