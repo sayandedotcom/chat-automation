@@ -15,10 +15,12 @@ import {
   ListOrdered,
   Link2,
   Check,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
+import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
 
 interface EmailComposerProps {
@@ -73,6 +75,7 @@ export function EmailComposer({
   const [bccInput, setBccInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
+  const [isEditing, setIsEditing] = useState(false);
   const [actionTaken, setActionTaken] = useState<"sent" | "skipped" | null>(
     completed ? "sent" : null,
   );
@@ -105,13 +108,14 @@ export function EmailComposer({
       el.style.height = "auto";
       el.style.height = Math.min(el.scrollHeight, 320) + "px";
     }
-  }, [body]);
+  }, [body, isEditing]);
 
   const handleSend = useCallback(() => {
     if (isSending || actionTaken) return;
     setIsSending(true);
     setActionTaken("sent");
     setIsCollapsed(true);
+    setIsEditing(false);
 
     const currentArgs: Record<string, unknown> = {
       to: toList.join(", "),
@@ -406,11 +410,9 @@ export function EmailComposer({
           </div>
 
           {/* ── Body ── */}
-          <div className="px-4 py-3">
-            {actionTaken ? (
-              <div className="text-sm text-white/60 whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto">
-                {body}
-              </div>
+          <div className="px-5 py-4 max-h-[360px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {actionTaken || !isEditing ? (
+              <MarkdownRenderer content={body} />
             ) : (
               <textarea
                 ref={bodyRef}
@@ -421,8 +423,7 @@ export function EmailComposer({
                 className={cn(
                   "w-full bg-transparent text-sm text-white/70 placeholder:text-white/25",
                   "outline-none resize-none leading-relaxed",
-                  "max-h-80 overflow-y-auto",
-                  "scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent",
+                  "max-h-[320px] overflow-y-auto",
                 )}
               />
             )}
@@ -432,6 +433,19 @@ export function EmailComposer({
           {!actionTaken && (
             <div className="px-4 py-2.5 flex items-center justify-between border-t border-white/5 bg-[#151515]">
               <div className="flex items-center gap-0.5">
+                <button
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    isEditing
+                      ? "bg-white/10 text-white/70"
+                      : "text-white/25 hover:text-white/45 hover:bg-white/[0.04]",
+                  )}
+                  tabIndex={-1}
+                  title={isEditing ? "Preview" : "Edit body"}
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 {[Link2, Bold, Italic, Strikethrough, ListOrdered, List].map(
                   (Icon, i) => (
                     <button

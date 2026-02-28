@@ -275,10 +275,10 @@ export function SheetsEditor({
       {/* ── Body ── */}
       {!isCollapsed && (
         <>
-          <div className="px-4 pt-4 pb-3 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent space-y-4">
+          <div className="px-5 pt-5 pb-3 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent space-y-5">
             {/* Spreadsheet title + counts */}
             <div>
-              <h3 className="text-[18px] font-semibold text-white leading-snug">
+              <h3 className="text-lg font-semibold text-white leading-snug">
                 {rawTitle}
               </h3>
               <p className="text-sm text-white/40 mt-0.5">

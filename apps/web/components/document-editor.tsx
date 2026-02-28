@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, Check, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  Check,
+  X,
+  Pencil,
+} from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
+import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
 
 interface DocumentEditorProps {
@@ -32,6 +40,7 @@ export function DocumentEditor({
   const [content, setContent] = useState(() => String(args.content ?? ""));
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
+  const [isEditing, setIsEditing] = useState(false);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
     completed ? "created" : null,
   );
@@ -58,13 +67,14 @@ export function DocumentEditor({
       el.style.height = "auto";
       el.style.height = Math.min(el.scrollHeight, 400) + "px";
     }
-  }, [content]);
+  }, [content, isEditing]);
 
   const handleCreate = useCallback(() => {
     if (isCreating || actionTaken) return;
     setIsCreating(true);
     setActionTaken("created");
     setIsCollapsed(true);
+    setIsEditing(false);
 
     if (isDirty()) {
       onApprove(stepNumber, "edit", {
@@ -164,12 +174,12 @@ export function DocumentEditor({
       {/* ── Collapsible content ── */}
       {!isCollapsed && (
         <>
-          <div className="px-4 py-4 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <div className="px-5 py-5 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             {/* Title */}
-            {actionTaken ? (
-              <h3 className="text-xl font-semibold text-white mb-3 leading-tight">
+            {actionTaken || !isEditing ? (
+              <h2 className="text-2xl font-bold text-white mb-4 leading-tight tracking-tight">
                 {title}
-              </h3>
+              </h2>
             ) : (
               <input
                 type="text"
@@ -177,20 +187,16 @@ export function DocumentEditor({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Document title"
                 className={cn(
-                  "w-full bg-transparent outline-none mb-3",
-                  "text-xl font-semibold text-white leading-tight",
+                  "w-full bg-transparent outline-none mb-4",
+                  "text-2xl font-bold text-white leading-tight tracking-tight",
                   "placeholder:text-white/25",
                 )}
               />
             )}
 
             {/* Content */}
-            {actionTaken ? (
-              <div className="prose prose-sm prose-invert max-w-none">
-                <div className="text-sm text-white/70 whitespace-pre-wrap leading-relaxed">
-                  {content}
-                </div>
-              </div>
+            {actionTaken || !isEditing ? (
+              <MarkdownRenderer content={content} />
             ) : (
               <textarea
                 ref={contentRef}
@@ -210,6 +216,19 @@ export function DocumentEditor({
           {/* ── Footer ── */}
           {!actionTaken && (
             <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
+              <button
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  isEditing
+                    ? "bg-white/10 text-white/70"
+                    : "hover:bg-white/5 text-white/40",
+                )}
+                tabIndex={-1}
+                title={isEditing ? "Preview" : "Edit content"}
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
               <button
                 className="p-2 rounded-lg hover:bg-white/5 transition-colors"
                 tabIndex={-1}

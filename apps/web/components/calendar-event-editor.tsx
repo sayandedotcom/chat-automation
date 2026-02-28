@@ -257,8 +257,8 @@ function parseDateTimeArg(dtObj: unknown): Date {
 
 function formatDatePill(d: Date): string {
   return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
+    weekday: "long",
+    month: "long",
     day: "numeric",
   });
 }

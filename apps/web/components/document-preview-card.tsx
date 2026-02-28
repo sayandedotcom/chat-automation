@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, ChevronDown, RotateCcw } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 interface DocumentPreviewCardProps {
   title: string;
@@ -61,18 +62,14 @@ export function DocumentPreviewCard({
 
       {/* Content preview */}
       {!isCollapsed && (
-        <div className="px-4 py-4 max-h-80 overflow-y-auto">
+        <div className="px-5 py-5 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
           {/* Document title */}
-          <h3 className="text-xl font-semibold text-white mb-3 leading-tight">
+          <h2 className="text-2xl font-bold text-white mb-4 leading-tight tracking-tight">
             {title}
-          </h3>
+          </h2>
 
-          {/* Document content */}
-          <div className="prose prose-sm prose-invert max-w-none">
-            <div className="text-sm text-white/70 whitespace-pre-wrap leading-relaxed">
-              {content}
-            </div>
-          </div>
+          {/* Document content - rendered as markdown */}
+          <MarkdownRenderer content={content} />
         </div>
       )}
 
