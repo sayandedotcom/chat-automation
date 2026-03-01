@@ -16,7 +16,6 @@
     "clean": "rimraf .turbo node_modules .next"
   },
   "dependencies": {
-    "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.80.7",
     "@trpc/client": "^11.8.1",
     "@trpc/tanstack-react-query": "^11.8.1",
