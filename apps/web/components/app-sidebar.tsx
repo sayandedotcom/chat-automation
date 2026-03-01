@@ -37,32 +37,32 @@ const navItems = [
     url: "/chat",
     icon: MessageSquarePlus,
   },
-  {
-    title: "Search",
-    url: "/search",
-    icon: Search,
-    shortcut: "⌘ K",
-  },
+  // {
+  //   title: "Search",
+  //   url: "/search",
+  //   icon: Search,
+  //   shortcut: "⌘ K",
+  // },
   {
     title: "Integrations",
     url: "/integrations",
     icon: Puzzle,
   },
-  {
-    title: "Workflows",
-    url: "/workflows",
-    icon: GitBranch,
-  },
-  {
-    title: "Skills",
-    url: "/skills",
-    icon: WandSparkles,
-  },
-  {
-    title: "Marketplace",
-    url: "/marketplace",
-    icon: ShoppingBag,
-  },
+  // {
+  //   title: "Workflows",
+  //   url: "/workflows",
+  //   icon: GitBranch,
+  // },
+  // {
+  //   title: "Skills",
+  //   url: "/skills",
+  //   icon: WandSparkles,
+  // },
+  // {
+  //   title: "Marketplace",
+  //   url: "/marketplace",
+  //   icon: ShoppingBag,
+  // },
 ];
 
 // Sample chat history
@@ -114,15 +114,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild tooltip={item.title} className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]">
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.title}
+                  className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]"
+                >
                   <a href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
-                    {item.shortcut && (
-                      <span className="ml-auto text-xs text-zinc-500">
-                        {item.shortcut}
-                      </span>
-                    )}
+                    {/* {item.shortcut && (
+                      <span className="ml-auto text-xs text-zinc-500">{item.shortcut}</span>
+                    )} */}
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -140,7 +142,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* Settings */}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings" className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]">
+            <SidebarMenuButton
+              asChild
+              tooltip="Settings"
+              className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]"
+            >
               <a href="/settings">
                 <Settings />
                 <span>Settings</span>
