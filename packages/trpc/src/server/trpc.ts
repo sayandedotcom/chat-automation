@@ -48,7 +48,7 @@ const loggerMiddleware = t.middleware(async ({ path, type, next, ctx }) => {
   const status = result.ok ? "OK" : "ERROR";
 
   console.log(
-    `[tRPC] ${type.toUpperCase()} ${path} - ${status} (${duration}ms) [${ctx.requestId}]`,
+    `[tRPC] ${type.toUpperCase()} ${path} - ${status} (${duration}ms) [${ctx.requestId}]`
   );
 
   return result;

@@ -1,7 +1,4 @@
-import {
-  Strategy as GoogleStrategy,
-  type VerifyCallback,
-} from "passport-google-oauth20";
+import { Strategy as GoogleStrategy, type VerifyCallback } from "passport-google-oauth20";
 import { prisma } from "@workspace/database";
 import { config } from "../config/index.js";
 import type { SessionUser, OAuthProfile } from "../@types/index.js";
@@ -18,7 +15,7 @@ export const googleStrategy = new GoogleStrategy(
     accessToken: string,
     refreshToken: string | undefined,
     profile: OAuthProfile,
-    done: VerifyCallback,
+    done: VerifyCallback
   ) => {
     try {
       const email = profile.emails?.[0]?.value;
@@ -31,9 +28,7 @@ export const googleStrategy = new GoogleStrategy(
         include: { accounts: true },
       });
 
-      const googleAccount = user?.accounts.find(
-        (a) => a.providerId === "google",
-      );
+      const googleAccount = user?.accounts.find((a) => a.providerId === "google");
 
       if (googleAccount) {
         await prisma.account.update({
@@ -91,5 +86,5 @@ export const googleStrategy = new GoogleStrategy(
       console.error("[GoogleStrategy] Error:", error);
       return done(error as Error, false);
     }
-  },
+  }
 );

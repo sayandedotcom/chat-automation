@@ -5,12 +5,12 @@ State and models for dynamic AI workflow execution.
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Optional, Annotated, TypedDict, Literal
+from typing import Optional, Annotated, TypedDict, Literal
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
 
-def add_artifacts(existing: List[dict], new: List[dict]) -> List[dict]:
+def add_artifacts(existing: list[dict], new: list[dict]) -> list[dict]:
     """Reducer for artifacts: appends new artifacts to existing ones across turns.
 
     Without this, passing artifacts=[] in initial_state would overwrite
@@ -84,7 +84,7 @@ class WorkflowPlanOutput(BaseModel):
     thinking: str = Field(
         ..., description="Your reasoning about how to break down this task"
     )
-    steps: List[PlannedStep] = Field(
+    steps: list[PlannedStep] = Field(
         ..., description="Ordered list of steps to execute"
     )
 
@@ -113,11 +113,11 @@ class WorkflowStep(BaseModel):
     error: Optional[str] = Field(
         default=None, description="Error message if step failed"
     )
-    tools_used: List[str] = Field(
+    tools_used: list[str] = Field(
         default_factory=list, description="Tools used in this step"
     )
     # Structured data for web search results
-    search_results: Optional[List[SearchResultItem]] = Field(
+    search_results: Optional[list[SearchResultItem]] = Field(
         default=None, description="Structured search results from web search"
     )
     # Per-step thinking capture
@@ -136,7 +136,7 @@ class WorkflowPlan(BaseModel):
     thinking: Optional[str] = Field(
         default=None, description="LLM's reasoning/thinking about the plan"
     )
-    steps: List[WorkflowStep] = Field(
+    steps: list[WorkflowStep] = Field(
         default_factory=list, description="List of workflow steps"
     )
     is_complete: bool = Field(default=False, description="Whether workflow is complete")
@@ -148,7 +148,7 @@ class WorkflowPlan(BaseModel):
 class WorkflowState(TypedDict):
     """State for the dynamic workflow graph."""
 
-    messages: Annotated[List[BaseMessage], add_messages]
+    messages: Annotated[list[BaseMessage], add_messages]
     plan: Optional[WorkflowPlan]
     current_step_index: int  # 0-indexed, -1 means planning phase
     # State-based HITL fields (instead of using interrupt())
@@ -156,22 +156,22 @@ class WorkflowState(TypedDict):
     approval_step_info: Optional[dict]  # Info about step awaiting approval
     approval_decision: Optional[dict]  # Decision from user (action: approve/edit/skip)
     # Integration tracking for smart routing
-    loaded_integrations: List[IntegrationInfo]  # Integrations currently loaded
-    executor_bound_tools: Optional[List[str]]  # Tool names bound to executor
+    loaded_integrations: list[IntegrationInfo]  # Integrations currently loaded
+    executor_bound_tools: Optional[list[str]]  # Tool names bound to executor
     total_tool_count: int  # Total tools bound to executor
-    initial_integrations: Optional[List[str]]  # For tracking incremental loads
-    incremental_load_events: List[dict]  # Queue for incremental load notifications
+    initial_integrations: Optional[list[str]]  # For tracking incremental loads
+    incremental_load_events: list[dict]  # Queue for incremental load notifications
     # Multi-turn conversation context
     conversation_summary: Optional[
         str
     ]  # Summary of previous turns for planner/executor
     # Structured artifacts from completed steps (dicts for checkpointer serialization)
     # Uses add_artifacts reducer so initial_state artifacts=[] doesn't overwrite previous turns
-    artifacts: Annotated[List[dict], add_artifacts]
+    artifacts: Annotated[list[dict], add_artifacts]
     # Pre-flight auth check: integrations needing user OAuth before workflow can proceed
-    auth_required_integrations: Optional[List[dict]]
+    auth_required_integrations: Optional[list[dict]]
     # Per-request list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
-    connected_integrations: Optional[List[str]]
+    connected_integrations: Optional[list[str]]
     # Executor tool-loop state (enables multi-hop tool calling within a step)
     _executor_chat: Optional[list]  # Executor's scoped conversation for current step
     _step_tool_calls: int  # Tool call count for current step (prevents infinite loops)
@@ -191,7 +191,7 @@ class GmailCredentialsSyncSchema(BaseModel):
     )
     client_id: str = Field(..., description="Google OAuth client ID")
     client_secret: str = Field(..., description="Google OAuth client secret")
-    scopes: List[str] = Field(
+    scopes: list[str] = Field(
         default_factory=lambda: [
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.send",

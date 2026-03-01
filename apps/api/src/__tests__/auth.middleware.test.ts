@@ -6,11 +6,7 @@ vi.mock("../services/session.service.js", () => ({
 }));
 
 import { validateSession } from "../services/session.service.js";
-import {
-  sessionMiddleware,
-  requireAuth,
-  optionalAuth,
-} from "../middlewares/auth.middleware.js";
+import { sessionMiddleware, requireAuth, optionalAuth } from "../middlewares/auth.middleware.js";
 
 const mockValidateSession = vi.mocked(validateSession);
 

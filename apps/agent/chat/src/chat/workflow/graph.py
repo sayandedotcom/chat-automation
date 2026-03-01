@@ -8,7 +8,7 @@ Implements: Plan → Route → Execute (Auto/Approval) → Loop pattern
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import BaseTool
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from chat.schemas import WorkflowState
 from chat.workflow.nodes import WorkflowNodes
@@ -106,7 +106,7 @@ class DynamicWorkflow:
 
     def __init__(
         self,
-        tools: List[BaseTool] = None,
+        tools: list[BaseTool] = None,
         registry: "IntegrationRegistry" = None,
     ):
         """

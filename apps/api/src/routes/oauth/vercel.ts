@@ -17,8 +17,7 @@ vercelRouter.get("/", (_req, res) => {
     return;
   }
 
-  const redirectUri =
-    process.env.VERCEL_REDIRECT_URI ?? `${API_BASE_URL}/oauth/vercel/callback`;
+  const redirectUri = process.env.VERCEL_REDIRECT_URI ?? `${API_BASE_URL}/oauth/vercel/callback`;
 
   const authUrl = new URL("https://vercel.com/integrations/new");
   authUrl.searchParams.set("client_id", clientId);
@@ -50,23 +49,19 @@ vercelRouter.get("/callback", async (req, res) => {
     return;
   }
 
-  const redirectUri =
-    process.env.VERCEL_REDIRECT_URI ?? `${API_BASE_URL}/oauth/vercel/callback`;
+  const redirectUri = process.env.VERCEL_REDIRECT_URI ?? `${API_BASE_URL}/oauth/vercel/callback`;
 
   try {
-    const tokenResponse = await fetch(
-      "https://api.vercel.com/v2/oauth/access_token",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          code,
-          redirect_uri: redirectUri,
-        }),
-      },
-    );
+    const tokenResponse = await fetch("https://api.vercel.com/v2/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        redirect_uri: redirectUri,
+      }),
+    });
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();

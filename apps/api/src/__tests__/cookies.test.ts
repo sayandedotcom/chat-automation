@@ -21,11 +21,7 @@ vi.mock("../config/index.js", () => ({
   COOKIE_MAX_AGE: 604800,
 }));
 
-import {
-  cookieConfig,
-  setAuthCookies,
-  clearAuthCookies,
-} from "../utils/cookies.js";
+import { cookieConfig, setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
 
 describe("Cookies Utils", () => {
   let mockRes: Partial<Response>;
@@ -90,7 +86,7 @@ describe("Cookies Utils", () => {
           sameSite: "lax",
           path: "/",
           maxAge: 604800000,
-        }),
+        })
       );
     });
 
@@ -106,7 +102,7 @@ describe("Cookies Utils", () => {
           sameSite: "lax",
           path: "/",
           maxAge: 604800000,
-        }),
+        })
       );
     });
 

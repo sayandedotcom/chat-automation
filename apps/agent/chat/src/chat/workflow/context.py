@@ -7,7 +7,7 @@ LLM system prompts by the planner and executor nodes.
 
 import logging
 import re
-from typing import List, Optional
+from typing import Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 def build_conversation_summary(
-    messages: List[BaseMessage],
-    artifacts: List[dict] = None,
+    messages: list[BaseMessage],
+    artifacts: list[dict] = None,
 ) -> Optional[str]:
     """
     Build a condensed summary of previous conversation turns.
@@ -123,7 +123,7 @@ def format_integration_context(integrations: list[str] | None) -> str:
     )
 
 
-def format_artifacts_context(artifacts: List[dict]) -> str:
+def format_artifacts_context(artifacts: list[dict]) -> str:
     """Build an AVAILABLE ARTIFACTS section for LLM system prompts."""
     if not artifacts:
         return ""

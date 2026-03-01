@@ -1,9 +1,4 @@
-const required = [
-  "DATABASE_URL",
-  "SESSION_SECRET",
-  "GOOGLE_CLIENT_ID",
-  "GOOGLE_CLIENT_SECRET",
-];
+const required = ["DATABASE_URL", "SESSION_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
 
 function validateEnv(): void {
   const missing = required.filter((key) => !process.env[key]);

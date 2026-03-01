@@ -113,7 +113,7 @@ export function TRPCProvider({ children, url }: TRPCProviderProps) {
           },
         }),
       ],
-    }),
+    })
   );
 
   return (

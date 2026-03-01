@@ -1,8 +1,4 @@
-export {
-  createSessionToken,
-  decryptSessionToken,
-  generateSessionId,
-} from "./jwe.service.js";
+export { createSessionToken, decryptSessionToken, generateSessionId } from "./jwe.service.js";
 export {
   createSession,
   validateSession,

@@ -22,10 +22,7 @@ chatExpressRouter.post("/stream", async (req, res) => {
     return;
   }
 
-  const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(
-    req,
-    res,
-  );
+  const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(req, res);
   const connectedIntegrations = getConnectedIntegrations(req);
 
   let agentResponse: Response;
@@ -52,9 +49,7 @@ chatExpressRouter.post("/stream", async (req, res) => {
   if (!agentResponse.ok) {
     const errorText = await agentResponse.text();
     console.error("Workflow stream API error:", errorText);
-    res
-      .status(agentResponse.status)
-      .json({ error: "Failed to start workflow stream" });
+    res.status(agentResponse.status).json({ error: "Failed to start workflow stream" });
     return;
   }
 
@@ -65,7 +60,7 @@ chatExpressRouter.post("/stream", async (req, res) => {
 
   // Convert Web Readable stream to Node.js Readable and pipe to response
   const nodeReadable = Readable.fromWeb(
-    agentResponse.body as Parameters<typeof Readable.fromWeb>[0],
+    agentResponse.body as Parameters<typeof Readable.fromWeb>[0]
   );
 
   nodeReadable.pipe(res);
@@ -77,9 +72,7 @@ chatExpressRouter.post("/stream", async (req, res) => {
   nodeReadable.on("error", (err) => {
     console.error("Stream error:", err);
     if (!res.writableEnded) {
-      res.write(
-        `data: ${JSON.stringify({ type: "error", message: String(err) })}\n\n`,
-      );
+      res.write(`data: ${JSON.stringify({ type: "error", message: String(err) })}\n\n`);
       res.end();
     }
   });

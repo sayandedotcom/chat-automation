@@ -70,9 +70,7 @@ export default function ChatPage() {
   const [statusMessages, setStatusMessages] = useState<
     Array<{ text: string; icon?: string; type?: string }>
   >([]);
-  const [loadedIntegrations, setLoadedIntegrations] = useState<
-    IntegrationInfo[]
-  >([]);
+  const [loadedIntegrations, setLoadedIntegrations] = useState<IntegrationInfo[]>([]);
   const [authRequired, setAuthRequired] = useState<Array<{
     mcp_server: string;
     display_name: string;
@@ -136,10 +134,7 @@ export default function ChatPage() {
     };
 
     try {
-      sessionStorage.setItem(
-        SESSION_STORAGE_PREFIX + tid,
-        JSON.stringify(session),
-      );
+      sessionStorage.setItem(SESSION_STORAGE_PREFIX + tid, JSON.stringify(session));
     } catch {
       // Storage full — ignore
     }
@@ -241,14 +236,7 @@ export default function ChatPage() {
         setWorkflowStatus("error");
       }
     },
-    [
-      workflowStatus,
-      steps,
-      originalRequest,
-      planThinking,
-      statusMessages,
-      loadedIntegrations,
-    ],
+    [workflowStatus, steps, originalRequest, planThinking, statusMessages, loadedIntegrations]
   );
 
   const handleStreamEvent = (event: {
@@ -355,8 +343,8 @@ export default function ChatPage() {
                     thinking: event.thinking,
                     thinking_duration_ms: event.duration_ms,
                   }
-                : step,
-            ),
+                : step
+            )
           );
         }
         break;
@@ -371,8 +359,8 @@ export default function ChatPage() {
                     ...step,
                     result: (step.result || "") + event.content,
                   }
-                : step,
-            ),
+                : step
+            )
           );
         }
         break;
@@ -404,12 +392,9 @@ export default function ChatPage() {
           setSteps((prev) => {
             // Merge step data, preserving pending_approval status and tool_calls
             return event.plan!.steps.map((s) => {
-              const existingStep = prev.find(
-                (p) => p.step_number === s.step_number,
-              );
+              const existingStep = prev.find((p) => p.step_number === s.step_number);
               // If we locally marked a step as awaiting_approval, keep that
-              const preserveApproval =
-                existingStep?.status === "awaiting_approval";
+              const preserveApproval = existingStep?.status === "awaiting_approval";
               return {
                 step_number: s.step_number,
                 description: s.description,
@@ -423,8 +408,7 @@ export default function ChatPage() {
                 approval_reason: s.approval_reason,
                 // Per-step thinking
                 thinking: s.thinking || existingStep?.thinking,
-                thinking_duration_ms:
-                  s.thinking_duration_ms || existingStep?.thinking_duration_ms,
+                thinking_duration_ms: s.thinking_duration_ms || existingStep?.thinking_duration_ms,
                 // Preserve tool_calls so collapsed cards persist
                 tool_calls: existingStep?.tool_calls,
               };
@@ -448,10 +432,8 @@ export default function ChatPage() {
         // Mark current step as failed
         setSteps((prev) =>
           prev.map((step, idx) =>
-            idx === currentStep
-              ? { ...step, status: "failed", error: event.message }
-              : step,
-          ),
+            idx === currentStep ? { ...step, status: "failed", error: event.message } : step
+          )
         );
         break;
 
@@ -468,7 +450,7 @@ export default function ChatPage() {
               display_name: string;
               icon: string;
               connect_id: string;
-            }>,
+            }>
           );
         }
         setWorkflowStatus("error");
@@ -487,11 +469,7 @@ export default function ChatPage() {
         }
         // Update the step status to pending_approval
         if (event.interrupt?.step_number) {
-          console.log(
-            "📝 Updating step",
-            event.interrupt.step_number,
-            "to pending_approval",
-          );
+          console.log("📝 Updating step", event.interrupt.step_number, "to pending_approval");
           setSteps((prev) =>
             prev.map((step) =>
               step.step_number === event.interrupt!.step_number
@@ -502,8 +480,8 @@ export default function ChatPage() {
                     preview: event.interrupt!.preview,
                     tool_calls: event.interrupt!.tool_calls || [],
                   }
-                : step,
-            ),
+                : step
+            )
           );
           setCurrentStep(event.interrupt.step_number - 1);
         }
@@ -518,10 +496,8 @@ export default function ChatPage() {
       // Reset the failed step and subsequent steps
       setSteps((prev) =>
         prev.map((step) =>
-          step.step_number >= stepNumber
-            ? { ...step, status: "pending", error: undefined }
-            : step,
-        ),
+          step.step_number >= stepNumber ? { ...step, status: "pending", error: undefined } : step
+        )
       );
       setCurrentStep(stepNumber - 1);
       setWorkflowStatus("executing");
@@ -551,7 +527,7 @@ export default function ChatPage() {
                   result: s.result,
                   tool_calls: existing?.tool_calls,
                 };
-              },
+              }
             );
           });
         }
@@ -565,14 +541,14 @@ export default function ChatPage() {
         setWorkflowStatus("error");
       }
     },
-    [retryMutation],
+    [retryMutation]
   );
 
   const handleApprove = useCallback(
     async (
       stepNumber: number,
       action: "approve" | "edit" | "skip",
-      content?: Record<string, unknown>,
+      content?: Record<string, unknown>
     ) => {
       try {
         // First update UI optimistically — keep tool_calls for collapsed card view
@@ -590,20 +566,15 @@ export default function ChatPage() {
             if (editedToolCalls && step.tool_calls) {
               updatedToolCalls = step.tool_calls.map((tc) => {
                 const edited = editedToolCalls.find((e) => e.id === tc.id);
-                return edited
-                  ? { ...tc, arguments: { ...tc.arguments, ...edited.arguments } }
-                  : tc;
+                return edited ? { ...tc, arguments: { ...tc.arguments, ...edited.arguments } } : tc;
               });
             }
             return {
               ...step,
               tool_calls: updatedToolCalls,
-              status:
-                action === "skip"
-                  ? ("skipped" as const)
-                  : ("in_progress" as const),
+              status: action === "skip" ? ("skipped" as const) : ("in_progress" as const),
             };
-          }),
+          })
         );
 
         const data = await resumeMutation.mutateAsync({
@@ -642,8 +613,7 @@ export default function ChatPage() {
               }) => {
                 const existing = prevByNumber.get(s.step_number);
                 // If this step is the new approval step, apply tool_calls from approval_step_info
-                const isNewApprovalStep =
-                  newApproval && s.step_number === newApproval.step_number;
+                const isNewApprovalStep = newApproval && s.step_number === newApproval.step_number;
                 return {
                   step_number: s.step_number,
                   description: s.description,
@@ -658,7 +628,7 @@ export default function ChatPage() {
                     ? newApproval.tool_calls || []
                     : existing?.tool_calls,
                 };
-              },
+              }
             );
           });
         }
@@ -674,12 +644,12 @@ export default function ChatPage() {
           prev.map((step) =>
             step.step_number === stepNumber
               ? { ...step, status: "awaiting_approval" as const }
-              : step,
-          ),
+              : step
+          )
         );
       }
     },
-    [resumeMutation],
+    [resumeMutation]
   );
 
   const handleNewWorkflow = useCallback(() => {
@@ -712,9 +682,7 @@ export default function ChatPage() {
     if (isChatActive) {
       // Solid black background when chat is active - fixed height container
       return (
-        <div className="h-screen w-full bg-[#0a0a0a] flex flex-col overflow-hidden">
-          {children}
-        </div>
+        <div className="h-screen w-full bg-[#0a0a0a] flex flex-col overflow-hidden">{children}</div>
       );
     }
     // Show planetary background when idle
@@ -824,15 +792,12 @@ export default function ChatPage() {
                       <div className="max-w-md space-y-3">
                         <p className="text-zinc-300 text-sm">
                           To continue with your request, please connect{" "}
-                          {authRequired
-                            .map((i) => i.display_name)
-                            .join(" and ")}
-                          .
+                          {authRequired.map((i) => i.display_name).join(" and ")}.
                         </p>
                         <div className="space-y-2">
                           {authRequired.map((integration) => {
                             const config = integrationConfig.find(
-                              (c) => c.id === integration.connect_id,
+                              (c) => c.id === integration.connect_id
                             );
                             return (
                               <div

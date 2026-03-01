@@ -51,7 +51,7 @@ select = [
     # isort
     "I",
 ]
-ignore = ["E402", "E501", "UP008", "B008", "B904", "F811", "I001"]
+ignore = ["E402", "E501", "UP008", "B008", "B904", "F811", "I001", "SIM102"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]

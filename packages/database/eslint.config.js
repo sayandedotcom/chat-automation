@@ -1,4 +1,9 @@
-import { nodeConfig } from "@workspace/eslint-config/node"
+import { nodeConfig } from "@workspace/eslint-config/node";
 
 /** @type {import("eslint").Linter.Config} */
-export default nodeConfig
+export default [
+  ...nodeConfig,
+  {
+    ignores: ["src/generated/**", "prisma/**"],
+  },
+];

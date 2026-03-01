@@ -35,11 +35,7 @@ export function getCookieDomain(urlStr: string): string | undefined {
 /**
  * Build a Google OAuth consent URL and redirect the user to it.
  */
-export function googleAuthInit(
-  res: Response,
-  scopes: string,
-  redirectUri: string,
-): void {
+export function googleAuthInit(res: Response, scopes: string, redirectUri: string): void {
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {
@@ -73,7 +69,7 @@ export interface GoogleCallbackOptions {
 export async function googleAuthCallback(
   req: Request,
   res: Response,
-  opts: GoogleCallbackOptions,
+  opts: GoogleCallbackOptions
 ): Promise<void> {
   const code = req.query["code"] as string | undefined;
   const error = req.query["error"] as string | undefined;
@@ -141,34 +137,28 @@ export async function googleAuthCallback(
 
     // Sync to MCP credential store
     try {
-      const syncResponse = await fetch(
-        `${AGENT_API_URL}/sync-gmail-credentials`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token ?? "",
-            client_id: clientId,
-            client_secret: clientSecret,
-            scopes: tokens.scope.split(" "),
-          }),
-        },
-      );
+      const syncResponse = await fetch(`${AGENT_API_URL}/sync-gmail-credentials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token ?? "",
+          client_id: clientId,
+          client_secret: clientSecret,
+          scopes: tokens.scope.split(" "),
+        }),
+      });
 
       if (syncResponse.ok) {
         console.log(`✅ ${opts.provider} credentials synced to MCP`);
       } else {
         console.error(
           `⚠️ Failed to sync ${opts.provider} credentials to MCP:`,
-          await syncResponse.text(),
+          await syncResponse.text()
         );
       }
     } catch (syncError) {
-      console.error(
-        `⚠️ Error syncing ${opts.provider} credentials to MCP:`,
-        syncError,
-      );
+      console.error(`⚠️ Error syncing ${opts.provider} credentials to MCP:`, syncError);
       // Don't fail the OAuth flow if sync fails
     }
 

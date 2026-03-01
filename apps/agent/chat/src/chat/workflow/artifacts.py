@@ -8,7 +8,7 @@ from LangChain message lists produced by workflow steps.
 import json
 import logging
 import re
-from typing import List, Optional
+from typing import Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
@@ -118,7 +118,7 @@ def _build_artifact_from_match(
     ext_config: dict,
     data: dict,
     artifact_id: str,
-    messages: List[BaseMessage],
+    messages: list[BaseMessage],
     step_number: int,
     turn_number: int,
     seen_ids: set,
@@ -175,8 +175,8 @@ def _build_artifact_from_match(
 
 
 def extract_search_results_from_messages(
-    messages: List[BaseMessage],
-) -> Optional[List[SearchResultItem]]:
+    messages: list[BaseMessage],
+) -> Optional[list[SearchResultItem]]:
     """
     Extract structured search results from tool messages.
     Tavily MCP returns JSON with a 'results' array containing title, url, content, etc.
@@ -237,15 +237,15 @@ def extract_search_results_from_messages(
         except (json.JSONDecodeError, KeyError, TypeError):
             continue
 
-    return None if not search_results else search_results
+    return search_results if search_results else None
 
 
 def extract_artifacts_from_step(
-    messages: List[BaseMessage],
+    messages: list[BaseMessage],
     step_number: int,
     turn_number: int = 1,
     integration_hint: Optional[str] = None,
-) -> List[dict]:
+) -> list[dict]:
     """
     Extract structured artifacts from a step's messages (ToolMessage JSON + URL fallback).
 

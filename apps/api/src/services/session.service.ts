@@ -1,21 +1,13 @@
 import { prisma } from "@workspace/database";
 import type { Request, Response } from "express";
-import {
-  createSessionToken,
-  decryptSessionToken,
-  generateSessionId,
-} from "./jwe.service.js";
-import {
-  cookieConfig,
-  setAuthCookies,
-  clearAuthCookies,
-} from "../utils/cookies.js";
+import { createSessionToken, decryptSessionToken, generateSessionId } from "./jwe.service.js";
+import { cookieConfig, setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
 import { COOKIE_MAX_AGE } from "../config/index.js";
 import type { SessionUser } from "../@types/index.js";
 
 export async function createSession(
   user: SessionUser,
-  res: Response,
+  res: Response
 ): Promise<{ token: string; sessionId: string }> {
   const sessionId = generateSessionId();
   const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE * 1000);
@@ -41,9 +33,7 @@ export async function createSession(
   return { token, sessionId };
 }
 
-export async function validateSession(
-  req: Request,
-): Promise<SessionUser | null> {
+export async function validateSession(req: Request): Promise<SessionUser | null> {
   const token = req.cookies?.[cookieConfig.name];
   const sessionId = req.cookies?.[cookieConfig.idName];
 
@@ -72,10 +62,7 @@ export async function validateSession(
   };
 }
 
-export async function destroySession(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function destroySession(req: Request, res: Response): Promise<void> {
   const sessionId = req.cookies?.[cookieConfig.idName];
 
   if (sessionId) {

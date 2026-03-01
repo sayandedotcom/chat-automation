@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../config/index.js", () => ({
   config: {
@@ -42,8 +42,7 @@ describe("JWE Service", () => {
   describe("generateSessionId", () => {
     it("should generate a valid UUID v4", () => {
       const sessionId = generateSessionId();
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       expect(sessionId).toMatch(uuidRegex);
     });
 

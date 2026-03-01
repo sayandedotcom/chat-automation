@@ -15,7 +15,7 @@ import json
 import logging
 import re
 import time
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
@@ -59,7 +59,7 @@ class WorkflowNodes:
     """Nodes for the dynamic workflow graph with LLM-driven HITL."""
 
     def __init__(
-        self, tools: List[BaseTool] = None, registry: "IntegrationRegistry" = None
+        self, tools: list[BaseTool] = None, registry: "IntegrationRegistry" = None
     ):
         self.tools = tools or []
         self.registry = registry

@@ -24,10 +24,31 @@
       ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint"],
+      "env": [
+        "NODE_ENV",
+        "PORT",
+        "SESSION_SECRET",
+        "GOOGLE_CALLBACK_URL",
+        "GMAIL_REDIRECT_URI",
+        "GOOGLE_CALENDAR_REDIRECT_URI",
+        "GOOGLE_DOCS_REDIRECT_URI",
+        "GOOGLE_DRIVE_REDIRECT_URI",
+        "GOOGLE_SHEETS_REDIRECT_URI",
+        "GOOGLE_SLIDES_REDIRECT_URI",
+        "VERCEL_CLIENT_ID",
+        "VERCEL_CLIENT_SECRET",
+        "VERCEL_REDIRECT_URI"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "format": {
+      "dependsOn": ["^format"]
+    },
+    "format:check": {
+      "dependsOn": ["^format:check"]
     },
     "test": {
       "dependsOn": ["^test"]

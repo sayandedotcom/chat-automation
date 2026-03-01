@@ -28,12 +28,12 @@ export const chatRouter = router({
       z.object({
         request: z.string().min(1),
         thread_id: z.string().nullable().optional(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(
         ctx.req,
-        ctx.res,
+        ctx.res
       );
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
 
@@ -69,12 +69,10 @@ export const chatRouter = router({
         thread_id: z.string(),
         action: z.enum(["approve", "edit", "skip"]),
         content: z.record(z.unknown()).optional(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(
-        ctx.req,
-      );
+      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
 
       const response = await fetch(`${AGENT_API_URL}/chat/resume`, {
         method: "POST",
@@ -107,12 +105,10 @@ export const chatRouter = router({
       z.object({
         thread_id: z.string(),
         step_number: z.number(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(
-        ctx.req,
-      );
+      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
 
       const response = await fetch(`${AGENT_API_URL}/chat/retry`, {
         method: "POST",

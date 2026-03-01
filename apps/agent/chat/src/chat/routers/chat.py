@@ -6,7 +6,7 @@ Handles all /chat* endpoints: workflow execution, streaming, resume, status, and
 
 import json
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -39,7 +39,7 @@ class WorkflowRequestSchema(BaseModel):
     vercel_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
-    connected_integrations: Optional[List[str]] = Field(default=None)
+    connected_integrations: Optional[list[str]] = Field(default=None)
 
 
 class WorkflowResumeSchema(BaseModel):

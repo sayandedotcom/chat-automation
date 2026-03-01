@@ -524,7 +524,7 @@ class ChatService:
         result = await self._workflow.get_app().ainvoke(None, config=config)
 
         # Build response
-        messages = result.get("messages", [])
+        result.get("messages", [])
         plan = result.get("plan")
 
         response = {

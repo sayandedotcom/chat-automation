@@ -1,5 +1,1 @@
-export {
-  sessionMiddleware,
-  requireAuth,
-  optionalAuth,
-} from "./auth.middleware.js";
+export { sessionMiddleware, requireAuth, optionalAuth } from "./auth.middleware.js";

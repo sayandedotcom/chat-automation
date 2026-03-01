@@ -12,15 +12,13 @@ export const googleSlidesRouter: IRouter = Router();
 
 googleSlidesRouter.get("/", (_req, res) => {
   const redirectUri =
-    process.env.GOOGLE_SLIDES_REDIRECT_URI ??
-    `${API_BASE_URL}/oauth/google-slides/callback`;
+    process.env.GOOGLE_SLIDES_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-slides/callback`;
   googleAuthInit(res, SCOPES, redirectUri);
 });
 
 googleSlidesRouter.get("/callback", async (req, res) => {
   const redirectUri =
-    process.env.GOOGLE_SLIDES_REDIRECT_URI ??
-    `${API_BASE_URL}/oauth/google-slides/callback`;
+    process.env.GOOGLE_SLIDES_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-slides/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-slides",
     accessCookieName: "google_slides_access_token",

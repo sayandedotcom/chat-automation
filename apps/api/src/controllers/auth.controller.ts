@@ -12,11 +12,7 @@ export function googleLogin(req: Request, res: Response, next: NextFunction) {
   })(req, res, next);
 }
 
-export function googleCallback(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
+export function googleCallback(req: Request, res: Response, next: NextFunction) {
   console.log("[Auth] Processing Google OAuth callback");
   passport.authenticate(
     "google",
@@ -36,7 +32,7 @@ export function googleCallback(
         console.error("[Auth] Session creation error:", sessionErr);
         res.redirect(`${config.appUrl}/?error=session_failed`);
       }
-    },
+    }
   )(req, res, next);
 }
 
@@ -52,10 +48,7 @@ export async function logout(req: Request, res: Response) {
 }
 
 export function getCurrentUser(req: Request, res: Response) {
-  console.log(
-    "[Auth] Get current user:",
-    req.user?.email ?? "not authenticated",
-  );
+  console.log("[Auth] Get current user:", req.user?.email ?? "not authenticated");
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }
@@ -71,12 +64,7 @@ export function getCurrentUser(req: Request, res: Response) {
 
 export function getAuthStatus(req: Request, res: Response) {
   const hasCookie = !!req.cookies?.session_token;
-  console.log(
-    "[Auth] Status check - cookie present:",
-    hasCookie,
-    "- authenticated:",
-    !!req.user,
-  );
+  console.log("[Auth] Status check - cookie present:", hasCookie, "- authenticated:", !!req.user);
   res.json({
     authenticated: !!req.user,
     user: req.user

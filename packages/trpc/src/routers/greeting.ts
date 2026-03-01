@@ -9,11 +9,9 @@ export const greetingRouter = router({
   /**
    * Simple greeting query
    */
-  hello: publicProcedure
-    .input(z.object({ name: z.string().min(1) }))
-    .query(({ input }) => {
-      return `compile: Hello ${input.name}!`;
-    }),
+  hello: publicProcedure.input(z.object({ name: z.string().min(1) })).query(({ input }) => {
+    return `compile: Hello ${input.name}!`;
+  }),
 
   /**
    * Get server time - demonstrates Date serialization via SuperJSON

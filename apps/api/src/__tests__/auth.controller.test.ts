@@ -83,20 +83,18 @@ describe("Auth Controller", () => {
         (
           strategy: string,
           options: object,
-          callback: (err: Error | null, user: unknown) => void,
+          callback: (err: Error | null, user: unknown) => void
         ) => {
-          return (req: Request, res: Response, next: NextFunction) => {
+          return (_req: Request, _res: Response, _next: NextFunction) => {
             callback(new Error("Auth failed"), false);
           };
-        },
+        }
       );
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
 
       await googleCallback(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.redirect).toHaveBeenCalledWith(
-        "http://localhost:3000/?error=oauth_failed",
-      );
+      expect(mockRes.redirect).toHaveBeenCalledWith("http://localhost:3000/?error=oauth_failed");
     });
 
     it("should redirect to error page when no user returned", async () => {
@@ -104,20 +102,18 @@ describe("Auth Controller", () => {
         (
           strategy: string,
           options: object,
-          callback: (err: Error | null, user: unknown) => void,
+          callback: (err: Error | null, user: unknown) => void
         ) => {
           return (req: Request, res: Response, next: NextFunction) => {
             callback(null, false);
           };
-        },
+        }
       );
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
 
       await googleCallback(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.redirect).toHaveBeenCalledWith(
-        "http://localhost:3000/?error=oauth_failed",
-      );
+      expect(mockRes.redirect).toHaveBeenCalledWith("http://localhost:3000/?error=oauth_failed");
     });
 
     it("should create session and redirect to chat on success", async () => {
@@ -131,12 +127,12 @@ describe("Auth Controller", () => {
         (
           strategy: string,
           options: object,
-          callback: (err: Error | null, user: unknown) => void,
+          callback: (err: Error | null, user: unknown) => void
         ) => {
           return (req: Request, res: Response, next: NextFunction) => {
             callback(null, mockUser);
           };
-        },
+        }
       );
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
       mockCreateSession.mockResolvedValue({
@@ -147,9 +143,7 @@ describe("Auth Controller", () => {
       await googleCallback(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockCreateSession).toHaveBeenCalledWith(mockUser, mockRes);
-      expect(mockRes.redirect).toHaveBeenCalledWith(
-        "http://localhost:3000/chat",
-      );
+      expect(mockRes.redirect).toHaveBeenCalledWith("http://localhost:3000/chat");
     });
 
     it("should redirect to error page on session creation failure", async () => {
@@ -163,25 +157,21 @@ describe("Auth Controller", () => {
         (
           strategy: string,
           options: object,
-          callback: (err: Error | null, user: unknown) => void,
+          callback: (err: Error | null, user: unknown) => void
         ) => {
           return (req: Request, res: Response, next: NextFunction) => {
             callback(null, mockUser);
           };
-        },
+        }
       );
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
       mockCreateSession.mockRejectedValue(new Error("Session error"));
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await googleCallback(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockRes.redirect).toHaveBeenCalledWith(
-        "http://localhost:3000/?error=session_failed",
-      );
+      expect(mockRes.redirect).toHaveBeenCalledWith("http://localhost:3000/?error=session_failed");
       consoleSpy.mockRestore();
     });
   });
@@ -201,9 +191,7 @@ describe("Auth Controller", () => {
 
     it("should return error on logout failure", async () => {
       mockDestroySession.mockRejectedValue(new Error("Logout failed"));
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await logout(mockReq as Request, mockRes as Response);
 

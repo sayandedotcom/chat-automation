@@ -113,11 +113,7 @@ describe("Session Service", () => {
           userId: "user-123",
         }),
       });
-      expect(mockSetAuthCookies).toHaveBeenCalledWith(
-        mockRes,
-        "encrypted-token",
-        "session-456",
-      );
+      expect(mockSetAuthCookies).toHaveBeenCalledWith(mockRes, "encrypted-token", "session-456");
     });
 
     it("should handle null name and image", async () => {
@@ -139,7 +135,7 @@ describe("Session Service", () => {
         expect.objectContaining({
           name: null,
           image: null,
-        }),
+        })
       );
     });
   });
@@ -297,9 +293,7 @@ describe("Session Service", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       mockPrisma.session.deleteMany.mockRejectedValue(new Error("DB error"));
 
       await cleanupExpiredSessions();

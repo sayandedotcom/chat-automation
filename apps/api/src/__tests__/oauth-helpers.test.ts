@@ -23,13 +23,7 @@ vi.mock("../config/index.js", () => ({
   COOKIE_MAX_AGE: 604800,
 }));
 
-import {
-  getCookieDomain,
-  googleAuthInit,
-  googleAuthCallback,
-  APP_URL,
-  IS_PRODUCTION,
-} from "../routes/oauth/helpers.js";
+import { getCookieDomain, googleAuthInit, googleAuthCallback } from "../routes/oauth/helpers.js";
 
 describe("OAuth Helpers", () => {
   let mockRes: Partial<Response>;
@@ -88,9 +82,7 @@ describe("OAuth Helpers", () => {
     });
 
     it("should handle invalid URLs gracefully", () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = getCookieDomain("not-a-valid-url");
       expect(result).toBeUndefined();
       consoleSpy.mockRestore();
@@ -109,7 +101,7 @@ describe("OAuth Helpers", () => {
       googleAuthInit(
         mockRes as Response,
         "https://www.googleapis.com/auth/gmail.readonly",
-        "http://localhost:8000/oauth/gmail/callback",
+        "http://localhost:8000/oauth/gmail/callback"
       );
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
@@ -124,23 +116,20 @@ describe("OAuth Helpers", () => {
       googleAuthInit(
         mockRes as Response,
         "https://www.googleapis.com/auth/gmail.readonly",
-        "http://localhost:8000/oauth/gmail/callback",
+        "http://localhost:8000/oauth/gmail/callback"
       );
 
       expect(mockRes.redirect).toHaveBeenCalled();
-      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock
-        .calls[0][0] as string;
+      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
 
-      expect(redirectUrl).toContain(
-        "https://accounts.google.com/o/oauth2/v2/auth",
-      );
+      expect(redirectUrl).toContain("https://accounts.google.com/o/oauth2/v2/auth");
       expect(redirectUrl).toContain("client_id=test-client-id");
       expect(redirectUrl).toContain(
-        "redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Foauth%2Fgmail%2Fcallback",
+        "redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Foauth%2Fgmail%2Fcallback"
       );
       expect(redirectUrl).toContain("response_type=code");
       expect(redirectUrl).toContain(
-        "scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly",
+        "scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly"
       );
       expect(redirectUrl).toContain("access_type=offline");
       expect(redirectUrl).toContain("prompt=consent");
@@ -150,14 +139,9 @@ describe("OAuth Helpers", () => {
     it("should handle multiple scopes", () => {
       process.env.GOOGLE_CLIENT_ID = "test-client-id";
 
-      googleAuthInit(
-        mockRes as Response,
-        "scope1 scope2",
-        "http://localhost:8000/callback",
-      );
+      googleAuthInit(mockRes as Response, "scope1 scope2", "http://localhost:8000/callback");
 
-      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock
-        .calls[0][0] as string;
+      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
       expect(redirectUrl).toContain("scope=scope1+scope2");
     });
   });
@@ -179,19 +163,15 @@ describe("OAuth Helpers", () => {
         query: { error: "access_denied" },
       } as unknown as Partial<Request>;
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining("/integrations?error=access_denied"),
+        expect.stringContaining("/integrations?error=access_denied")
       );
     });
 
@@ -200,19 +180,15 @@ describe("OAuth Helpers", () => {
         query: {},
       } as unknown as Partial<Request>;
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining("/integrations?error=no_code"),
+        expect.stringContaining("/integrations?error=no_code")
       );
     });
 
@@ -222,19 +198,15 @@ describe("OAuth Helpers", () => {
         query: { code: "auth-code" },
       } as unknown as Partial<Request>;
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining("/integrations?error=missing_credentials"),
+        expect.stringContaining("/integrations?error=missing_credentials")
       );
     });
 
@@ -259,22 +231,18 @@ describe("OAuth Helpers", () => {
           text: async () => "OK",
         });
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
       expect(mockFetch).toHaveBeenCalledWith(
         "https://oauth2.googleapis.com/token",
         expect.objectContaining({
           method: "POST",
-        }),
+        })
       );
 
       expect(mockRes.cookie).toHaveBeenCalledTimes(2);
@@ -283,12 +251,12 @@ describe("OAuth Helpers", () => {
         "access-token-123",
         expect.objectContaining({
           httpOnly: true,
-        }),
+        })
       );
       expect(mockRes.cookie).toHaveBeenCalledWith(
         "gmail_refresh_token",
         "refresh-token-456",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -302,23 +270,17 @@ describe("OAuth Helpers", () => {
         text: async () => "Invalid grant",
       });
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining("/integrations?error=token_exchange_failed"),
+        expect.stringContaining("/integrations?error=token_exchange_failed")
       );
       consoleSpy.mockRestore();
     });
@@ -330,23 +292,17 @@ describe("OAuth Helpers", () => {
 
       mockFetch.mockRejectedValue(new Error("Network error"));
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining("/integrations?error=oauth_failed"),
+        expect.stringContaining("/integrations?error=oauth_failed")
       );
       consoleSpy.mockRestore();
     });
@@ -371,21 +327,15 @@ describe("OAuth Helpers", () => {
           text: async () => "OK",
         });
 
-      await googleAuthCallback(
-        mockReq as unknown as Request,
-        mockRes as Response,
-        {
-          provider: "gmail",
-          accessCookieName: "gmail_access_token",
-          refreshCookieName: "gmail_refresh_token",
-          redirectUri: "http://localhost:8000/oauth/gmail/callback",
-        },
-      );
+      await googleAuthCallback(mockReq as unknown as Request, mockRes as Response, {
+        provider: "gmail",
+        accessCookieName: "gmail_access_token",
+        refreshCookieName: "gmail_refresh_token",
+        redirectUri: "http://localhost:8000/oauth/gmail/callback",
+      });
 
-      const refreshCookieCalls = (
-        mockRes.cookie as ReturnType<typeof vi.fn>
-      ).mock.calls.filter(
-        (call: unknown[]) => call[0] === "gmail_refresh_token",
+      const refreshCookieCalls = (mockRes.cookie as ReturnType<typeof vi.fn>).mock.calls.filter(
+        (call: unknown[]) => call[0] === "gmail_refresh_token"
       );
       expect(refreshCookieCalls).toHaveLength(0);
     });

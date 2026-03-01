@@ -6,7 +6,7 @@ import type { Request, Response } from "express";
  */
 export async function refreshGmailToken(
   refreshToken: string,
-  res: Response,
+  res: Response
 ): Promise<string | null> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -102,7 +102,7 @@ export function getConnectedIntegrations(req: Request): string[] {
 
 export async function getRefreshedTokens(
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<{
   gmailToken: string | null;
   notionToken: string | null;
@@ -110,8 +110,7 @@ export async function getRefreshedTokens(
   slackToken: string | null;
 }> {
   let gmailToken = getAnyGoogleToken(req);
-  const gmailRefreshToken =
-    (req.cookies["gmail_refresh_token"] as string) ?? null;
+  const gmailRefreshToken = (req.cookies["gmail_refresh_token"] as string) ?? null;
   const notionToken = (req.cookies["notion_access_token"] as string) ?? null;
   const vercelToken = (req.cookies["vercel_access_token"] as string) ?? null;
   const slackToken = (req.cookies["slack_access_token"] as string) ?? null;

@@ -31,9 +31,7 @@ export default function GreetingsPage() {
 
         {/* Greeting Input */}
         <div className="space-y-4">
-          <label className="block text-sm text-gray-400">
-            Enter your name:
-          </label>
+          <label className="block text-sm text-gray-400">Enter your name:</label>
           <input
             type="text"
             value={name}
@@ -57,23 +55,15 @@ export default function GreetingsPage() {
 
         {/* Server Time */}
         <div className="p-6 bg-gray-900 rounded-lg border border-gray-800">
-          <h2 className="text-lg font-semibold mb-2">
-            Server Time (SuperJSON Date)
-          </h2>
+          <h2 className="text-lg font-semibold mb-2">Server Time (SuperJSON Date)</h2>
           {serverTimeQuery.isLoading ? (
             <p className="text-gray-400">Loading...</p>
           ) : serverTimeQuery.isError ? (
-            <p className="text-red-400">
-              Error: {serverTimeQuery.error.message}
-            </p>
+            <p className="text-red-400">Error: {serverTimeQuery.error.message}</p>
           ) : (
             <div className="space-y-1">
-              <p className="text-blue-400">
-                {serverTimeQuery.data?.time.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500">
-                Timezone: {serverTimeQuery.data?.timezone}
-              </p>
+              <p className="text-blue-400">{serverTimeQuery.data?.time.toLocaleString()}</p>
+              <p className="text-sm text-gray-500">Timezone: {serverTimeQuery.data?.timezone}</p>
             </div>
           )}
         </div>

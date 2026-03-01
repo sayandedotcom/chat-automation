@@ -25,7 +25,7 @@ async function main() {
       origin: [config.appUrl],
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
       credentials: true,
-    }),
+    })
   );
 
   app.use(express.json());
@@ -33,7 +33,7 @@ async function main() {
   app.use(
     helmet({
       contentSecurityPolicy: false,
-    }),
+    })
   );
 
   app.use(cookieParser());

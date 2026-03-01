@@ -59,9 +59,9 @@ type MentionConfig<T extends BaseMentionItem = BaseMentionItem> = {
   editorMentionClass?: string;
 };
 
-export function createMentionConfig<
-  T extends BaseMentionItem = BaseMentionItem,
->(config: MentionConfig<T>): MentionConfig<T> {
+export function createMentionConfig<T extends BaseMentionItem = BaseMentionItem>(
+  config: MentionConfig<T>
+): MentionConfig<T> {
   return config;
 }
 
@@ -112,9 +112,7 @@ export function ChatInput({
   onChange?: (value: ChatInputValue) => void;
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Needs to accept configs with different item types
-  const [mentionConfigs, setMentionConfigs] = useState<MentionConfig<any>[]>(
-    [],
-  );
+  const [mentionConfigs, setMentionConfigs] = useState<MentionConfig<any>[]>([]);
   const [editor, setEditor] = useState<Editor | null>(null);
 
   const registeredTypesRef = useRef(new Set<string>());
@@ -153,10 +151,7 @@ export function ChatInput({
       }}
     >
       <InputGroup
-        className={cn(
-          "focus-within:ring-1 focus-within:ring-ring rounded-2xl",
-          className,
-        )}
+        className={cn("focus-within:ring-1 focus-within:ring-ring rounded-2xl", className)}
         {...props}
       >
         {children}
@@ -221,7 +216,7 @@ export function ChatInputEditor({
           HTMLAttributes: {
             class: cn(
               "bg-primary text-primary-foreground rounded-sm px-1 py-0.5 no-underline",
-              config.editorMentionClass,
+              config.editorMentionClass
             ),
           },
           suggestion: {
@@ -231,7 +226,7 @@ export function ChatInputEditor({
         });
       }),
     ],
-    [mentionConfigs, placeholder],
+    [mentionConfigs, placeholder]
   );
 
   const onUpdate = useCallback(
@@ -242,7 +237,7 @@ export function ChatInputEditor({
         effectiveOnChange?.(json);
       }
     },
-    [effectiveOnChange, isMounted],
+    [effectiveOnChange, isMounted]
   );
 
   const editor = useEditor(
@@ -253,7 +248,7 @@ export function ChatInputEditor({
       editable: !(disabled || contextDisabled),
       immediatelyRender: false,
     },
-    [extensions, disabled, contextDisabled],
+    [extensions, disabled, contextDisabled]
   );
 
   useEffect(() => {
@@ -268,8 +263,7 @@ export function ChatInputEditor({
       effectiveValue &&
       editor &&
       JSON.stringify(effectiveValue) !== JSON.stringify(editor.getJSON()) &&
-      JSON.stringify(effectiveValue) !==
-        JSON.stringify(lastEmittedValue.current)
+      JSON.stringify(effectiveValue) !== JSON.stringify(lastEmittedValue.current)
     ) {
       editor.commands.setContent(effectiveValue);
     }
@@ -289,10 +283,7 @@ export function ChatInputEditor({
 			`}</style>
       <EditorContent
         editor={editor}
-        className={cn(
-          "w-full h-full max-h-48 px-4 pt-4 pb-2 overflow-y-auto",
-          className,
-        )}
+        className={cn("w-full h-full max-h-48 px-4 pt-4 pb-2 overflow-y-auto", className)}
       />
     </>
   );
@@ -317,14 +308,13 @@ const KeyboardShortcuts = Extension.create({
   },
 });
 
-export type ChatInputMentionProps<T extends BaseMentionItem = BaseMentionItem> =
-  {
-    type: string;
-    trigger: string;
-    items: T[];
-    children?: (item: T, isSelected: boolean) => ReactNode;
-    editorMentionClass?: string;
-  };
+export type ChatInputMentionProps<T extends BaseMentionItem = BaseMentionItem> = {
+  type: string;
+  trigger: string;
+  items: T[];
+  children?: (item: T, isSelected: boolean) => ReactNode;
+  editorMentionClass?: string;
+};
 
 export function ChatInputMention<T extends BaseMentionItem = BaseMentionItem>({
   type,
@@ -366,7 +356,7 @@ type GenericMentionListRef = {
 const GenericMentionList = forwardRef(
   <T extends BaseMentionItem>(
     props: GenericMentionListProps<T>,
-    ref: React.Ref<GenericMentionListRef>,
+    ref: React.Ref<GenericMentionListRef>
   ) => {
     const { items, command, renderItem } = props;
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -382,7 +372,7 @@ const GenericMentionList = forwardRef(
           });
         }
       },
-      [items, command],
+      [items, command]
     );
 
     const scrollToItem = useCallback((index: number) => {
@@ -436,13 +426,13 @@ const GenericMentionList = forwardRef(
         }
         return false;
       },
-      [upHandler, downHandler, enterHandler],
+      [upHandler, downHandler, enterHandler]
     );
 
     useImperativeHandle(
       ref as React.ForwardedRef<GenericMentionListRef>,
       () => ({ handleKeyDown }),
-      [handleKeyDown],
+      [handleKeyDown]
     );
 
     return (
@@ -455,7 +445,7 @@ const GenericMentionList = forwardRef(
               size="sm"
               className={cn(
                 "flex justify-start px-1 py-2 gap-2",
-                selectedIndex === index && "bg-accent",
+                selectedIndex === index && "bg-accent"
               )}
               onClick={() => selectItem(index)}
               ref={(el) => {
@@ -472,25 +462,19 @@ const GenericMentionList = forwardRef(
             </Button>
           ))
         ) : (
-          <div className="text-sm text-muted-foreground px-2 py-1.5">
-            No results found
-          </div>
+          <div className="text-sm text-muted-foreground px-2 py-1.5">No results found</div>
         )}
       </div>
     );
-  },
+  }
 );
 
 GenericMentionList.displayName = "GenericMentionList";
 
-function getMentionSuggestion<T extends BaseMentionItem>(
-  config: MentionConfig<T>,
-) {
+function getMentionSuggestion<T extends BaseMentionItem>(config: MentionConfig<T>) {
   return {
     items: ({ query }: { query: string }) => {
-      return config.items.filter((item) =>
-        item.name.toLowerCase().startsWith(query.toLowerCase()),
-      );
+      return config.items.filter((item) => item.name.toLowerCase().startsWith(query.toLowerCase()));
     },
     render: () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Ok
@@ -549,9 +533,7 @@ function getMentionSuggestion<T extends BaseMentionItem>(
   };
 }
 
-export type ChatInputSubmitButtonProps = ComponentProps<
-  typeof InputGroupButton
-> & {
+export type ChatInputSubmitButtonProps = ComponentProps<typeof InputGroupButton> & {
   isStreaming?: boolean;
   onStop?: () => void;
   disabled?: boolean;
@@ -686,26 +668,17 @@ export function ChatInputMentionButton({
 
 export type ChatInputGroupAddon = ComponentProps<typeof InputGroupAddon>;
 
-export function ChatInputGroupAddon({
-  className,
-  ...props
-}: ChatInputGroupAddon) {
+export function ChatInputGroupAddon({ className, ...props }: ChatInputGroupAddon) {
   return <InputGroupAddon className={cn(className)} {...props} />;
 }
 
 export type ChatInputGroupButtonProps = ComponentProps<typeof InputGroupButton>;
-export function ChatInputGroupButton({
-  className,
-  ...props
-}: ChatInputGroupButtonProps) {
+export function ChatInputGroupButton({ className, ...props }: ChatInputGroupButtonProps) {
   return <InputGroupButton className={cn(className)} {...props} />;
 }
 
 export type ChatInputGroupTextProps = ComponentProps<typeof InputGroupText>;
-export function ChatInputGroupText({
-  className,
-  ...props
-}: ChatInputGroupTextProps) {
+export function ChatInputGroupText({ className, ...props }: ChatInputGroupTextProps) {
   return <InputGroupText className={cn(className)} {...props} />;
 }
 
@@ -725,9 +698,7 @@ type ParsedContentOnly = {
 type UseChatInputReturn<Mentions extends MentionConfigsObject | undefined> = {
   value: JSONContent;
   onChange: (value: JSONContent) => void;
-  parsed: Mentions extends MentionConfigsObject
-    ? ParsedFromObject<Mentions>
-    : ParsedContentOnly;
+  parsed: Mentions extends MentionConfigsObject ? ParsedFromObject<Mentions> : ParsedContentOnly;
   clear: () => void;
   handleSubmit: () => void;
 } & (Mentions extends MentionConfigsObject
@@ -746,9 +717,7 @@ export function useChatInput(config: {
   onSubmit?: (parsed: ParsedContentOnly) => void;
 }): UseChatInputReturn<undefined>;
 
-export function useChatInput<
-  Mentions extends MentionConfigsObject | undefined,
->({
+export function useChatInput<Mentions extends MentionConfigsObject | undefined>({
   mentions,
   initialValue,
   onSubmit: onCustomSubmit,
@@ -758,19 +727,11 @@ export function useChatInput<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for generic config handling
   onSubmit?: (parsed: any) => void;
 }): UseChatInputReturn<Mentions> {
-  const [value, setValue] = useState<JSONContent>(
-    initialValue ?? { type: "doc", content: [] },
-  );
+  const [value, setValue] = useState<JSONContent>(initialValue ?? { type: "doc", content: [] });
 
-  const configsArray = useMemo(
-    () => (mentions ? Object.values(mentions) : []),
-    [mentions],
-  );
+  const configsArray = useMemo(() => (mentions ? Object.values(mentions) : []), [mentions]);
 
-  const parsed = useMemo(
-    () => parseContent(value, configsArray),
-    [value, configsArray],
-  );
+  const parsed = useMemo(() => parseContent(value, configsArray), [value, configsArray]);
 
   const clear = useCallback(() => {
     setValue({ type: "doc", content: [] });
@@ -800,31 +761,25 @@ export function useChatInput<
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
-type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
-  k: infer I,
-) => void
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
   ? I
   : never;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
 type ConfigToField<Config extends MentionConfig<any>> =
-  Config extends MentionConfig<infer T>
-    ? { [K in Config["type"]]: T[] }
-    : never;
+  Config extends MentionConfig<infer T> ? { [K in Config["type"]]: T[] } : never;
 
 export type ParsedChatInputValue<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for type inference
   Configs extends readonly MentionConfig<any>[],
 > = { content: string } & Partial<
-  UnionToIntersection<
-    { [I in keyof Configs]: ConfigToField<Configs[I]> }[number]
-  >
+  UnionToIntersection<{ [I in keyof Configs]: ConfigToField<Configs[I]> }[number]>
 >;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Required for generic config handling
 export function parseContent<Configs extends readonly MentionConfig<any>[]>(
   json: JSONContent,
-  configs: Configs,
+  configs: Configs
 ): ParsedChatInputValue<Configs> {
   let content = "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic mention types
@@ -849,10 +804,7 @@ export function parseContent<Configs extends readonly MentionConfig<any>[]>(
           mentions[mentionType] = [];
         }
         const item = config.items.find((i) => i.id === id);
-        if (
-          item &&
-          !mentions[mentionType].some((existing) => existing.id === id)
-        ) {
+        if (item && !mentions[mentionType].some((existing) => existing.id === id)) {
           mentions[mentionType].push(item);
         }
       } else {

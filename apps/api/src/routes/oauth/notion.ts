@@ -17,8 +17,7 @@ notionRouter.get("/", (_req, res) => {
     return;
   }
 
-  const redirectUri =
-    process.env.NOTION_REDIRECT_URI ?? `${API_BASE_URL}/oauth/notion/callback`;
+  const redirectUri = process.env.NOTION_REDIRECT_URI ?? `${API_BASE_URL}/oauth/notion/callback`;
 
   const authUrl = new URL("https://api.notion.com/v1/oauth/authorize");
   authUrl.searchParams.set("client_id", clientId);
@@ -51,13 +50,10 @@ notionRouter.get("/callback", async (req, res) => {
     return;
   }
 
-  const redirectUri =
-    process.env.NOTION_REDIRECT_URI ?? `${API_BASE_URL}/oauth/notion/callback`;
+  const redirectUri = process.env.NOTION_REDIRECT_URI ?? `${API_BASE_URL}/oauth/notion/callback`;
 
   try {
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-      "base64",
-    );
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
     const tokenResponse = await fetch("https://api.notion.com/v1/oauth/token", {
       method: "POST",

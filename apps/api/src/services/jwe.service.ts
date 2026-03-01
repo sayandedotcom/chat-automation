@@ -8,7 +8,7 @@ function getEncryptionKey(): Uint8Array {
 }
 
 export async function createSessionToken(
-  payload: Omit<JWEPayload, "iat" | "exp">,
+  payload: Omit<JWEPayload, "iat" | "exp">
 ): Promise<string> {
   const key = getEncryptionKey();
   const now = Math.floor(Date.now() / 1000);
@@ -28,9 +28,7 @@ export async function createSessionToken(
   return token;
 }
 
-export async function decryptSessionToken(
-  token: string,
-): Promise<JWEPayload | null> {
+export async function decryptSessionToken(token: string): Promise<JWEPayload | null> {
   try {
     const key = getEncryptionKey();
     const { payload } = await jwtDecrypt(token, key);

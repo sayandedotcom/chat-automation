@@ -12,15 +12,13 @@ export const googleDocsRouter: IRouter = Router();
 
 googleDocsRouter.get("/", (_req, res) => {
   const redirectUri =
-    process.env.GOOGLE_DOCS_REDIRECT_URI ??
-    `${API_BASE_URL}/oauth/google-docs/callback`;
+    process.env.GOOGLE_DOCS_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-docs/callback`;
   googleAuthInit(res, SCOPES, redirectUri);
 });
 
 googleDocsRouter.get("/callback", async (req, res) => {
   const redirectUri =
-    process.env.GOOGLE_DOCS_REDIRECT_URI ??
-    `${API_BASE_URL}/oauth/google-docs/callback`;
+    process.env.GOOGLE_DOCS_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-docs/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-docs",
     accessCookieName: "google_docs_access_token",

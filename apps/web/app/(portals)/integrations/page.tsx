@@ -37,9 +37,7 @@ function IntegrationCard({
 
       {/* Text Content */}
       <div className="flex flex-col flex-1 min-w-0 justify-center">
-        <span className="text-[14px] font-medium text-zinc-100 truncate">
-          {integration.name}
-        </span>
+        <span className="text-[14px] font-medium text-zinc-100 truncate">{integration.name}</span>
         <span
           className="text-[12.5px] text-zinc-500 truncate mt-0.5"
           title={integration.description}
@@ -75,11 +73,7 @@ function IntegrationCard({
             disabled={isLoading}
             className="h-9 px-5 text-[13px] font-medium bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-all duration-200 flex-shrink-0 rounded-lg"
           >
-            {isLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              "Connect"
-            )}
+            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Connect"}
           </Button>
         )
       ) : (
@@ -98,17 +92,13 @@ function IntegrationCard({
 
 export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
   const trpc = useTRPC();
   const { data: connectionStatus = {}, refetch: refetchStatus } = useQuery(
-    trpc.integrations.status.queryOptions(),
+    trpc.integrations.status.queryOptions()
   );
-  const disconnectMutation = useMutation(
-    trpc.integrations.disconnect.mutationOptions(),
-  );
+  const disconnectMutation = useMutation(trpc.integrations.disconnect.mutationOptions());
 
   // Handle success/error params from OAuth callback
   useEffect(() => {
@@ -151,7 +141,7 @@ export default function IntegrationsPage() {
     return oauthIntegrations.filter(
       (i) =>
         i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.description.toLowerCase().includes(searchQuery.toLowerCase()),
+        i.description.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery]);
 

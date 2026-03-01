@@ -34,10 +34,7 @@ export function setSessionGetter(fn: SessionGetter) {
 /**
  * Create tRPC context from Express request/response
  */
-export async function createExpressContext({
-  req,
-  res,
-}: CreateExpressContextOptions) {
+export async function createExpressContext({ req, res }: CreateExpressContextOptions) {
   let session: SessionInfo = { user: null, session: null };
 
   if (sessionGetter) {

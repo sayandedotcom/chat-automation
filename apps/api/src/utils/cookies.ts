@@ -13,11 +13,7 @@ export const cookieConfig: CookieConfig = {
   domain: config.isProduction ? ".sayande.xyz" : undefined,
 };
 
-export function setAuthCookies(
-  res: Response,
-  token: string,
-  sessionId: string,
-): void {
+export function setAuthCookies(res: Response, token: string, sessionId: string): void {
   res.cookie(cookieConfig.name, token, {
     httpOnly: cookieConfig.httpOnly,
     secure: cookieConfig.secure,
@@ -38,11 +34,11 @@ export function setAuthCookies(
 }
 
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(cookieConfig.name, { 
+  res.clearCookie(cookieConfig.name, {
     path: cookieConfig.path,
     domain: cookieConfig.domain,
   });
-  res.clearCookie(cookieConfig.idName, { 
+  res.clearCookie(cookieConfig.idName, {
     path: cookieConfig.path,
     domain: cookieConfig.domain,
   });

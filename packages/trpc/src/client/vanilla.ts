@@ -51,7 +51,7 @@ export function createClient(options: CreateClientOptions) {
     links.push(
       loggerLink({
         enabled: () => true,
-      }),
+      })
     );
   }
 
@@ -61,7 +61,7 @@ export function createClient(options: CreateClientOptions) {
       url: options.url,
       headers: options.headers,
       transformer: superjson,
-    }),
+    })
   );
 
   return createTRPCClient<AppRouter>({

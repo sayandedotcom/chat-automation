@@ -122,7 +122,7 @@ class TestSmartRouterArtifactInjection:
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Test Doc"}
         ]
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state("update the google doc too", artifacts)
         )
 
@@ -147,9 +147,7 @@ class TestSmartRouterArtifactInjection:
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Test Doc"}
         ]
-        result = await nodes.smart_router_node(
-            _make_state("also build a notion doc", artifacts)
-        )
+        await nodes.smart_router_node(_make_state("also build a notion doc", artifacts))
 
         call_args = registry.get_toolset.call_args[0][0]
         assert "notion" in call_args
@@ -165,7 +163,7 @@ class TestSmartRouterArtifactInjection:
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Test Doc"}
         ]
-        result = await nodes.smart_router_node(_make_state("update the doc", artifacts))
+        await nodes.smart_router_node(_make_state("update the doc", artifacts))
 
         call_args = registry.get_toolset.call_args[0][0]
         assert call_args.count("google_docs") == 1
@@ -178,7 +176,7 @@ class TestSmartRouterArtifactInjection:
         nodes = _make_nodes(registry)
 
         artifacts = [{"integration": "unknown_service", "type": "file", "name": "X"}]
-        result = await nodes.smart_router_node(_make_state("do something", artifacts))
+        await nodes.smart_router_node(_make_state("do something", artifacts))
 
         call_args = registry.get_toolset.call_args[0][0]
         assert "unknown_service" not in call_args
@@ -202,7 +200,7 @@ class TestSmartRouterArtifactInjection:
             {"integration": "notion", "type": "page", "name": "Notes"},
         ]
         # Request mentions "notion" but NOT "google doc"
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state("send the notion document to test@example.com", artifacts)
         )
 
@@ -230,7 +228,7 @@ class TestSmartRouterArtifactInjection:
                 "name": "Backend Languages Report",
             }
         ]
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state(
                 "email the backend languages report to test@example.com", artifacts
             )
@@ -251,7 +249,7 @@ class TestSmartRouterArtifactInjection:
             {"integration": None, "type": "file", "name": "X"},
             {"type": "page", "name": "Y"},  # no integration key at all
         ]
-        result = await nodes.smart_router_node(_make_state("do stuff", artifacts))
+        await nodes.smart_router_node(_make_state("do stuff", artifacts))
 
         call_args = registry.get_toolset.call_args[0][0]
         assert call_args == ["notion"]
@@ -266,7 +264,7 @@ class TestSmartRouterArtifactInjection:
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Test Doc"}
         ]
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state("Create a similar Notion Document also", artifacts)
         )
 
@@ -284,7 +282,7 @@ class TestSmartRouterArtifactInjection:
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Test Doc"}
         ]
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state("create the same thing in Notion", artifacts)
         )
 
@@ -301,7 +299,7 @@ class TestSmartRouterArtifactInjection:
         artifacts = [
             {"integration": "google_docs", "type": "document", "name": "Test Doc"}
         ]
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state(
                 "create a Notion page based on the previous document", artifacts
             )
@@ -328,7 +326,7 @@ class TestSmartRouterArtifactInjection:
             {"integration": "notion", "type": "page", "name": "Notes"},
         ]
         # "send" is not a continuation keyword — only notion is referenced
-        result = await nodes.smart_router_node(
+        await nodes.smart_router_node(
             _make_state("send the notion document to test@example.com", artifacts)
         )
 

@@ -22,9 +22,7 @@ describe("Config", () => {
 
       const { validateEnv } = await import("../config/index.js");
 
-      expect(() => validateEnv()).toThrow(
-        "Missing environment variables: DATABASE_URL",
-      );
+      expect(() => validateEnv()).toThrow("Missing environment variables: DATABASE_URL");
     });
 
     it("should throw error when SESSION_SECRET is missing", async () => {
@@ -35,9 +33,7 @@ describe("Config", () => {
 
       const { validateEnv } = await import("../config/index.js");
 
-      expect(() => validateEnv()).toThrow(
-        "Missing environment variables: SESSION_SECRET",
-      );
+      expect(() => validateEnv()).toThrow("Missing environment variables: SESSION_SECRET");
     });
 
     it("should throw error when GOOGLE_CLIENT_ID is missing", async () => {
@@ -48,9 +44,7 @@ describe("Config", () => {
 
       const { validateEnv } = await import("../config/index.js");
 
-      expect(() => validateEnv()).toThrow(
-        "Missing environment variables: GOOGLE_CLIENT_ID",
-      );
+      expect(() => validateEnv()).toThrow("Missing environment variables: GOOGLE_CLIENT_ID");
     });
 
     it("should throw error when GOOGLE_CLIENT_SECRET is missing", async () => {
@@ -61,9 +55,7 @@ describe("Config", () => {
 
       const { validateEnv } = await import("../config/index.js");
 
-      expect(() => validateEnv()).toThrow(
-        "Missing environment variables: GOOGLE_CLIENT_SECRET",
-      );
+      expect(() => validateEnv()).toThrow("Missing environment variables: GOOGLE_CLIENT_SECRET");
     });
 
     it("should throw error when multiple required vars are missing", async () => {
@@ -75,7 +67,7 @@ describe("Config", () => {
       const { validateEnv } = await import("../config/index.js");
 
       expect(() => validateEnv()).toThrow(
-        "Missing environment variables: DATABASE_URL, SESSION_SECRET",
+        "Missing environment variables: DATABASE_URL, SESSION_SECRET"
       );
     });
 
