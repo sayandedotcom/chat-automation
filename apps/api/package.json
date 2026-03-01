@@ -37,12 +37,14 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@t3-oss/env-core": "^0.13.10",
     "@types/aws-lambda": "8.10.160",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/prettier-config": "workspace:*",
     "eslint": "^9.32.0",
     "prettier": "^3.7.4",
     "rimraf": "^6.0.1",
+    "zod": "^3.25.76",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

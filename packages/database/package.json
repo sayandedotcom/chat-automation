@@ -41,11 +41,13 @@
     "pg": "^8.18.0"
   },
   "devDependencies": {
+    "@t3-oss/env-core": "^0.13.10",
     "@types/node": "^22.15.32",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/prettier-config": "workspace:*",
     "eslint": "^9.32.0",
     "prettier": "^3.7.4",
+    "zod": "^3.25.76",
     "@types/pg": "^8.16.0",
     "@workspace/typescript-config": "workspace:*",
     "prisma": "^6.8.0",
