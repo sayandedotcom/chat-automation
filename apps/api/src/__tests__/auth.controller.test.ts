@@ -81,15 +81,15 @@ describe("Auth Controller", () => {
     it("should redirect to error page on authentication failure", async () => {
       const mockAuthenticateFn = vi.fn(
         (
-          strategy: string,
-          options: object,
+          _strategy: string,
+          _options: object,
           callback: (err: Error | null, user: unknown) => void
         ) => {
           return (_req: Request, _res: Response, _next: NextFunction) => {
             callback(new Error("Auth failed"), false);
           };
         }
-      );
+      ) as unknown as typeof mockPassport.authenticate;
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
 
       await googleCallback(mockReq as Request, mockRes as Response, mockNext);
@@ -100,15 +100,15 @@ describe("Auth Controller", () => {
     it("should redirect to error page when no user returned", async () => {
       const mockAuthenticateFn = vi.fn(
         (
-          strategy: string,
-          options: object,
+          _strategy: string,
+          _options: object,
           callback: (err: Error | null, user: unknown) => void
         ) => {
-          return (req: Request, res: Response, next: NextFunction) => {
+          return (_req: Request, _res: Response, _next: NextFunction) => {
             callback(null, false);
           };
         }
-      );
+      ) as unknown as typeof mockPassport.authenticate;
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
 
       await googleCallback(mockReq as Request, mockRes as Response, mockNext);
@@ -125,15 +125,15 @@ describe("Auth Controller", () => {
       };
       const mockAuthenticateFn = vi.fn(
         (
-          strategy: string,
-          options: object,
+          _strategy: string,
+          _options: object,
           callback: (err: Error | null, user: unknown) => void
         ) => {
-          return (req: Request, res: Response, next: NextFunction) => {
+          return (_req: Request, _res: Response, _next: NextFunction) => {
             callback(null, mockUser);
           };
         }
-      );
+      ) as unknown as typeof mockPassport.authenticate;
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
       mockCreateSession.mockResolvedValue({
         token: "session-token",
@@ -155,15 +155,15 @@ describe("Auth Controller", () => {
       };
       const mockAuthenticateFn = vi.fn(
         (
-          strategy: string,
-          options: object,
+          _strategy: string,
+          _options: object,
           callback: (err: Error | null, user: unknown) => void
         ) => {
-          return (req: Request, res: Response, next: NextFunction) => {
+          return (_req: Request, _res: Response, _next: NextFunction) => {
             callback(null, mockUser);
           };
         }
-      );
+      ) as unknown as typeof mockPassport.authenticate;
       mockPassport.authenticate.mockImplementation(mockAuthenticateFn);
       mockCreateSession.mockRejectedValue(new Error("Session error"));
 

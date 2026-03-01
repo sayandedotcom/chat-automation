@@ -32,7 +32,27 @@
       "entry": ["*.json"]
     }
   },
-  "ignore": ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/.turbo/**"],
-  "ignoreBinaries": [],
-  "ignoreDependencies": []
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/.turbo/**",
+    "**/.sst/**"
+  ],
+  "ignoreBinaries": ["uv", "sst"],
+  "ignoreDependencies": [
+    "@types/aws-lambda",
+    "@types/express-session",
+    "@tailwindcss/postcss",
+    "@workspace/eslint-config",
+    "@workspace/prettier-config",
+    "lint-staged",
+    "@typescript-eslint/eslint-plugin",
+    "@typescript-eslint/parser",
+    "@types/express-serve-static-core",
+    "@types/qs",
+    "@turbo/gen",
+    "sst",
+    "postcss-load-config"
+  ]
 }

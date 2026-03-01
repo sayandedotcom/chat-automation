@@ -120,7 +120,8 @@ describe("OAuth Helpers", () => {
       );
 
       expect(mockRes.redirect).toHaveBeenCalled();
-      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0] as string;
 
       expect(redirectUrl).toContain("https://accounts.google.com/o/oauth2/v2/auth");
       expect(redirectUrl).toContain("client_id=test-client-id");
@@ -141,7 +142,8 @@ describe("OAuth Helpers", () => {
 
       googleAuthInit(mockRes as Response, "scope1 scope2", "http://localhost:8000/callback");
 
-      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0] as string;
       expect(redirectUrl).toContain("scope=scope1+scope2");
     });
   });

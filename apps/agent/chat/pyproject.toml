@@ -31,3 +31,8 @@ build-backend = "hatchling.build"
 
 [tool.uv.sources]
 sst = { git = "https://github.com/sst/sst.git", subdirectory = "sdk/python", branch = "dev" }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

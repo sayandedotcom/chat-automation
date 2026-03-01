@@ -72,6 +72,10 @@ const mockGenerateSessionId = vi.mocked(generateSessionId);
 const mockSetAuthCookies = vi.mocked(setAuthCookies);
 const mockClearAuthCookies = vi.mocked(clearAuthCookies);
 
+const mockSessionCreate = mockPrisma.session.create as ReturnType<typeof vi.fn>;
+const mockSessionDelete = mockPrisma.session.delete as ReturnType<typeof vi.fn>;
+const mockSessionDeleteMany = mockPrisma.session.deleteMany as ReturnType<typeof vi.fn>;
+
 describe("Session Service", () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -95,7 +99,7 @@ describe("Session Service", () => {
     it("should create a session with correct data", async () => {
       mockGenerateSessionId.mockReturnValue("session-456");
       mockCreateSessionToken.mockResolvedValue("encrypted-token");
-      mockPrisma.session.create.mockResolvedValue({
+      mockSessionCreate.mockResolvedValue({
         id: "db-session-id",
         token: "session-456",
         userId: "user-123",
@@ -120,7 +124,7 @@ describe("Session Service", () => {
       const userWithNulls = { ...mockUser, name: null, image: null };
       mockGenerateSessionId.mockReturnValue("session-789");
       mockCreateSessionToken.mockResolvedValue("encrypted-token-2");
-      mockPrisma.session.create.mockResolvedValue({
+      mockSessionCreate.mockResolvedValue({
         id: "db-session-id",
         token: "session-789",
         userId: "user-123",
@@ -244,7 +248,7 @@ describe("Session Service", () => {
   describe("destroySession", () => {
     it("should delete session from database when session_id exists", async () => {
       mockReq.cookies = { session_id: "session-to-delete" };
-      mockPrisma.session.delete.mockResolvedValue({
+      mockSessionDelete.mockResolvedValue({
         id: "db-id",
         token: "session-to-delete",
         userId: "user-123",
@@ -262,7 +266,7 @@ describe("Session Service", () => {
 
     it("should handle case when session does not exist", async () => {
       mockReq.cookies = { session_id: "non-existent-session" };
-      mockPrisma.session.delete.mockRejectedValue(new Error("Not found"));
+      mockSessionDelete.mockRejectedValue(new Error("Not found"));
 
       await destroySession(mockReq as Request, mockRes as Response);
 
@@ -281,7 +285,7 @@ describe("Session Service", () => {
 
   describe("cleanupExpiredSessions", () => {
     it("should delete expired sessions", async () => {
-      mockPrisma.session.deleteMany.mockResolvedValue({ count: 5 });
+      mockSessionDeleteMany.mockResolvedValue({ count: 5 });
 
       await cleanupExpiredSessions();
 
@@ -294,7 +298,7 @@ describe("Session Service", () => {
 
     it("should handle errors gracefully", async () => {
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      mockPrisma.session.deleteMany.mockRejectedValue(new Error("DB error"));
+      mockSessionDeleteMany.mockRejectedValue(new Error("DB error"));
 
       await cleanupExpiredSessions();
 

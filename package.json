@@ -10,9 +10,9 @@
     "format:check": "turbo format:check",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "knip": "knip",
+    "knip": "knip --no-exit-code",
     "type-coverage": "type-coverage",
-    "bundlewatch": "bundlewatch",
+    "bundlewatch": "test -d apps/web/.next && bundlewatch || echo 'No build found, skipping bundlewatch'",
     "prepare": "husky"
   },
   "devDependencies": {

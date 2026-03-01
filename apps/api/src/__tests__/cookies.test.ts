@@ -110,7 +110,7 @@ describe("Cookies Utils", () => {
       setAuthCookies(mockRes as Response, "token", "id");
 
       const call = cookieMock.mock.calls[0];
-      expect(call[2].maxAge).toBe(cookieConfig.maxAge * 1000);
+      expect(call?.[2]?.maxAge).toBe(cookieConfig.maxAge * 1000);
     });
   });
 
