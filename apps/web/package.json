@@ -13,6 +13,9 @@
     "format": "prettier --write \"app/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "clean": "rimraf .turbo node_modules .next"
   },
   "dependencies": {
@@ -38,15 +41,20 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
     "@t3-oss/env-nextjs": "^0.13.10",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
     "@types/node": "^20.19.25",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/prettier-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.1",
+    "jsdom": "^26.0.0",
     "prettier": "^3.7.4",
     "rimraf": "^6.0.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   }
 }
