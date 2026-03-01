@@ -37,7 +37,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.tsx\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"src/**/*.tsx\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf .turbo node_modules dist"
   },
   "keywords": [
     "trpc",
@@ -72,6 +73,7 @@
     "@workspace/prettier-config": "workspace:*",
     "eslint": "^9.32.0",
     "prettier": "^3.7.4",
+    "rimraf": "^6.0.1",
     "@types/express-serve-static-core": "^5.1.1",
     "@types/node": "^22.15.32",
     "@types/qs": "^6.14.0",

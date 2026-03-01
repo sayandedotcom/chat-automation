@@ -13,7 +13,8 @@
     "knip": "knip --no-exit-code",
     "type-coverage": "type-coverage",
     "bundlewatch": "test -d apps/web/.next && bundlewatch || echo 'No build found, skipping bundlewatch'",
-    "prepare": "husky"
+    "prepare": "husky",
+    "clean": "rimraf .turbo node_modules"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
@@ -27,6 +28,7 @@
     "knip": "^5.46.0",
     "lint-staged": "^15.5.0",
     "prettier": "^3.7.4",
+    "rimraf": "^6.0.1",
     "type-coverage": "^2.29.7",
     "turbo": "^2.6.3",
     "typescript": "5.7.3"

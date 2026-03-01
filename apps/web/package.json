@@ -12,7 +12,8 @@
     "lint:strict": "eslint . --max-warnings 0",
     "format": "prettier --write \"app/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf .turbo node_modules .next"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
@@ -45,6 +46,7 @@
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.1",
     "prettier": "^3.7.4",
+    "rimraf": "^6.0.1",
     "typescript": "^5.9.3"
   }
 }
