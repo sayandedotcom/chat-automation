@@ -35,4 +35,8 @@ sst = { git = "https://github.com/sst/sst.git", subdirectory = "sdk/python", bra
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.23.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

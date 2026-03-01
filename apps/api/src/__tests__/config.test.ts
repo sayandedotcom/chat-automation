@@ -2,6 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const originalEnv = { ...process.env };
 
+// Valid env values satisfying @t3-oss/env-core schema constraints:
+//   SESSION_SECRET requires min(32) chars
+//   GOOGLE_CALLBACK_URL is required (not optional)
+const VALID_ENV = {
+  DATABASE_URL: "postgresql://localhost:5432/testdb",
+  SESSION_SECRET: "a-sufficiently-long-secret-for-testing-32c",
+  GOOGLE_CLIENT_ID: "test-client-id",
+  GOOGLE_CLIENT_SECRET: "test-client-secret",
+  GOOGLE_CALLBACK_URL: "http://localhost:8000/auth/google/callback",
+};
+
 describe("Config", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -13,82 +24,56 @@ describe("Config", () => {
     vi.resetModules();
   });
 
+  // @t3-oss/env-core validates env vars eagerly inside createEnv() at module
+  // load time, so the dynamic import itself rejects when a required var is
+  // missing — validateEnv() is never reached in the error cases.
   describe("validateEnv", () => {
     it("should throw error when DATABASE_URL is missing", async () => {
+      Object.assign(process.env, { ...VALID_ENV });
       delete process.env.DATABASE_URL;
-      process.env.SESSION_SECRET = "test-secret";
-      process.env.GOOGLE_CLIENT_ID = "test-id";
-      process.env.GOOGLE_CLIENT_SECRET = "test-secret";
 
-      const { validateEnv } = await import("../config/index.js");
-
-      expect(() => validateEnv()).toThrow("Missing environment variables: DATABASE_URL");
+      await expect(import("../config/index.js")).rejects.toThrow("Invalid environment variables");
     });
 
     it("should throw error when SESSION_SECRET is missing", async () => {
-      process.env.DATABASE_URL = "postgresql://test";
+      Object.assign(process.env, { ...VALID_ENV });
       delete process.env.SESSION_SECRET;
-      process.env.GOOGLE_CLIENT_ID = "test-id";
-      process.env.GOOGLE_CLIENT_SECRET = "test-secret";
 
-      const { validateEnv } = await import("../config/index.js");
-
-      expect(() => validateEnv()).toThrow("Missing environment variables: SESSION_SECRET");
+      await expect(import("../config/index.js")).rejects.toThrow("Invalid environment variables");
     });
 
     it("should throw error when GOOGLE_CLIENT_ID is missing", async () => {
-      process.env.DATABASE_URL = "postgresql://test";
-      process.env.SESSION_SECRET = "test-secret";
+      Object.assign(process.env, { ...VALID_ENV });
       delete process.env.GOOGLE_CLIENT_ID;
-      process.env.GOOGLE_CLIENT_SECRET = "test-secret";
 
-      const { validateEnv } = await import("../config/index.js");
-
-      expect(() => validateEnv()).toThrow("Missing environment variables: GOOGLE_CLIENT_ID");
+      await expect(import("../config/index.js")).rejects.toThrow("Invalid environment variables");
     });
 
     it("should throw error when GOOGLE_CLIENT_SECRET is missing", async () => {
-      process.env.DATABASE_URL = "postgresql://test";
-      process.env.SESSION_SECRET = "test-secret";
-      process.env.GOOGLE_CLIENT_ID = "test-id";
+      Object.assign(process.env, { ...VALID_ENV });
       delete process.env.GOOGLE_CLIENT_SECRET;
 
-      const { validateEnv } = await import("../config/index.js");
-
-      expect(() => validateEnv()).toThrow("Missing environment variables: GOOGLE_CLIENT_SECRET");
+      await expect(import("../config/index.js")).rejects.toThrow("Invalid environment variables");
     });
 
     it("should throw error when multiple required vars are missing", async () => {
+      Object.assign(process.env, { ...VALID_ENV });
       delete process.env.DATABASE_URL;
       delete process.env.SESSION_SECRET;
-      process.env.GOOGLE_CLIENT_ID = "test-id";
-      process.env.GOOGLE_CLIENT_SECRET = "test-secret";
 
-      const { validateEnv } = await import("../config/index.js");
-
-      expect(() => validateEnv()).toThrow(
-        "Missing environment variables: DATABASE_URL, SESSION_SECRET"
-      );
+      await expect(import("../config/index.js")).rejects.toThrow("Invalid environment variables");
     });
 
     it("should not throw when all required vars are present", async () => {
-      process.env.DATABASE_URL = "postgresql://test";
-      process.env.SESSION_SECRET = "test-secret";
-      process.env.GOOGLE_CLIENT_ID = "test-id";
-      process.env.GOOGLE_CLIENT_SECRET = "test-secret";
+      Object.assign(process.env, { ...VALID_ENV });
 
-      const { validateEnv } = await import("../config/index.js");
-
-      expect(() => validateEnv()).not.toThrow();
+      await expect(import("../config/index.js")).resolves.toBeDefined();
     });
   });
 
   describe("config values", () => {
     beforeEach(() => {
-      process.env.DATABASE_URL = "postgresql://test";
-      process.env.SESSION_SECRET = "test-secret";
-      process.env.GOOGLE_CLIENT_ID = "test-client-id";
-      process.env.GOOGLE_CLIENT_SECRET = "test-client-secret";
+      Object.assign(process.env, { ...VALID_ENV });
     });
 
     it("should use default values for optional env vars", async () => {
@@ -136,10 +121,7 @@ describe("Config", () => {
 
   describe("COOKIE_MAX_AGE", () => {
     it("should be 7 days in seconds", async () => {
-      process.env.DATABASE_URL = "postgresql://test";
-      process.env.SESSION_SECRET = "test-secret";
-      process.env.GOOGLE_CLIENT_ID = "test-id";
-      process.env.GOOGLE_CLIENT_SECRET = "test-secret";
+      Object.assign(process.env, { ...VALID_ENV });
 
       const { COOKIE_MAX_AGE } = await import("../config/index.js");
 
