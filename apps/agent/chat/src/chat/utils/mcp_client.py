@@ -10,7 +10,11 @@ from langchain_core.tools import BaseTool
 from typing import Optional
 from dotenv import load_dotenv
 import asyncio
+import functools
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -206,6 +210,107 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
     return tool
 
 
+# ---------------------------------------------------------------------------
+# Gmail tool schema sanitisation: auto-fill identity params so the LLM never
+# sees "userId" / "user_id" and never asks the user for an email address.
+# ---------------------------------------------------------------------------
+_AUTO_FILL_PARAMS = {
+    "userId": "me",
+    "user_id": "me",
+}
+
+# Any tool whose name starts with one of these prefixes is considered a Gmail
+# tool and will have its identity parameters auto-injected & hidden.
+_GOOGLE_WORKSPACE_TOOL_PREFIXES = (
+    "search_gmail", "get_gmail", "send_gmail", "draft_gmail",
+    "list_gmail", "manage_gmail", "modify_gmail", "batch_modify_gmail",
+    "create_gmail", "delete_gmail",
+    # Calendar / Drive / Docs / Sheets / Slides — some also expose userId
+    "list_calendars", "get_events", "create_event", "modify_event",
+    "delete_event", "query_freebusy",
+    "search_drive", "get_drive", "list_drive", "create_drive",
+    "import_to_google", "set_drive", "check_drive", "update_drive",
+    "share_drive", "batch_share", "copy_drive", "transfer_drive",
+    "remove_drive", "get_drive_file",
+)
+
+
+def _is_google_workspace_tool(name: str) -> bool:
+    return any(name.startswith(prefix) for prefix in _GOOGLE_WORKSPACE_TOOL_PREFIXES)
+
+
+def _strip_autofill_params_from_schema(tool: BaseTool) -> None:
+    """Remove auto-fill parameters from a tool's visible schema so the LLM
+    never asks the user for them (e.g. userId / user_id)."""
+    try:
+        if not (hasattr(tool, "args_schema") and tool.args_schema):
+            return
+
+        if isinstance(tool.args_schema, dict):
+            schema = tool.args_schema
+        elif hasattr(tool.args_schema, "model_json_schema"):
+            schema = tool.args_schema.model_json_schema()
+        else:
+            return
+
+        props = schema.get("properties", {})
+        required = schema.get("required", [])
+        changed = False
+
+        for param_name in list(_AUTO_FILL_PARAMS.keys()):
+            if param_name in props:
+                del props[param_name]
+                changed = True
+            if param_name in required:
+                required.remove(param_name)
+                changed = True
+
+        # Also strip any parameter whose description explicitly asks for an
+        # "email address" and whose name looks like an identity field.
+        _IDENTITY_HINTS = {"email", "user email", "email address", "account"}
+        for param_name in list(props.keys()):
+            desc = (props[param_name].get("description") or "").lower()
+            if any(hint in desc for hint in _IDENTITY_HINTS) and any(
+                kw in param_name.lower() for kw in ("user", "email", "account", "owner")
+            ):
+                del props[param_name]
+                if param_name in required:
+                    required.remove(param_name)
+                changed = True
+
+        if changed:
+            logger.info(f"Stripped auto-fill identity params from tool: {tool.name}")
+    except Exception as e:
+        logger.warning(f"Could not strip params from {tool.name}: {e}")
+
+
+def _wrap_tool_with_autofill(tool: BaseTool) -> BaseTool:
+    """Wrap a Google Workspace tool so that auto-fill params are injected at
+    call-time, even if the LLM omits them."""
+    original_invoke = tool.invoke
+    original_ainvoke = tool.ainvoke
+
+    @functools.wraps(original_invoke)
+    def patched_invoke(input, config=None, **kwargs):
+        if isinstance(input, dict):
+            for param, default in _AUTO_FILL_PARAMS.items():
+                if param not in input:
+                    input[param] = default
+        return original_invoke(input, config=config, **kwargs)
+
+    @functools.wraps(original_ainvoke)
+    async def patched_ainvoke(input, config=None, **kwargs):
+        if isinstance(input, dict):
+            for param, default in _AUTO_FILL_PARAMS.items():
+                if param not in input:
+                    input[param] = default
+        return await original_ainvoke(input, config=config, **kwargs)
+
+    tool.invoke = patched_invoke  # type: ignore[assignment]
+    tool.ainvoke = patched_ainvoke  # type: ignore[assignment]
+    return tool
+
+
 async def load_mcp_tools(
     client: MultiServerMCPClient, retries: int = 3, base_delay: float = 1.0
 ) -> list[BaseTool]:
@@ -302,6 +407,14 @@ async def load_mcp_tools(
             print(
                 f"⚠️ Skipped {len(problematic_tools)} tools with incompatible schemas: {problematic_tools}"
             )
+
+        # Post-process: for Google Workspace tools, auto-fill identity params
+        # (userId, user_id) and strip them from the visible schema so the LLM
+        # never asks for an email address.
+        for tool in safe_tools:
+            if _is_google_workspace_tool(tool.name):
+                _strip_autofill_params_from_schema(tool)
+                _wrap_tool_with_autofill(tool)
 
         print(f"✅ Loaded {len(safe_tools)} MCP tools: {[t.name for t in safe_tools]}")
         return safe_tools

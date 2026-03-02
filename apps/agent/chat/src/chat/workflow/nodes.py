@@ -155,6 +155,49 @@ class WorkflowNodes:
             }
 
         tools = self.registry.get_toolset(integrations)
+
+        # Guard: if any auth-required integration has 0 tools loaded (MCP server
+        # failure), treat it the same as an auth failure so the frontend shows a
+        # "reconnect" card instead of letting the LLM run without tools.
+        missing_tools = []
+        for name in integrations:
+            config = self.registry.get_integration_config(name)
+            if not (config and config.requires_auth and config.mcp_server):
+                continue
+            integration_tools = self.registry._tools_by_integration.get(name, [])
+            if not integration_tools:
+                connect_id = name.replace("_", "-")
+                missing_tools.append(
+                    {
+                        "mcp_server": config.mcp_server,
+                        "display_name": config.display_name,
+                        "icon": config.icon,
+                        "connect_id": connect_id,
+                    }
+                )
+
+        if missing_tools:
+            logger.warning(
+                f"Smart router: tools not loaded for {[m['mcp_server'] for m in missing_tools]}"
+            )
+            return {
+                "auth_required_integrations": missing_tools,
+                "loaded_integrations": [
+                    IntegrationInfo(
+                        name=n,
+                        display_name=cfg.display_name,
+                        tools_count=0,
+                        icon=cfg.icon,
+                    )
+                    for n in integrations
+                    if (cfg := self.registry.get_integration_config(n))
+                ],
+                "executor_bound_tools": [],
+                "total_tool_count": 0,
+                "initial_integrations": integrations,
+                "incremental_load_events": [],
+            }
+
         loaded_integrations = [
             IntegrationInfo(
                 name=name,

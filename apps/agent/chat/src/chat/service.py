@@ -484,6 +484,7 @@ class ChatService:
         self,
         thread_id: str,
         decision: dict = None,
+        connected_integrations: Optional[list[str]] = None,
     ) -> dict:
         """
         Resume a paused workflow with a decision.
@@ -495,6 +496,7 @@ class ChatService:
             decision: Decision for HITL approval
                 - action: "approve" | "edit" | "skip"
                 - content: Optional edited content (if action is "edit")
+            connected_integrations: Per-request list of connected integration IDs
         """
 
         if not self._initialized:
@@ -511,12 +513,16 @@ class ChatService:
         logger.debug(f"Resuming workflow {thread_id} with decision: {decision}")
 
         # Update state with the decision and clear awaiting_approval
+        update_state: dict = {
+            "approval_decision": decision or {"action": "approve"},
+            "awaiting_approval": False,
+        }
+        if connected_integrations is not None:
+            update_state["connected_integrations"] = connected_integrations
+
         await self._workflow.get_app().aupdate_state(
             config,
-            {
-                "approval_decision": decision or {"action": "approve"},
-                "awaiting_approval": False,
-            },
+            update_state,
             as_node="planner",  # Resume from planner to re-route to executor_with_approval
         )
 
@@ -563,6 +569,7 @@ class ChatService:
         self,
         thread_id: str,
         step_number: int,
+        connected_integrations: Optional[list[str]] = None,
     ) -> dict:
         """
         Retry a failed step and continue execution.
@@ -570,6 +577,7 @@ class ChatService:
         Args:
             thread_id: The workflow thread ID
             step_number: The step number to retry (1-indexed)
+            connected_integrations: Per-request list of connected integration IDs
 
         Returns:
             Updated workflow state after retry
@@ -608,10 +616,12 @@ class ChatService:
         new_step_index = step_number - 1  # 0-indexed
 
         # Update the state
-        updated_state = {
+        updated_state: dict = {
             "plan": plan,
             "current_step_index": new_step_index,
         }
+        if connected_integrations is not None:
+            updated_state["connected_integrations"] = connected_integrations
 
         # Update state in the checkpointer
         await self._workflow.get_app().aupdate_state(

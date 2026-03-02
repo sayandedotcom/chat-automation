@@ -141,6 +141,8 @@ integrations:
       GMAIL: Use artifact title as email subject if user did not specify one. Include
       artifact URL in the email body. Use send_gmail_message with to, subject, body params.
       Do NOT ask the user for subject or body if they can be inferred from artifacts and context.
+      The authenticated user is implicit — NEVER ask for the user's email address or userId.
+      If any Gmail tool fails with an auth error, tell the user to reconnect Gmail.
 
   google_docs:
     tool_names:
@@ -233,6 +235,7 @@ integrations:
       formatting parameters for headings/bold if available (e.g., insert_doc_elements with
       proper element types, or update_paragraph_style for headings).
       Always report the document URL and ID in your response after creating or modifying a document.
+      The authenticated user is implicit — NEVER ask for the user's email address to create or edit documents.
 
   google_sheets:
     tool_names:

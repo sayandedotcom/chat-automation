@@ -73,6 +73,7 @@ export const chatRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
+      const connectedIntegrations = getConnectedIntegrations(ctx.req);
 
       const response = await fetch(`${AGENT_API_URL}/chat/resume`, {
         method: "POST",
@@ -85,6 +86,7 @@ export const chatRouter = router({
           notion_token: notionToken,
           vercel_token: vercelToken,
           slack_token: slackToken,
+          connected_integrations: connectedIntegrations,
         }),
       });
 
@@ -109,6 +111,7 @@ export const chatRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
+      const connectedIntegrations = getConnectedIntegrations(ctx.req);
 
       const response = await fetch(`${AGENT_API_URL}/chat/retry`, {
         method: "POST",
@@ -120,6 +123,7 @@ export const chatRouter = router({
           notion_token: notionToken,
           vercel_token: vercelToken,
           slack_token: slackToken,
+          connected_integrations: connectedIntegrations,
         }),
       });
 

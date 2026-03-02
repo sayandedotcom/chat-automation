@@ -55,6 +55,8 @@ class WorkflowResumeSchema(BaseModel):
     notion_token: Optional[str] = Field(default=None)
     vercel_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
+    # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
+    connected_integrations: Optional[list[str]] = Field(default=None)
 
 
 class WorkflowRetrySchema(BaseModel):
@@ -67,6 +69,8 @@ class WorkflowRetrySchema(BaseModel):
     notion_token: Optional[str] = Field(default=None)
     vercel_token: Optional[str] = Field(default=None)
     slack_token: Optional[str] = Field(default=None)
+    # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
+    connected_integrations: Optional[list[str]] = Field(default=None)
 
 
 async def get_or_create_service(
@@ -297,6 +301,7 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
         result = await service.retry_step(
             thread_id=data.thread_id,
             step_number=data.step_number,
+            connected_integrations=data.connected_integrations,
         )
 
         if "error" in result:
@@ -339,6 +344,7 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
         result = await service.resume_workflow(
             thread_id=data.thread_id,
             decision=decision,
+            connected_integrations=data.connected_integrations,
         )
 
         if "error" in result:
