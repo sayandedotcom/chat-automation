@@ -2,6 +2,8 @@
 
 AI-powered chat automation platform with an Express API, Next.js frontend, and a LangGraph-based Python agent with MCP tool integrations.
 
+![Workflow Graph](workflow_graph.png)
+
 ## Architecture
 
 | Service      | Tech                                      | Port   |
@@ -17,7 +19,7 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 │                   Nginx (:8080)                  │
 │                                                  │
 │   /          → Web (:3000)                       │
-│   /auth/*    → API (:8000)  [Passport.js + JWE]  │
+│   /auth/*    → API (:8000)                       │
 │   /trpc/*    → API (:8000)                       │
 │   /oauth/*   → API (:8000)                       │
 │   /agent/*   → Agent (:8001)                     │

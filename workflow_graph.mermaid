@@ -1,0 +1,29 @@
+graph TD
+    START([START]) --> planner
+
+    planner -->|route_to_executor| executor
+    planner -->|route_to_executor| executor_with_approval
+    planner -->|route_to_executor| END
+
+    executor -->|should_continue| tools
+    executor -->|no tools| step_complete
+
+    executor_with_approval -->|should_continue| tools
+    executor_with_approval -->|awaiting_approval| END
+    executor_with_approval -->|no tools| step_complete
+
+    tools -->|route_after_tools| executor
+    tools -->|route_after_tools| executor_with_approval
+
+    step_complete -->|should_execute_next| executor
+    step_complete -->|should_execute_next| executor_with_approval
+    step_complete -->|should_execute_next| END
+
+    END([END])
+
+    classDef startEnd fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef node fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef decision fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+
+    class START,END startEnd
+    class planner,executor,executor_with_approval,step_complete,tools node
