@@ -33,33 +33,61 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 ### 1. Prerequisites
 
 - **Docker** & Docker Compose
-- **Google Cloud Console** account (for OAuth)
 
 ### 2. Setup Environment
 
 ```bash
-# Copy environment file
 cp .env.example .env
-
-# Generate session secret (32+ chars)
-openssl rand -base64 32
 ```
 
-Edit `.env` and add:
+Generate a session secret and fill in the required values:
 
-```env
-SESSION_SECRET=<paste-output-from-openssl>
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_API_KEY=your-gemini-api-key
-TAVILY_API_KEY=your-tavily-api-key
+```bash
+openssl rand -base64 32   # paste this as SESSION_SECRET
 ```
 
-### 3. Google Cloud Console
+Required values in `.env`:
 
-Add redirect URI: `http://localhost:8000/auth/google/callback`
+| Variable | Where to get it |
+|---|---|
+| `SESSION_SECRET` | Run `openssl rand -base64 32` |
+| `GOOGLE_CLIENT_ID` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| `GOOGLE_CLIENT_SECRET` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| `GOOGLE_API_KEY` | [Google AI Studio](https://aistudio.google.com/) |
+| `TAVILY_API_KEY` | [Tavily](https://tavily.com/) |
 
-### 4. Start
+### 3. Google Cloud Console Setup
+
+1. Go to [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create or select an **OAuth 2.0 Client ID** (Application type: Web application)
+3. Under **Authorized redirect URIs**, add:
+   ```
+   http://localhost:8080/auth/google/callback
+   ```
+4. Under **Authorized JavaScript origins**, add:
+   ```
+   http://localhost:8080
+   ```
+5. Enable these APIs in [API Library](https://console.cloud.google.com/apis/library):
+   - Google People API (for login profile)
+   - Gmail API *(if using Gmail integration)*
+   - Google Drive API *(if using Drive/Docs/Sheets/Slides)*
+   - Google Calendar API *(if using Calendar integration)*
+
+### 4. Notion Setup (Optional)
+
+1. Go to [Notion Integrations](https://www.notion.so/profile/integrations) → **New integration**
+2. Set **Redirect URI** to:
+   ```
+   http://localhost:8080/oauth/notion/callback
+   ```
+3. Add to `.env`:
+   ```env
+   NOTION_CLIENT_ID=your-notion-client-id
+   NOTION_CLIENT_SECRET=your-notion-client-secret
+   ```
+
+### 5. Start
 
 ```bash
 docker compose up
@@ -123,8 +151,9 @@ Required environment variables:
 For production, update URLs:
 
 ```env
-GOOGLE_CALLBACK_URL=https://api.yourdomain.com/auth/google/callback
+GOOGLE_CALLBACK_URL=https://yourdomain.com/auth/google/callback
 APP_URL=https://yourdomain.com
+API_BASE_URL=https://yourdomain.com
 ```
 
 ---
