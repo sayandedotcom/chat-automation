@@ -2,7 +2,7 @@
 
 AI-powered chat automation platform with an Express API, Next.js frontend, and a LangGraph-based Python agent with MCP tool integrations.
 
-![Workflow Graph](workflow_graph.png)
+![Workflow Graph](workflow_graph.svg)
 
 ## Architecture
 
