@@ -1,0 +1,28 @@
+# Code Owners — defines who is responsible for code review
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @sayandedotcom
+
+# Frontend (Next.js)
+/apps/web/ @sayandedotcom
+
+# Backend API (Express + tRPC)
+/apps/api/ @sayandedotcom
+
+# AI Agent (Python + LangGraph)
+/apps/agent/ @sayandedotcom
+
+# Shared packages
+/packages/database/ @sayandedotcom
+/packages/trpc/ @sayandedotcom
+/packages/ui/ @sayandedotcom
+
+# Infrastructure & DevOps
+/docker-compose.yml @sayandedotcom
+/nginx/ @sayandedotcom
+/.github/ @sayandedotcom
+
+# Config & Tooling
+turbo.json @sayandedotcom
+pnpm-workspace.yaml @sayandedotcom
