@@ -49,5 +49,5 @@ ENV NODE_ENV=development
 
 EXPOSE 8000
 
-# tsx watch gives hot-reload on file changes
-CMD ["pnpm", "--filter", "api", "dev"]
+# Run migrations then start dev server with hot-reload
+CMD sh -c "pnpm --filter @workspace/database run db:migrate:deploy && pnpm --filter api dev"

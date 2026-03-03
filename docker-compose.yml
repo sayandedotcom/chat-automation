@@ -31,10 +31,10 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-32-chars-minimum}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:8000/auth/google/callback}
-      APP_URL: ${APP_URL:-http://localhost:3000}
-      API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
-      AGENT_API_URL: ${AGENT_API_URL:-http://agent:8001}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:8080/auth/google/callback}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
+      AGENT_API_URL: http://agent:8001
       NOTION_CLIENT_ID: ${NOTION_CLIENT_ID:-}
       NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET:-}
       NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:8000/oauth/notion/callback}
