@@ -39,6 +39,7 @@ from chat.workflow.context import (
 )
 from chat.workflow.llm import get_executor_llm, get_planner_llm
 from chat.workflow.prompts import EXECUTOR_SYSTEM_PROMPT, PLANNER_SYSTEM_PROMPT
+from chat.utils.mcp_client import inject_user_email_into_tool_input
 
 # Re-export routing symbols so graph.py can import them from here (single source)
 from chat.workflow.routing import (  # noqa: F401
@@ -53,6 +54,33 @@ if TYPE_CHECKING:
     from chat.integrations.registry import IntegrationRegistry
 
 logger = logging.getLogger(__name__)
+
+
+class EmailAwareToolNode(ToolNode):
+    """ToolNode that injects google_user_email from workflow state into tool inputs."""
+
+    def __init__(self, tools: list[BaseTool], **kwargs):
+        super().__init__(tools, **kwargs)
+        self._user_email: Optional[str] = None
+
+    def set_user_email(self, email: Optional[str]):
+        """Set the user email to inject into tool calls."""
+        self._user_email = email
+
+    def invoke(self, input: dict, config=None, **kwargs) -> dict:
+        """Invoke tools with user email injection."""
+        if self._user_email and isinstance(input, dict):
+            # Inject email into all tool call arguments
+            messages = input.get("messages", [])
+            if messages and isinstance(messages, list):
+                for msg in messages:
+                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                        for tool_call in msg.tool_calls:
+                            if isinstance(tool_call.get("args"), dict):
+                                inject_user_email_into_tool_input(
+                                    tool_call["args"], self._user_email
+                                )
+        return super().invoke(input, config=config, **kwargs)
 
 
 class WorkflowNodes:
@@ -71,8 +99,11 @@ class WorkflowNodes:
             else self.executor_llm
         )
         self.tool_node = (
-            ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
+            EmailAwareToolNode(self.tools, handle_tool_errors=True)
+            if self.tools
+            else None
         )
+        self._current_user_email: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Smart Router
@@ -213,7 +244,12 @@ class WorkflowNodes:
         self.executor_with_tools = (
             self.executor_llm.bind_tools(tools) if tools else self.executor_llm
         )
-        self.tool_node = ToolNode(tools, handle_tool_errors=True) if tools else None
+        self.tool_node = (
+            EmailAwareToolNode(tools, handle_tool_errors=True) if tools else None
+        )
+        # Update tool node with current user email if available
+        if self.tool_node and self._current_user_email:
+            self.tool_node.set_user_email(self._current_user_email)
 
         logger.info(
             f"Smart router: bound {len(tools)} tools from {len(integrations)} integrations"
@@ -386,6 +422,9 @@ class WorkflowNodes:
         Execute the current step automatically.
         Re-entered after ToolNode for multi-hop tool calling.
         """
+        # Set user email from state for tool invocation
+        self.set_user_email_from_state(state)
+
         plan = state["plan"]
         current_index = state["current_step_index"]
 
@@ -731,6 +770,13 @@ class WorkflowNodes:
             "_step_tool_calls": 0,
         }
 
+    def set_user_email_from_state(self, state: WorkflowState):
+        """Extract user email from workflow state and set it in the tool node."""
+        email = state.get("google_user_email")
+        self._current_user_email = email
+        if self.tool_node and isinstance(self.tool_node, EmailAwareToolNode):
+            self.tool_node.set_user_email(email)
+
     def get_tool_node(self) -> ToolNode:
         return self.tool_node
 
@@ -781,7 +827,10 @@ class WorkflowNodes:
         new_tools = self.registry.get_toolset([missing_integration])
         self.tools.extend(new_tools)
         self.executor_with_tools = self.executor_llm.bind_tools(self.tools)
-        self.tool_node = ToolNode(self.tools, handle_tool_errors=True)
+        self.tool_node = EmailAwareToolNode(self.tools, handle_tool_errors=True)
+        # Update tool node with current user email if available
+        if self._current_user_email:
+            self.tool_node.set_user_email(self._current_user_email)
 
         cfg = self.registry.get_integration_config(missing_integration)
         incremental_load_events.append(

@@ -10,7 +10,6 @@ from langchain_core.tools import BaseTool
 from typing import Optional
 from dotenv import load_dotenv
 import asyncio
-import functools
 import logging
 import os
 
@@ -212,11 +211,12 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
 
 # ---------------------------------------------------------------------------
 # Gmail tool schema sanitisation: auto-fill identity params so the LLM never
-# sees "userId" / "user_id" and never asks the user for an email address.
+# sees "userId" / "user_id" / "user_google_email" and never asks the user for an email address.
 # ---------------------------------------------------------------------------
 _AUTO_FILL_PARAMS = {
     "userId": "me",
     "user_id": "me",
+    # user_google_email is set to None by default, will be overridden if available in state
 }
 
 # Any tool whose name starts with one of these prefixes is considered a Gmail
@@ -282,6 +282,18 @@ def _strip_autofill_params_from_schema(tool: BaseTool) -> None:
             logger.info(f"Stripped auto-fill identity params from tool: {tool.name}")
     except Exception as e:
         logger.warning(f"Could not strip params from {tool.name}: {e}")
+
+
+def inject_user_email_into_tool_input(
+    input_dict: dict, user_google_email: Optional[str] = None
+) -> dict:
+    """Inject user_google_email into a tool input dict if available and needed.
+
+    This is called by the executor before invoking Gmail tools.
+    """
+    if isinstance(input_dict, dict) and user_google_email:
+        input_dict["user_google_email"] = user_google_email
+    return input_dict
 
 
 class _ToolAutofillWrapper:

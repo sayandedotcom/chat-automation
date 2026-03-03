@@ -100,7 +100,7 @@ def _make_mock_tool(name: str, schema: dict | None = None) -> MagicMock:
 # ===================================================================
 
 @pytest.mark.asyncio
-@patch("chat.workflow.nodes.ToolNode", MagicMock)
+@patch("chat.workflow.nodes.EmailAwareToolNode", MagicMock)
 class TestZeroToolGuard:
     """If an auth-required integration has 0 tools loaded, smart_router_node
     should return auth_required_integrations instead of letting the LLM

@@ -40,6 +40,8 @@ class WorkflowRequestSchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
     connected_integrations: Optional[list[str]] = Field(default=None)
+    # Authenticated user's Google email (from OAuth token)
+    google_user_email: Optional[str] = Field(default=None)
 
 
 class WorkflowResumeSchema(BaseModel):
@@ -57,6 +59,8 @@ class WorkflowResumeSchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
     connected_integrations: Optional[list[str]] = Field(default=None)
+    # Authenticated user's Google email (from OAuth token)
+    google_user_email: Optional[str] = Field(default=None)
 
 
 class WorkflowRetrySchema(BaseModel):
@@ -71,6 +75,8 @@ class WorkflowRetrySchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
     connected_integrations: Optional[list[str]] = Field(default=None)
+    # Authenticated user's Google email (from OAuth token)
+    google_user_email: Optional[str] = Field(default=None)
 
 
 async def get_or_create_service(
@@ -123,6 +129,7 @@ async def execute_workflow(data: WorkflowRequestSchema):
             request=data.request,
             thread_id=data.thread_id,
             connected_integrations=data.connected_integrations,
+            google_user_email=data.google_user_email,
         )
 
         return result
@@ -302,6 +309,7 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
             thread_id=data.thread_id,
             step_number=data.step_number,
             connected_integrations=data.connected_integrations,
+            google_user_email=data.google_user_email,
         )
 
         if "error" in result:
@@ -345,6 +353,7 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
             thread_id=data.thread_id,
             decision=decision,
             connected_integrations=data.connected_integrations,
+            google_user_email=data.google_user_email,
         )
 
         if "error" in result:

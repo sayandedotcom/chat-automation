@@ -126,6 +126,14 @@ export async function getRefreshedTokens(
 }
 
 /**
+ * Get the authenticated user's Google email from cookies.
+ * Set by frontend during OAuth flow.
+ */
+export function getGoogleUserEmail(req: Request): string | null {
+  return (req.cookies["google_user_email"] as string) ?? null;
+}
+
+/**
  * Get tokens from cookies WITHOUT refreshing.
  * Use this for resume/retry endpoints that continue existing workflows —
  * changing the token would create a new service cache key and lose the workflow.
