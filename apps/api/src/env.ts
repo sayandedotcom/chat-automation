@@ -1,5 +1,11 @@
+import dotenv from "dotenv";
+import path from "path";
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+
+// Load root .env before validation — must happen here (not index.ts)
+// because ESM hoists static imports, so env.ts executes before index.ts body.
+dotenv.config({ path: path.resolve(import.meta.dirname, "../../../.env") });
 
 export const env = createEnv({
   server: {

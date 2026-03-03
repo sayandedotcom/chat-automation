@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import os
 import logging
 
 # Configure logging so diagnostic messages from nodes.py appear in console
@@ -8,7 +7,14 @@ logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message
 from fastapi import FastAPI
 # from fastapi.middleware.cors import CORSMiddleware
 
-from chat.utils.mcp_client import TAVILY_API_KEY
+from chat.config import (
+    GMAIL_TOKEN,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    NOTION_TOKEN,
+    TAVILY_API_KEY,
+    VERCEL_TOKEN,
+)
 from chat.integrations.registry import get_registry
 from chat.routers import chat as chat_router
 from chat.routers import credentials as credentials_router
@@ -24,14 +30,13 @@ async def lifespan(app: FastAPI):
     """
     print("🔥 Pre-warming MCP connections and registry...")
 
-    # Get tokens from environment
     tokens = {
-        "gmail_token": os.getenv("GMAIL_TOKEN"),
-        "notion_token": os.getenv("NOTION_TOKEN"),
-        "vercel_token": os.getenv("VERCEL_TOKEN"),
+        "gmail_token": GMAIL_TOKEN,
+        "notion_token": NOTION_TOKEN,
+        "vercel_token": VERCEL_TOKEN,
         "tavily_api_key": TAVILY_API_KEY,
-        "google_client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "google_client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+        "google_client_id": GOOGLE_CLIENT_ID,
+        "google_client_secret": GOOGLE_CLIENT_SECRET,
     }
 
     try:

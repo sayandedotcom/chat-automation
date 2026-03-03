@@ -8,15 +8,13 @@ Supports Gmail, Vercel, Notion, and Tavily integrations.
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import BaseTool
 from typing import Optional
-from dotenv import load_dotenv
 import asyncio
 import logging
 import os
 
-logger = logging.getLogger(__name__)
+from chat.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_MCP_CREDENTIALS_DIR
 
-# Load environment variables
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 def create_mcp_client(
@@ -47,15 +45,11 @@ def create_mcp_client(
     # Google Workspace MCP Server (https://github.com/taylorwilsdon/google_workspace_mcp)
     # Uses single-user mode with credentials synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
     # The sync happens when user connects Gmail on frontend, tokens are written to MCP credentials dir
-    client_id = google_client_id or os.getenv("GOOGLE_CLIENT_ID")
-    client_secret = google_client_secret or os.getenv("GOOGLE_CLIENT_SECRET")
+    client_id = google_client_id or GOOGLE_CLIENT_ID
+    client_secret = google_client_secret or GOOGLE_CLIENT_SECRET
 
     if client_id and client_secret:
-        # Use /tmp for credentials — the only writable path in Lambda/serverless envs.
-        # Must match MCP_CREDENTIALS_DIR in credentials.py (overridable via env var).
-        mcp_creds_dir = os.getenv(
-            "GOOGLE_MCP_CREDENTIALS_DIR", "/tmp/.google_workspace_mcp/credentials"
-        )
+        mcp_creds_dir = str(GOOGLE_MCP_CREDENTIALS_DIR)
         workspace_env = os.environ.copy()
         workspace_env.update(
             {
@@ -439,7 +433,3 @@ async def load_mcp_tools(
 
         traceback.print_exc()
         return []
-
-
-# Default Tavily API key from environment
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")

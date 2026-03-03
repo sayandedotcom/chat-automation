@@ -12,8 +12,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from chat.config import TAVILY_API_KEY
 from chat.service import ChatService
-from chat.utils.mcp_client import TAVILY_API_KEY
 
 logger = logging.getLogger(__name__)
 
