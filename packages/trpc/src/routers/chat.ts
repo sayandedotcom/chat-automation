@@ -9,8 +9,6 @@ import {
   getGoogleUserEmail,
 } from "../lib/token-utils.js";
 
-const AGENT_API_URL = process.env.AGENT_API_URL;
-
 const requiresExpressContext = middleware(({ ctx, next }) => {
   if (!("req" in ctx)) {
     throw new TRPCError({
@@ -39,7 +37,7 @@ export const chatRouter = router({
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
       const googleUserEmail = getGoogleUserEmail(ctx.req);
 
-      const response = await fetch(`${AGENT_API_URL}/chat`, {
+      const response = await fetch(`${process.env.AGENT_API_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -79,7 +77,7 @@ export const chatRouter = router({
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
       const googleUserEmail = getGoogleUserEmail(ctx.req);
 
-      const response = await fetch(`${AGENT_API_URL}/chat/resume`, {
+      const response = await fetch(`${process.env.AGENT_API_URL}/chat/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,7 +117,7 @@ export const chatRouter = router({
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
       const googleUserEmail = getGoogleUserEmail(ctx.req);
 
-      const response = await fetch(`${AGENT_API_URL}/chat/retry`, {
+      const response = await fetch(`${process.env.AGENT_API_URL}/chat/retry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

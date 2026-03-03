@@ -166,6 +166,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                 request=data.request,
                 thread_id=data.thread_id,
                 connected_integrations=data.connected_integrations,
+                google_user_email=data.google_user_email,
             ):
                 # Capture thread_id from events
                 if event.get("thread_id"):

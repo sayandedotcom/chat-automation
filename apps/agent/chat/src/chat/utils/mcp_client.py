@@ -219,13 +219,22 @@ _GOOGLE_WORKSPACE_TOOL_PREFIXES = (
     "search_gmail", "get_gmail", "send_gmail", "draft_gmail",
     "list_gmail", "manage_gmail", "modify_gmail", "batch_modify_gmail",
     "create_gmail", "delete_gmail",
-    # Calendar / Drive / Docs / Sheets / Slides — some also expose userId
+    # Calendar
     "list_calendars", "get_events", "create_event", "modify_event",
     "delete_event", "query_freebusy",
+    # Drive
     "search_drive", "get_drive", "list_drive", "create_drive",
     "import_to_google", "set_drive", "check_drive", "update_drive",
     "share_drive", "batch_share", "copy_drive", "transfer_drive",
     "remove_drive", "get_drive_file",
+    # Docs
+    "create_doc", "get_doc", "update_doc", "list_doc", "delete_doc", "append_to_doc",
+    # Sheets
+    "create_sheet", "get_sheet", "update_sheet", "list_sheet", "read_sheet",
+    "append_sheet", "clear_sheet", "delete_sheet", "create_spreadsheet",
+    # Slides
+    "create_presentation", "get_slide", "update_slide", "add_slide", "list_slide",
+    "delete_slide",
 )
 
 

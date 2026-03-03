@@ -1,6 +1,10 @@
 import { Router, type IRouter } from "express";
 import { Readable } from "stream";
-import { getRefreshedTokens, getConnectedIntegrations } from "@workspace/trpc/lib/token-utils";
+import {
+  getRefreshedTokens,
+  getConnectedIntegrations,
+  getGoogleUserEmail,
+} from "@workspace/trpc/lib/token-utils";
 
 const AGENT_API_URL = process.env.AGENT_API_URL as string;
 
@@ -24,6 +28,7 @@ chatExpressRouter.post("/stream", async (req, res) => {
 
   const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(req, res);
   const connectedIntegrations = getConnectedIntegrations(req);
+  const googleUserEmail = getGoogleUserEmail(req);
 
   let agentResponse: Response;
   try {
@@ -38,6 +43,7 @@ chatExpressRouter.post("/stream", async (req, res) => {
         vercel_token: vercelToken,
         slack_token: slackToken,
         connected_integrations: connectedIntegrations,
+        google_user_email: googleUserEmail,
       }),
     });
   } catch (err) {

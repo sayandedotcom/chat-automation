@@ -39,8 +39,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.17",
     "@t3-oss/env-nextjs": "^0.13.10",
+    "@tailwindcss/postcss": "^4.1.17",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^20.19.25",
@@ -50,6 +50,7 @@
     "@workspace/eslint-config": "workspace:^",
     "@workspace/prettier-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "dotenv": "^17.2.3",
     "eslint": "^9.39.1",
     "jsdom": "^26.0.0",
     "prettier": "^3.7.4",
