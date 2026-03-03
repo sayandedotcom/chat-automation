@@ -1,29 +1,33 @@
-graph TD
-    START([START]) --> planner
-
-    planner -->|route_to_executor| executor
-    planner -->|route_to_executor| executor_with_approval
-    planner -->|route_to_executor| END
-
-    executor -->|should_continue| tools
-    executor -->|no tools| step_complete
-
-    executor_with_approval -->|should_continue| tools
-    executor_with_approval -->|awaiting_approval| END
-    executor_with_approval -->|no tools| step_complete
-
-    tools -->|route_after_tools| executor
-    tools -->|route_after_tools| executor_with_approval
-
-    step_complete -->|should_execute_next| executor
-    step_complete -->|should_execute_next| executor_with_approval
-    step_complete -->|should_execute_next| END
-
-    END([END])
-
-    classDef startEnd fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef node fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    classDef decision fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-
-    class START,END startEnd
-    class planner,executor,executor_with_approval,step_complete,tools node
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	smart_router(smart_router)
+	planner(planner)
+	executor(executor)
+	executor_with_approval(executor_with_approval)
+	step_complete(step_complete)
+	tools(tools)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> smart_router;
+	executor -.-> step_complete;
+	executor -.-> tools;
+	executor_with_approval -. &nbsp;end&nbsp; .-> __end__;
+	executor_with_approval -.-> step_complete;
+	executor_with_approval -.-> tools;
+	planner -. &nbsp;end&nbsp; .-> __end__;
+	planner -.-> executor;
+	planner -.-> executor_with_approval;
+	smart_router -. &nbsp;end&nbsp; .-> __end__;
+	smart_router -.-> planner;
+	step_complete -. &nbsp;end&nbsp; .-> __end__;
+	step_complete -.-> executor;
+	step_complete -.-> executor_with_approval;
+	tools -.-> executor;
+	tools -.-> executor_with_approval;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
