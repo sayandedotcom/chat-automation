@@ -17,11 +17,7 @@ import {
   createMentionConfig,
   useChatInput,
 } from "@workspace/ui/components/chat-input";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 
 type MemberItem = {
   id: string;
@@ -52,20 +48,14 @@ const files: FileItem[] = [
 function IntegrationIcon({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-white shadow-sm overflow-hidden p-0.5 opacity-90 hover:opacity-100 transition-opacity">
-      <Image
-        src={src}
-        alt={alt}
-        width={16}
-        height={16}
-        className="object-contain"
-      />
+      <Image src={src} alt={alt} width={16} height={16} className="object-contain" />
     </div>
   );
 }
 
 export function ChatInputWithMentions({
   onSubmit,
-  placeholder = "e.g., Research the best auth services, create a Notion doc with findings...",
+  placeholder = "",
 }: {
   onSubmit?: (value: string) => void;
   placeholder?: string;
@@ -73,33 +63,30 @@ export function ChatInputWithMentions({
   const [highlightedOutput, setHighlightedOutput] = useState<string>("");
   const [isAutoMode, setIsAutoMode] = useState(false);
 
-  const { value, onChange, parsed, handleSubmit, mentionConfigs } =
-    useChatInput({
-      mentions: {
-        member: createMentionConfig<MemberItem>({
-          type: "member",
-          trigger: "@",
-          items: members,
-        }),
-        file: createMentionConfig<FileItem>({
-          type: "file",
-          trigger: "/",
-          items: files,
-        }),
-      },
-      onSubmit: (parsedValue) => {
-        if (onSubmit) {
-          onSubmit(parsedValue.content);
-        }
-      },
-    });
+  const { value, onChange, parsed, handleSubmit, mentionConfigs } = useChatInput({
+    mentions: {
+      member: createMentionConfig<MemberItem>({
+        type: "member",
+        trigger: "@",
+        items: members,
+      }),
+      file: createMentionConfig<FileItem>({
+        type: "file",
+        trigger: "/",
+        items: files,
+      }),
+    },
+    onSubmit: (parsedValue) => {
+      if (onSubmit) {
+        onSubmit(parsedValue.content);
+      }
+    },
+  });
 
   const hasText = parsed.content.trim().length > 0;
 
   useEffect(() => {
-    highlightCode(JSON.stringify(parsed, null, 2), "json").then(
-      setHighlightedOutput,
-    );
+    highlightCode(JSON.stringify(parsed, null, 2), "json").then(setHighlightedOutput);
   }, [parsed]);
 
   return (
@@ -109,7 +96,7 @@ export function ChatInputWithMentions({
           onSubmit={handleSubmit}
           value={value}
           onChange={onChange}
-          className="bg-[#121214] border border-[#222225] rounded-[24px] shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ring-1 ring-white/5 focus-within:ring-white/10 focus-within:border-[#333336]"
+          className="bg-[#0c0c0c] border border-white/5 rounded-[24px] shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ring-1 ring-transparent focus-within:ring-white/5 focus-within:border-white/10"
         >
           <ChatInputMention
             type={mentionConfigs.member.type}
@@ -119,16 +106,10 @@ export function ChatInputWithMentions({
             {(item) => (
               <>
                 <Avatar className="h-5 w-5">
-                  <AvatarImage
-                    src={item.image ?? "/placeholder.jpg"}
-                    alt={item.name}
-                  />
+                  <AvatarImage src={item.image ?? "/placeholder.jpg"} alt={item.name} />
                   <AvatarFallback>{item.name[0]?.toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span
-                  className="text-xs font-medium truncate max-w-[100px]"
-                  title={item.name}
-                >
+                <span className="text-xs font-medium truncate max-w-[100px]" title={item.name}>
                   {item.name}
                 </span>
                 <Badge variant="outline" className="ml-auto text-xs px-1 h-5">
@@ -145,10 +126,7 @@ export function ChatInputWithMentions({
             {(item) => (
               <>
                 <FileIcon className="h-3 w-3 text-muted-foreground" />
-                <span
-                  className="text-xs font-medium truncate max-w-[150px]"
-                  title={item.name}
-                >
+                <span className="text-xs font-medium truncate max-w-[150px]" title={item.name}>
                   {item.name}
                 </span>
               </>
@@ -157,16 +135,13 @@ export function ChatInputWithMentions({
 
           {/* Top: Text input */}
           <ChatInputEditor
-            placeholder={placeholder}
-            className="text-neutral-200 placeholder:text-[#6e6e77] min-h-[44px] text-[15px] pt-4 px-4 pb-2 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
+            placeholder=""
+            className="text-[#e5e5e5] placeholder:text-transparent min-h-[24px] text-[15px] pt-3 px-4 pb-0 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
           />
 
           {/* Bottom: Actions bar */}
-          <ChatInputGroupAddon
-            align="block-end"
-            className="flex flex-col w-full"
-          >
-            <div className="flex items-center justify-between px-3 pb-3 pt-1 w-full">
+          <ChatInputGroupAddon align="block-end" className="flex flex-col w-full">
+            <div className="flex items-center justify-between px-3 pb-2 pt-0 w-full">
               <div className="flex items-center gap-1.5">
                 <ChatInputMentionButton
                   variant="ghost"
@@ -180,9 +155,7 @@ export function ChatInputWithMentions({
                   onPressedChange={setIsAutoMode}
                   className="h-7 px-3 gap-2 rounded-full border border-[#2a2a2e] bg-[#1a1a1e] text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2e] data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-600/40 data-[state=on]:to-indigo-600/30 data-[state=on]:border-purple-500/30 data-[state=on]:text-white transition-all shadow-sm"
                 >
-                  <span className="text-[13px] font-medium tracking-wide">
-                    Auto
-                  </span>
+                  <span className="text-[13px] font-medium tracking-wide">Auto</span>
                   <div
                     className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
                       isAutoMode
@@ -219,26 +192,22 @@ export function ChatInputWithMentions({
                 >
                   <Mic className="h-[18px] w-[18px]" />
                 </Button>
-                <ChatInputSubmitButton className={`rounded-full h-8 w-8 transition-colors flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4 [&>svg]:stroke-[2.5] ${hasText ? "bg-white/20 text-white hover:bg-white/30" : "bg-[#2a2a2e] text-[#a1a1aa] hover:bg-[#3a3a3e] hover:text-white"}`} />
+                <ChatInputSubmitButton
+                  className={`rounded-full h-8 w-8 transition-colors flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4 [&>svg]:stroke-[2.5] ${hasText ? "bg-white/20 text-white hover:bg-white/30" : "bg-[#2a2a2e] text-[#a1a1aa] hover:bg-[#3a3a3e] hover:text-white"}`}
+                />
               </div>
             </div>
 
             {/* Competitor subtle row: Connect Your Tools */}
-            <div className="flex items-center justify-start gap-4 border-t border-white/[0.04] px-4 py-3 bg-[#0e0e11]/50 rounded-b-[24px]">
-              <span className="text-[11px] font-medium text-[#71717a] tracking-[0.03em]">
+            <div className="flex items-center justify-center gap-4 border-t border-white/[0.03] px-4 py-2 bg-transparent rounded-b-[24px]">
+              <span className="text-[10px] font-medium text-[#71717a] tracking-[0.04em] uppercase">
                 Connect Your Tools
               </span>
               <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
                 <IntegrationIcon src="/integrations/gmail.svg" alt="Gmail" />
                 <IntegrationIcon src="/integrations/notion.svg" alt="Notion" />
-                <IntegrationIcon
-                  src="/integrations/google_sheets.svg"
-                  alt="Sheets"
-                />
-                <IntegrationIcon
-                  src="/integrations/google_docs.svg"
-                  alt="Docs"
-                />
+                <IntegrationIcon src="/integrations/google_sheets.svg" alt="Sheets" />
+                <IntegrationIcon src="/integrations/google_docs.svg" alt="Docs" />
                 <IntegrationIcon src="/integrations/drive.svg" alt="Drive" />
                 <IntegrationIcon src="/integrations/slack.svg" alt="Slack" />
                 <div className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-[#222] text-[#a1a1aa] border border-white/10 hover:bg-[#333] transition-colors">

@@ -18,3 +18,17 @@ __all__ = [
 def main() -> None:
     """Entry point for the chat package."""
     print("Chat Agent - Use 'fastapi dev src/chat/api.py' to run the server")
+
+
+def studio() -> None:
+    """Run LangGraph Studio local development server."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    config_path = Path(__file__).parent.parent.parent / "langgraph.json"
+    if not config_path.exists():
+        print(f"Error: langgraph.json not found at {config_path}")
+        sys.exit(1)
+
+    subprocess.run([sys.executable, "-m", "langgraph", "dev"], cwd=config_path.parent)

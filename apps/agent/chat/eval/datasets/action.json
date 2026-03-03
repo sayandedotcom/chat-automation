@@ -1,0 +1,155 @@
+[
+    {
+        "prompt": "Catch me up on my latest emails please."
+    },
+    {
+        "prompt": "Can you please schedule the meeting between me and Tejas based on his and my availability? Send over the invite and set up the meeting please (Google Meet) for when I'm available. No need to email him with a reply, just setup and send the calendar invite."
+    },
+    {
+        "prompt": "Check my calendar availability for October 22nd between 8-10 pm GST"
+    },
+    {
+        "prompt": "Check if I have any other meetings scheduled on October 22nd apart from the one with Tejas"
+    },
+    {
+        "prompt": "Create a draft reply confirming my availability with Tejas with the meeting details."
+    },
+    {
+        "prompt": "Send the draft reply to Tejas with the meeting details."
+    },
+    {
+        "prompt": "Research the best options for RAG-as-a-service YC companies we can partner with for our AI product capabilities and form a Google document with details on them, including pricing, features, and other relevant information."
+    },
+    {
+        "prompt": "Create a Google Sheet with up-to-date information about the best LLMs currently available on the market for PDF content extraction, including input and output token pricing."
+    },
+    {
+        "prompt": "Can you please send a reply to Ari by extracting our financials from our csv spreadsheet on Google Drive? Tell him the revenue growth and other relevant numbers as requested."
+    },
+    {
+        "prompt": "Can you please share the financial CSV we have on our Google Drive with Ari as requested in his email?"
+    },
+    {
+        "prompt": "Reply to Ronit confirming my availability next week and suggest 2-3 specific time slots that work for both of us."
+    },
+    {
+        "prompt": "Find all emails from VCs in the past month and create a summary document of their requests."
+    },
+    {
+        "prompt": "Check if I have any scheduling conflicts on Monday-Wednesday next week and reply to Ronit with my availability."
+    },
+    {
+        "prompt": "Check my calendar availability for next week to schedule an interview with Clarence and draft a reply with 2-3 time slot options."
+    },
+    {
+        "prompt": "Create a new folder in Google Drive called Candidates - Backend Engineer and save Clarence's application email there."
+    },
+    {
+        "prompt": "Schedule a 45-minute interview with Clarence for next Tuesday at 3 PM GST if I'm available and send him a calendar invite with Google Meet link."
+    },
+    {
+        "prompt": "Search my emails for all job applications received in the past month and create a candidate tracking spreadsheet."
+    },
+    {
+        "prompt": "Draft a reply to Clarence confirming receipt of his application and letting him know our hiring timeline."
+    },
+    {
+        "prompt": "Tell me about Clarence's resume and whether he seems a good fit for a backend engineering role based on his experience in his resume."
+    },
+    {
+        "prompt": "Research the best vegetarian-friendly restaurants in Dubai and create both a spreadsheet and a Notion document with the details."
+    },
+    {
+        "prompt": "What meetings do I have scheduled for the week of the October 19th, and when are they?"
+    },
+    {
+        "prompt": "Find all the compliance gaps mentioned in the SOC2 AI addendum document that are still In Progress and create a checklist Google document for the team."
+    },
+    {
+        "prompt": "Check the Holidays company file and block out all the holidays on my calendar for 2025"
+    },
+    {
+        "prompt": "Create a folder called 'Due Diligence - ACME VC' and copy the Financials, Pitch Deck, and SOC2 AI Addendum into it, then share the folder with investor@acme.com."
+    },
+    {
+        "prompt": "Compare the retention periods mentioned in the SOC2 AI addendum and create a summary table."
+    },
+    {
+        "prompt": "Find the Summer Vacation dates in the holiday calendar document and block 'OOO - Summer Break' on my calendar for those dates"
+    },
+    {
+        "prompt": "Extract the Q4 2024 revenue projection from the financials spreadsheet and check if it's consistent with the ARR mentioned in the Acme product pitch presentation."
+    },
+    {
+        "prompt": "Create a new spreadsheet that lists all the third-party AI vendors mentioned in the SOC2 document along with their compliance requirements."
+    },
+    {
+        "prompt": "Check which compliance control IDs in the SOC2 AI addendum are marked 'Compliant' vs 'In Progress' and create a table on a spreadsheet for me to look at."
+    },
+    {
+        "prompt": "Find all the Diwali-related holidays in the 2025 holidays calendar (there are multiple days) and create a calendar block for 'Diwali Festival Week' covering all of them."
+    },
+    {
+        "prompt": "Calculate our monthly burn rate from the Acme quarterly financials spreadsheet, project our runway, and create a financial summary document that addresses the board's concerns about extending runway to 12+ months."
+    },
+    {
+        "prompt": "Review the product roadmap document and the SOC2 compliance doc - identify any features that are blocked by pending compliance items and create a prioritization memo on Notion."
+    },
+    {
+        "prompt": "Analyze the Q3 and Q4 revenue data from the financials spreadsheet, calculate if we're meeting the board's 20% MoM growth target, and create a presentation slide showing the trend with projections."
+    },
+    {
+        "prompt": "Find all calendar scheduling conflicts during the Q4 product release dates mentioned in the product roadmap and suggest alternative dates based on the 2025 holidays calendar, avoiding all vacation periods"
+    },
+    {
+        "prompt": "Create a comprehensive security compliance briefing Notion document for enterprise prospects by extracting key points from the SOC2 AI addendum and formatting them in business-friendly language (remove technical jargon, focus on customer benefits)."
+    },
+    {
+        "prompt": "Calculate the cost impact of the hiring plan in the roadmap on our burn rate using $150K average salary, project the new runway based on current financials, and create a hiring timeline recommendation."
+    },
+    {
+        "prompt": "Review all the board action items due October 25th from the Board Meeting notes, check which documents we already have (roadmap, financials, SOC2 timeline) and create a status report showing what's complete vs. what still needs work."
+    },
+    {
+        "prompt": "Extract all the incident response SLAs from the SOC2 AI addendum and create a table comparing them to standard response times mentioned in the document."
+    },
+    {
+        "prompt": "Analyze the engineering capacity mentioned in the Product Roadmap and calculate if we can realistically complete all Q4 committed features on time. Create a resource allocation recommendation on a spreadsheet."
+    },
+    {
+        "prompt": "Look up the next SOC2 review date from the AI compliance addendum and add a calendar reminder 2 weeks before it."
+    },
+    {
+        "prompt": "Create a one-page summary of the key metrics from the Acme product pitch presentation (problem, solution, traction, ask)."
+    },
+    {
+        "prompt": "Find all the August 2025 holidays from the company Holidays PDF and create a list of which ones fall on weekdays."
+    },
+    {
+        "prompt": "Extract the target completion date for API v2 from the product roadmap and add it to my calendar with a reminder 1 week before."
+    },
+    {
+        "prompt": "Look up the data retention period for training data in the SOC2 addendum and create a simple reference guide for the team on Notion."
+    },
+    {
+        "prompt": "Calculate total revenue for Q3 2024 from the quarterly financials spreadsheet and create a summary presentation on Google Slides."
+    },
+    {
+        "prompt": "Extract the third-party AI services list from the SOC2 compliance document and create a simple vendor contact spreadsheet."
+    },
+    {
+        "prompt": "Look up Independence Day 2025 from the company holidays PDF and block it on my calendar with an all-day event."
+    },
+    {
+        "prompt": "Find the MFA requirements mentioned in the SOC2 AI addendum and create a simple security checklist for new employees on Notion."
+    },
+    {
+        "prompt": "Look up the SOC2 certification effective date from the AI compliance addendum and calculate how many days until it expires."
+    },
+    {
+        "prompt": "Create a simple comparison table showing our Q3 vs Q4 revenue from the quarterly financials spreadsheet."
+    },
+    {
+        "prompt": "Find the session timeout duration for ML systems in the SOC2 document (4 hours) and create a quick reference security settings guide on Google Docs."
+    }
+]

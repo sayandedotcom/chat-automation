@@ -1,0 +1,8 @@
+{
+  "python_version": "3.11",
+  "dependencies": ["."],
+  "graphs": {
+    "agent": "./src/chat/workflow/studio.py:graph"
+  },
+  "env": ".env"
+}

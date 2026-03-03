@@ -355,9 +355,9 @@ class TestWrapToolWithAutofill:
         tool.invoke = fake_invoke
         tool.ainvoke = AsyncMock(return_value={})
 
-        _wrap_tool_with_autofill(tool)
+        wrapped = _wrap_tool_with_autofill(tool)
 
-        tool.invoke({"query": "test"})
+        wrapped.invoke({"query": "test"})
         assert captured["userId"] == "me"
         assert captured["query"] == "test"
 
@@ -373,9 +373,9 @@ class TestWrapToolWithAutofill:
         tool.invoke = fake_invoke
         tool.ainvoke = AsyncMock(return_value={})
 
-        _wrap_tool_with_autofill(tool)
+        wrapped = _wrap_tool_with_autofill(tool)
 
-        tool.invoke({"query": "test", "userId": "specific@example.com"})
+        wrapped.invoke({"query": "test", "userId": "specific@example.com"})
         assert captured["userId"] == "specific@example.com"
 
     @pytest.mark.asyncio
@@ -391,9 +391,9 @@ class TestWrapToolWithAutofill:
         tool.invoke = MagicMock(return_value={})
         tool.ainvoke = fake_ainvoke
 
-        _wrap_tool_with_autofill(tool)
+        wrapped = _wrap_tool_with_autofill(tool)
 
-        await tool.ainvoke({"to": "test@example.com", "subject": "hi"})
+        await wrapped.ainvoke({"to": "test@example.com", "subject": "hi"})
         assert captured["userId"] == "me"
         assert captured["to"] == "test@example.com"
 
@@ -411,9 +411,9 @@ class TestWrapToolWithAutofill:
         tool.invoke = fake_invoke
         tool.ainvoke = AsyncMock(return_value={})
 
-        _wrap_tool_with_autofill(tool)
+        wrapped = _wrap_tool_with_autofill(tool)
 
-        tool.invoke("raw string input")
+        wrapped.invoke("raw string input")
         assert captured["called"] is True
         assert captured["input"] == "raw string input"
 

@@ -284,31 +284,34 @@ def _strip_autofill_params_from_schema(tool: BaseTool) -> None:
         logger.warning(f"Could not strip params from {tool.name}: {e}")
 
 
+class _ToolAutofillWrapper:
+    """Wrapper that injects auto-fill params into tool calls."""
+
+    def __init__(self, wrapped_tool: BaseTool):
+        self._wrapped_tool = wrapped_tool
+
+    def __getattr__(self, name):
+        return getattr(self._wrapped_tool, name)
+
+    def invoke(self, input, config=None, **kwargs):
+        if isinstance(input, dict):
+            for param, default in _AUTO_FILL_PARAMS.items():
+                if param not in input:
+                    input[param] = default
+        return self._wrapped_tool.invoke(input, config=config, **kwargs)
+
+    async def ainvoke(self, input, config=None, **kwargs):
+        if isinstance(input, dict):
+            for param, default in _AUTO_FILL_PARAMS.items():
+                if param not in input:
+                    input[param] = default
+        return await self._wrapped_tool.ainvoke(input, config=config, **kwargs)
+
+
 def _wrap_tool_with_autofill(tool: BaseTool) -> BaseTool:
     """Wrap a Google Workspace tool so that auto-fill params are injected at
     call-time, even if the LLM omits them."""
-    original_invoke = tool.invoke
-    original_ainvoke = tool.ainvoke
-
-    @functools.wraps(original_invoke)
-    def patched_invoke(input, config=None, **kwargs):
-        if isinstance(input, dict):
-            for param, default in _AUTO_FILL_PARAMS.items():
-                if param not in input:
-                    input[param] = default
-        return original_invoke(input, config=config, **kwargs)
-
-    @functools.wraps(original_ainvoke)
-    async def patched_ainvoke(input, config=None, **kwargs):
-        if isinstance(input, dict):
-            for param, default in _AUTO_FILL_PARAMS.items():
-                if param not in input:
-                    input[param] = default
-        return await original_ainvoke(input, config=config, **kwargs)
-
-    tool.invoke = patched_invoke  # type: ignore[assignment]
-    tool.ainvoke = patched_ainvoke  # type: ignore[assignment]
-    return tool
+    return _ToolAutofillWrapper(tool)  # type: ignore[return-value]
 
 
 async def load_mcp_tools(
