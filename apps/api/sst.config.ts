@@ -25,7 +25,7 @@ export default $config({
         domain: "api.sayande.xyz",
         ports: [
           { listen: "443/https", forward: "8000/http" },
-          { listen: "80/http", forward: "443/https" },
+          { listen: "80/http", redirect: "443/https" },
         ],
       },
       image: {
