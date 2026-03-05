@@ -1,10 +1,6 @@
 import { Router, type IRouter } from "express";
-import { Readable } from "stream";
-import {
-  getRefreshedTokens,
-  getConnectedIntegrations,
-  getGoogleUserEmail,
-} from "@workspace/trpc/lib/token-utils";
+import { Readable, Transform } from "stream";
+import { getRefreshedTokens, getConnectedIntegrations } from "@workspace/trpc/lib/token-utils";
 
 const AGENT_API_URL = process.env.AGENT_API_URL as string;
 
@@ -28,7 +24,6 @@ chatExpressRouter.post("/stream", async (req, res) => {
 
   const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(req, res);
   const connectedIntegrations = getConnectedIntegrations(req);
-  const googleUserEmail = getGoogleUserEmail(req);
 
   let agentResponse: Response;
   try {
@@ -43,7 +38,6 @@ chatExpressRouter.post("/stream", async (req, res) => {
         vercel_token: vercelToken,
         slack_token: slackToken,
         connected_integrations: connectedIntegrations,
-        google_user_email: googleUserEmail,
       }),
     });
   } catch (err) {
@@ -69,7 +63,21 @@ chatExpressRouter.post("/stream", async (req, res) => {
     agentResponse.body as Parameters<typeof Readable.fromWeb>[0]
   );
 
-  nodeReadable.pipe(res);
+  // Convert agent heartbeat data events into SSE comments (`: keepalive\n\n`).
+  // SSE comments are silently ignored by EventSource / browser clients but
+  // still keep every hop (Agent → API → ALB → Browser) alive.
+  const heartbeatRewriter = new Transform({
+    transform(chunk, _encoding, callback) {
+      const text = chunk.toString();
+      const out = text.replace(/data: \{"type":\s*"heartbeat"\}\n\n/g, ": keepalive\n\n");
+      if (out.length > 0) {
+        this.push(out);
+      }
+      callback();
+    },
+  });
+
+  nodeReadable.pipe(heartbeatRewriter).pipe(res);
 
   req.on("close", () => {
     nodeReadable.destroy();

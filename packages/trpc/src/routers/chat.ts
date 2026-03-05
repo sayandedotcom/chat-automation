@@ -6,7 +6,6 @@ import {
   getRefreshedTokens,
   getTokensFromCookies,
   getConnectedIntegrations,
-  getGoogleUserEmail,
 } from "../lib/token-utils.js";
 
 const requiresExpressContext = middleware(({ ctx, next }) => {
@@ -35,7 +34,6 @@ export const chatRouter = router({
         ctx.res
       );
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
-      const googleUserEmail = getGoogleUserEmail(ctx.req);
 
       const response = await fetch(`${process.env.AGENT_API_URL}/chat`, {
         method: "POST",
@@ -48,7 +46,6 @@ export const chatRouter = router({
           vercel_token: vercelToken,
           slack_token: slackToken,
           connected_integrations: connectedIntegrations,
-          google_user_email: googleUserEmail,
         }),
       });
 
@@ -75,7 +72,6 @@ export const chatRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
-      const googleUserEmail = getGoogleUserEmail(ctx.req);
 
       const response = await fetch(`${process.env.AGENT_API_URL}/chat/resume`, {
         method: "POST",
@@ -89,7 +85,6 @@ export const chatRouter = router({
           vercel_token: vercelToken,
           slack_token: slackToken,
           connected_integrations: connectedIntegrations,
-          google_user_email: googleUserEmail,
         }),
       });
 
@@ -115,7 +110,6 @@ export const chatRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
       const connectedIntegrations = getConnectedIntegrations(ctx.req);
-      const googleUserEmail = getGoogleUserEmail(ctx.req);
 
       const response = await fetch(`${process.env.AGENT_API_URL}/chat/retry`, {
         method: "POST",
@@ -128,7 +122,6 @@ export const chatRouter = router({
           vercel_token: vercelToken,
           slack_token: slackToken,
           connected_integrations: connectedIntegrations,
-          google_user_email: googleUserEmail,
         }),
       });
 
