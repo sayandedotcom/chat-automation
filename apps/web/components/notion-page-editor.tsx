@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  RotateCcw,
-  Check,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, Check, X } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import Image from "next/image";
@@ -21,40 +15,40 @@ interface NotionPageEditorProps {
   onApprove: (
     stepNumber: number,
     action: "approve" | "edit" | "skip",
-    content?: Record<string, unknown>,
+    content?: Record<string, unknown>
   ) => void;
   completed?: boolean;
   className?: string;
 }
 
 function extractTitle(args: Record<string, unknown>): string {
+  // Simple flat format (from edited content)
+  if (typeof args.title === "string") return args.title;
+
+  // Notion API format: properties.title or properties.Name
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const props = args.properties as any;
   if (props) {
-    const tryExtract = (field: unknown): string | null => {
+    for (const key of ["title", "Title", "Name", "name"]) {
+      const field = props[key];
       if (typeof field === "string") return field;
-      if (Array.isArray(field) && field[0]?.text?.content)
-        return field[0].text.content;
-      if (field && typeof field === "object" && "title" in (field as Record<string, unknown>)) {
-        const inner = (field as Record<string, unknown>).title;
-        if (typeof inner === "string") return inner;
-        if (Array.isArray(inner) && inner[0]?.text?.content)
-          return inner[0].text.content;
+      if (Array.isArray(field) && field[0]?.text?.content) return field[0].text.content;
+      if (field?.title) {
+        if (typeof field.title === "string") return field.title;
+        if (Array.isArray(field.title) && field.title[0]?.text?.content)
+          return field.title[0].text.content;
       }
-      return null;
-    };
-
-    const fromTitle = tryExtract(props.title);
-    if (fromTitle) return fromTitle;
-    const fromName = tryExtract(props.Name);
-    if (fromName) return fromName;
+    }
   }
 
-  if (typeof args.title === "string") return args.title;
   return "";
 }
 
 function extractContent(args: Record<string, unknown>): string {
+  // Simple flat format (from edited content)
+  if (typeof args.content === "string") return args.content;
+
+  // Notion API format: children array of block objects
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const children = args.children as any[];
   if (!Array.isArray(children)) return "";
@@ -68,7 +62,7 @@ function extractContent(args: Record<string, unknown>): string {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((rt: any) => rt.text?.content ?? rt.plain_text ?? "")
         .join("");
-      lines.push(text);
+      if (text) lines.push(text);
     } else if (typeof data === "string") {
       lines.push(data);
     }
@@ -90,7 +84,7 @@ export function NotionPageEditor({
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
-    completed ? "created" : null,
+    completed ? "created" : null
   );
 
   useEffect(() => {
@@ -112,9 +106,7 @@ export function NotionPageEditor({
 
     if (isDirty()) {
       onApprove(stepNumber, "edit", {
-        tool_calls: [
-          { id: toolCall.id, arguments: { title, content } },
-        ],
+        tool_calls: [{ id: toolCall.id, arguments: { title, content } }],
       });
     } else {
       onApprove(stepNumber, "approve");
@@ -148,7 +140,7 @@ export function NotionPageEditor({
         actionTaken
           ? "border-white/[0.06]"
           : "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]",
-        className,
+        className
       )}
     >
       {/* ── Header ── */}
@@ -156,7 +148,7 @@ export function NotionPageEditor({
         className={cn(
           "px-4 py-3 flex items-center justify-between",
           !isCollapsed && "border-b border-white/5",
-          actionTaken && "cursor-pointer hover:bg-white/[0.02] transition-colors",
+          actionTaken && "cursor-pointer hover:bg-white/[0.02] transition-colors"
         )}
         onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}
       >
@@ -170,16 +162,14 @@ export function NotionPageEditor({
               className="object-contain"
             />
           </div>
-          <span className="text-sm font-medium text-white/90">
-            Create Page
-          </span>
+          <span className="text-sm font-medium text-white/90">Create Page</span>
           {actionTaken && (
-            <div className={cn(
-              "w-5 h-5 rounded-full flex items-center justify-center",
-              actionTaken === "created"
-                ? "bg-emerald-500/20"
-                : "bg-white/10",
-            )}>
+            <div
+              className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center",
+                actionTaken === "created" ? "bg-emerald-500/20" : "bg-white/10"
+              )}
+            >
               {actionTaken === "created" ? (
                 <Check className="w-3 h-3 text-emerald-400" />
               ) : (
@@ -222,7 +212,7 @@ export function NotionPageEditor({
                 className={cn(
                   "w-full bg-transparent outline-none mb-4",
                   "text-2xl font-bold text-white leading-tight tracking-tight",
-                  "placeholder:text-white/25",
+                  "placeholder:text-white/25"
                 )}
               />
             )}
