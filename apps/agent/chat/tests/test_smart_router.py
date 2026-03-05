@@ -89,7 +89,8 @@ def _make_nodes(registry: MagicMock) -> WorkflowNodes:
 
 
 @pytest.mark.asyncio
-@patch("chat.workflow.nodes.EmailAwareToolNode", MagicMock)
+@patch("langgraph.prebuilt.ToolNode", MagicMock)
+@patch("chat.workflow.nodes.ToolNode", MagicMock)
 class TestSmartRouterArtifactInjection:
     """Test that smart_router_node injects integrations from prior-turn artifacts."""
 

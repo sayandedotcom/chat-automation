@@ -24,14 +24,13 @@ async def run_smart_router(
     registry: "IntegrationRegistry | None",
     tools: list,
     executor_llm,
-    current_user_email: str | None,
 ) -> dict:
     """Classify the request, check auth, and return state update + tool bindings.
 
     Returns a dict with two extra keys beyond the normal state update:
         _tools: new tool list (or None if unchanged)
         _executor_with_tools: new bound LLM (or None)
-        _tool_node: new EmailAwareToolNode (or None)
+        _tool_node: new ToolNode (or None)
     The caller (WorkflowNodes) applies these mutations to self.
     """
     from chat.integrations.registry import classify_integrations
@@ -167,13 +166,10 @@ async def run_smart_router(
     new_executor_with_tools = (
         executor_llm.bind_tools(new_tools) if new_tools else executor_llm
     )
-    # Import via nodes module so tests can patch the class at chat.workflow.nodes.EmailAwareToolNode
-    from chat.workflow.nodes import EmailAwareToolNode
+    from langgraph.prebuilt import ToolNode
     new_tool_node = (
-        EmailAwareToolNode(new_tools, handle_tool_errors=True) if new_tools else None
+        ToolNode(new_tools, handle_tool_errors=True) if new_tools else None
     )
-    if new_tool_node and current_user_email:
-        new_tool_node.set_user_email(current_user_email)
 
     logger.info(
         f"Smart router: bound {len(new_tools)} tools from {len(integrations)} integrations"

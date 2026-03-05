@@ -7,6 +7,7 @@ Supports Gmail, Vercel, Notion, and Tavily integrations.
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import BaseTool
+from pathlib import Path
 from typing import Optional
 import asyncio
 import logging
@@ -104,7 +105,7 @@ def create_mcp_client(
         servers["tavily"] = {
             "transport": "stdio",
             "command": "npx",
-            "args": ["-y", "tavily-mcp@latest"],
+            "args": ["-y", "tavily-mcp@0.2.17"],
             "env": {**os.environ, "TAVILY_API_KEY": tavily_api_key},
         }
 
@@ -125,10 +126,17 @@ def sanitize_tool_schema(schema: dict) -> dict:
     if not isinstance(schema, dict):
         return schema
 
+    # Keys that Gemini's function-calling API does not support.
+    # Passing them through causes warnings and can confuse tool-call generation.
+    _UNSUPPORTED_KEYS = {"additionalProperties", "$schema"}
+
     sanitized = {}
     for key, value in schema.items():
         if value is None:
             # Skip null values - Gemini doesn't accept them
+            continue
+        elif key in _UNSUPPORTED_KEYS:
+            # Strip keys unsupported by Gemini
             continue
         elif key in ("anyOf", "oneOf"):
             # Handle anyOf/oneOf: pick the first non-null type definition
@@ -204,129 +212,171 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
 
 
 # ---------------------------------------------------------------------------
-# Gmail tool schema sanitisation: auto-fill identity params so the LLM never
-# sees "userId" / "user_id" / "user_google_email" and never asks the user for an email address.
+# Google Workspace tool auto-fill: resolve user email from stored credentials
+# and inject it (+ userId="me") so the LLM doesn't need to ask for them.
 # ---------------------------------------------------------------------------
-_AUTO_FILL_PARAMS = {
-    "userId": "me",
-    "user_id": "me",
-    # user_google_email is set to None by default, will be overridden if available in state
-}
 
-# Any tool whose name starts with one of these prefixes is considered a Gmail
-# tool and will have its identity parameters auto-injected & hidden.
-_GOOGLE_WORKSPACE_TOOL_PREFIXES = (
-    "search_gmail", "get_gmail", "send_gmail", "draft_gmail",
-    "list_gmail", "manage_gmail", "modify_gmail", "batch_modify_gmail",
-    "create_gmail", "delete_gmail",
-    # Calendar
-    "list_calendars", "get_events", "create_event", "modify_event",
-    "delete_event", "query_freebusy",
-    # Drive
-    "search_drive", "get_drive", "list_drive", "create_drive",
-    "import_to_google", "set_drive", "check_drive", "update_drive",
-    "share_drive", "batch_share", "copy_drive", "transfer_drive",
-    "remove_drive", "get_drive_file",
-    # Docs
-    "create_doc", "get_doc", "update_doc", "list_doc", "delete_doc", "append_to_doc",
-    # Sheets
-    "create_sheet", "get_sheet", "update_sheet", "list_sheet", "read_sheet",
-    "append_sheet", "clear_sheet", "delete_sheet", "create_spreadsheet",
-    # Slides
-    "create_presentation", "get_slide", "update_slide", "add_slide", "list_slide",
-    "delete_slide",
-)
+_cached_google_email: str | None = None
+
+
+def _resolve_google_email() -> str | None:
+    """Resolve the Google user email from stored MCP credentials.
+
+    Refreshes the access token if expired, then fetches the email from
+    the Gmail profile API. Result is cached module-wide.
+    """
+    global _cached_google_email
+    if _cached_google_email is not None:
+        return _cached_google_email
+
+    import json
+    import httpx
+
+    cred_dirs = [
+        GOOGLE_MCP_CREDENTIALS_DIR,
+        Path.home() / ".google_workspace_mcp" / "credentials",
+    ]
+
+    for cred_dir in cred_dirs:
+        cred_file = cred_dir / "user_frontend_oauth.json"
+        if not cred_file.exists():
+            continue
+        try:
+            creds = json.loads(cred_file.read_text())
+            token = creds.get("token")
+            refresh_token = creds.get("refresh_token")
+            client_id = creds.get("client_id")
+            client_secret = creds.get("client_secret")
+            if not token:
+                continue
+
+            def _fetch_email(access_token: str) -> str | None:
+                resp = httpx.get(
+                    "https://www.googleapis.com/gmail/v1/users/me/profile",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=5,
+                )
+                if resp.status_code == 200:
+                    return resp.json().get("emailAddress")
+                return None
+
+            email = _fetch_email(token)
+
+            if not email and refresh_token and client_id and client_secret:
+                refresh_resp = httpx.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "refresh_token": refresh_token,
+                        "grant_type": "refresh_token",
+                    },
+                    timeout=10,
+                )
+                if refresh_resp.status_code == 200:
+                    new_token = refresh_resp.json().get("access_token")
+                    if new_token:
+                        email = _fetch_email(new_token)
+
+            if email:
+                _cached_google_email = email
+                logger.info(f"Resolved Google user email: {email}")
+                return email
+        except Exception as e:
+            logger.warning(f"Failed to resolve Google email from {cred_file}: {e}")
+
+    return None
 
 
 def _is_google_workspace_tool(name: str) -> bool:
-    return any(name.startswith(prefix) for prefix in _GOOGLE_WORKSPACE_TOOL_PREFIXES)
+    """Check if a tool belongs to Google Workspace MCP by prefix."""
+    _PREFIXES = (
+        "search_gmail", "get_gmail", "send_gmail", "draft_gmail",
+        "list_gmail", "manage_gmail", "modify_gmail", "batch_modify_gmail",
+        "create_gmail", "delete_gmail",
+        "list_calendars", "get_events", "create_event", "modify_event",
+        "delete_event", "query_freebusy",
+        "search_drive", "get_drive", "list_drive", "create_drive",
+        "import_to_google", "set_drive", "check_drive", "update_drive",
+        "share_drive", "batch_share", "copy_drive", "transfer_drive",
+        "remove_drive", "get_drive_file",
+        "create_doc", "get_doc", "update_doc", "list_doc", "delete_doc", "append_to_doc",
+        "search_docs", "modify_doc", "find_and_replace", "insert_doc", "inspect_doc",
+        "batch_update_doc", "create_table", "debug_table", "export_doc", "update_paragraph",
+        "create_sheet", "get_sheet", "update_sheet", "list_sheet", "read_sheet",
+        "append_sheet", "clear_sheet", "delete_sheet", "create_spreadsheet",
+        "create_presentation", "get_slide", "update_slide", "add_slide", "list_slide",
+        "delete_slide",
+    )
+    return any(name.startswith(p) for p in _PREFIXES)
 
 
-def _strip_autofill_params_from_schema(tool: BaseTool) -> None:
-    """Remove auto-fill parameters from a tool's visible schema so the LLM
-    never asks the user for them (e.g. userId / user_id)."""
+def _strip_email_param_from_schema(tool: BaseTool) -> None:
+    """Hide user_google_email from the LLM — it's auto-injected at call time."""
     try:
         if not (hasattr(tool, "args_schema") and tool.args_schema):
             return
-
-        if isinstance(tool.args_schema, dict):
-            schema = tool.args_schema
-        elif hasattr(tool.args_schema, "model_json_schema"):
+        schema = tool.args_schema if isinstance(tool.args_schema, dict) else None
+        if schema is None and hasattr(tool.args_schema, "model_json_schema"):
             schema = tool.args_schema.model_json_schema()
-        else:
+        if not schema:
             return
 
         props = schema.get("properties", {})
         required = schema.get("required", [])
-        changed = False
-
-        for param_name in list(_AUTO_FILL_PARAMS.keys()):
-            if param_name in props:
-                del props[param_name]
-                changed = True
-            if param_name in required:
-                required.remove(param_name)
-                changed = True
-
-        # Also strip any parameter whose description explicitly asks for an
-        # "email address" and whose name looks like an identity field.
-        _IDENTITY_HINTS = {"email", "user email", "email address", "account"}
-        for param_name in list(props.keys()):
-            desc = (props[param_name].get("description") or "").lower()
-            if any(hint in desc for hint in _IDENTITY_HINTS) and any(
-                kw in param_name.lower() for kw in ("user", "email", "account", "owner")
-            ):
-                del props[param_name]
-                if param_name in required:
-                    required.remove(param_name)
-                changed = True
-
-        if changed:
-            logger.info(f"Stripped auto-fill identity params from tool: {tool.name}")
+        if "user_google_email" in props:
+            del props["user_google_email"]
+        if "user_google_email" in required:
+            required.remove("user_google_email")
     except Exception as e:
-        logger.warning(f"Could not strip params from {tool.name}: {e}")
+        logger.warning(f"Could not strip email param from {tool.name}: {e}")
 
 
-def inject_user_email_into_tool_input(
-    input_dict: dict, user_google_email: Optional[str] = None
-) -> dict:
-    """Inject user_google_email into a tool input dict if available and needed.
+class _AutofillEmailTool(BaseTool):
+    """Wraps a Google Workspace tool to auto-inject user_google_email at call time."""
 
-    This is called by the executor before invoking Gmail tools.
-    """
-    if isinstance(input_dict, dict) and user_google_email:
-        input_dict["user_google_email"] = user_google_email
-    return input_dict
+    wrapped_tool: BaseTool
+    name: str = ""
+    description: str = ""
 
-
-class _ToolAutofillWrapper:
-    """Wrapper that injects auto-fill params into tool calls."""
+    class Config:
+        arbitrary_types_allowed = True
 
     def __init__(self, wrapped_tool: BaseTool):
-        self._wrapped_tool = wrapped_tool
+        super().__init__(
+            wrapped_tool=wrapped_tool,
+            name=wrapped_tool.name,
+            description=wrapped_tool.description,
+        )
+        if hasattr(wrapped_tool, "args_schema"):
+            object.__setattr__(self, "args_schema", wrapped_tool.args_schema)
 
-    def __getattr__(self, name):
-        return getattr(self._wrapped_tool, name)
+    def _inject(self, input):
+        if isinstance(input, dict) and "user_google_email" not in input:
+            email = _resolve_google_email()
+            if email:
+                input["user_google_email"] = email
+        return input
+
+    def _run(self, *args, config=None, **kwargs):
+        if "user_google_email" not in kwargs:
+            email = _resolve_google_email()
+            if email:
+                kwargs["user_google_email"] = email
+        return self.wrapped_tool._run(*args, config=config, **kwargs)
+
+    async def _arun(self, *args, config=None, **kwargs):
+        if "user_google_email" not in kwargs:
+            email = _resolve_google_email()
+            if email:
+                kwargs["user_google_email"] = email
+        return await self.wrapped_tool._arun(*args, config=config, **kwargs)
 
     def invoke(self, input, config=None, **kwargs):
-        if isinstance(input, dict):
-            for param, default in _AUTO_FILL_PARAMS.items():
-                if param not in input:
-                    input[param] = default
-        return self._wrapped_tool.invoke(input, config=config, **kwargs)
+        return super().invoke(self._inject(input), config=config, **kwargs)
 
     async def ainvoke(self, input, config=None, **kwargs):
-        if isinstance(input, dict):
-            for param, default in _AUTO_FILL_PARAMS.items():
-                if param not in input:
-                    input[param] = default
-        return await self._wrapped_tool.ainvoke(input, config=config, **kwargs)
-
-
-def _wrap_tool_with_autofill(tool: BaseTool) -> BaseTool:
-    """Wrap a Google Workspace tool so that auto-fill params are injected at
-    call-time, even if the LLM omits them."""
-    return _ToolAutofillWrapper(tool)  # type: ignore[return-value]
+        return await super().ainvoke(self._inject(input), config=config, **kwargs)
 
 
 async def load_mcp_tools(
@@ -426,13 +476,12 @@ async def load_mcp_tools(
                 f"⚠️ Skipped {len(problematic_tools)} tools with incompatible schemas: {problematic_tools}"
             )
 
-        # Post-process: for Google Workspace tools, auto-fill identity params
-        # (userId, user_id) and strip them from the visible schema so the LLM
-        # never asks for an email address.
-        for tool in safe_tools:
+        # Auto-fill user_google_email for Google Workspace tools so the LLM
+        # never asks for it — resolved from stored OAuth credentials.
+        for i, tool in enumerate(safe_tools):
             if _is_google_workspace_tool(tool.name):
-                _strip_autofill_params_from_schema(tool)
-                _wrap_tool_with_autofill(tool)
+                _strip_email_param_from_schema(tool)
+                safe_tools[i] = _AutofillEmailTool(wrapped_tool=tool)
 
         print(f"✅ Loaded {len(safe_tools)} MCP tools: {[t.name for t in safe_tools]}")
         return safe_tools

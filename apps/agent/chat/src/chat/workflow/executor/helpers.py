@@ -14,7 +14,7 @@ from typing import Optional, TYPE_CHECKING
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from chat.schemas import WorkflowPlan, WorkflowStep
-from chat.workflow.nodes_helpers import EmailAwareToolNode
+from langgraph.prebuilt import ToolNode
 
 if TYPE_CHECKING:
     from chat.integrations.registry import IntegrationRegistry
@@ -175,7 +175,6 @@ async def try_incremental_load(
     tools: list,
     executor_llm,
     executor_with_tools,
-    current_user_email: Optional[str],
     start_step_execution_fn,
 ):
     """Attempt to load a missing integration when a tool is not found.
@@ -214,9 +213,7 @@ async def try_incremental_load(
     new_tools_for_integration = registry.get_toolset([missing_integration])
     updated_tools = list(tools) + list(new_tools_for_integration)
     new_executor_with_tools = executor_llm.bind_tools(updated_tools)
-    new_tool_node = EmailAwareToolNode(updated_tools, handle_tool_errors=True)
-    if current_user_email:
-        new_tool_node.set_user_email(current_user_email)
+    new_tool_node = ToolNode(updated_tools, handle_tool_errors=True)
 
     cfg = registry.get_integration_config(missing_integration)
     incremental_load_events = list(incremental_load_events)

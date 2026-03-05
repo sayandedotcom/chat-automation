@@ -25,15 +25,12 @@ logger = logging.getLogger(__name__)
 async def run_executor(
     state: WorkflowState,
     *,
-    set_user_email_from_state_fn,
     continue_after_tools_fn,
     get_previous_results_fn,
     start_step_execution_fn,
     try_incremental_load_fn,
 ) -> dict:
     """Execute the current step automatically (auto-executor node)."""
-    set_user_email_from_state_fn(state)
-
     plan = state["plan"]
     current_index = state["current_step_index"]
 

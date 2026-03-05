@@ -42,7 +42,7 @@ async def run_step_complete(state: WorkflowState) -> dict:
 
     current_step = plan.steps[current_index]
     current_step.status = "completed"
-    current_step.result = last_message[:2000] or "Step completed"
+    current_step.result = last_message or "Step completed"
 
     if "search" in current_step.description.lower():
         search_results = extract_search_results_from_messages(messages)

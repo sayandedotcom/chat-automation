@@ -4,9 +4,11 @@ Chat Router
 Handles all /chat* endpoints: workflow execution, streaming, resume, status, and retry.
 """
 
+import asyncio
 import json
 import logging
 from typing import Optional
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -19,8 +21,36 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# SSE heartbeat interval (seconds) — keeps ALB connection alive during long AI processing
+_HEARTBEAT_INTERVAL = 15
+
 # Service cache for reusing initialized services
 _services: dict[str, ChatService] = {}
+
+
+async def _with_heartbeat(
+    inner: AsyncIterator[dict],
+    interval: float = _HEARTBEAT_INTERVAL,
+) -> AsyncIterator[str]:
+    """
+    Wrap an async event iterator and inject SSE heartbeat keepalives.
+
+    If the inner iterator doesn't yield within *interval* seconds, a
+    ``{"type": "heartbeat"}`` SSE line is emitted to prevent the ALB from
+    closing the idle TCP connection.
+    """
+    it = inner.__aiter__()
+    finished = False
+
+    while not finished:
+        try:
+            event = await asyncio.wait_for(it.__anext__(), timeout=interval)
+            yield f"data: {json.dumps(event)}\n\n"
+        except asyncio.TimeoutError:
+            # No real event within the interval — send a keepalive
+            yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+        except StopAsyncIteration:
+            finished = True
 
 
 # -------------------
@@ -40,8 +70,6 @@ class WorkflowRequestSchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
     connected_integrations: Optional[list[str]] = Field(default=None)
-    # Authenticated user's Google email (from OAuth token)
-    google_user_email: Optional[str] = Field(default=None)
 
 
 class WorkflowResumeSchema(BaseModel):
@@ -59,8 +87,6 @@ class WorkflowResumeSchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
     connected_integrations: Optional[list[str]] = Field(default=None)
-    # Authenticated user's Google email (from OAuth token)
-    google_user_email: Optional[str] = Field(default=None)
 
 
 class WorkflowRetrySchema(BaseModel):
@@ -75,8 +101,6 @@ class WorkflowRetrySchema(BaseModel):
     slack_token: Optional[str] = Field(default=None)
     # Per-integration auth: list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
     connected_integrations: Optional[list[str]] = Field(default=None)
-    # Authenticated user's Google email (from OAuth token)
-    google_user_email: Optional[str] = Field(default=None)
 
 
 async def get_or_create_service(
@@ -129,7 +153,6 @@ async def execute_workflow(data: WorkflowRequestSchema):
             request=data.request,
             thread_id=data.thread_id,
             connected_integrations=data.connected_integrations,
-            google_user_email=data.google_user_email,
         )
 
         return result
@@ -166,7 +189,6 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                 request=data.request,
                 thread_id=data.thread_id,
                 connected_integrations=data.connected_integrations,
-                google_user_email=data.google_user_email,
             ):
                 # Capture thread_id from events
                 if event.get("thread_id"):
@@ -187,13 +209,13 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                     ]
                     print(f"   📊 Steps: {statuses}")
 
-                yield f"data: {json.dumps(event)}\n\n"
+                yield event
 
             # Only send done if workflow completed, not if paused for approval
             print(f"📤 Stream ended. waiting_for_approval={waiting_for_approval}")
             if not waiting_for_approval:
                 print("📤 SSE EVENT SENT: type=done")
-                yield 'data: {"type": "done"}\n\n'
+                yield {"type": "done"}
             else:
                 print("📤 NOT sending done - workflow paused for approval")
 
@@ -207,7 +229,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
             is_benign = any(benign in error_message for benign in benign_errors)
 
             if not is_benign:
-                yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
+                yield {"type": "error", "message": error_message}
             else:
                 # This error typically happens when interrupt() is called
                 # Check if there's a pending interrupt to yield
@@ -243,7 +265,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                                             print(
                                                 f"🔐 Found pending interrupt from exception handler: {value}"
                                             )
-                                            yield f"data: {json.dumps({'type': 'approval_required', 'thread_id': captured_thread_id, 'interrupt': value})}\n\n"
+                                            yield {"type": "approval_required", "thread_id": captured_thread_id, "interrupt": value}
                                             waiting_for_approval = True
                         else:
                             print("   No tasks found in state snapshot")
@@ -258,7 +280,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                     )
 
     return StreamingResponse(
-        generate(),
+        _with_heartbeat(generate()),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -310,7 +332,6 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
             thread_id=data.thread_id,
             step_number=data.step_number,
             connected_integrations=data.connected_integrations,
-            google_user_email=data.google_user_email,
         )
 
         if "error" in result:
@@ -354,7 +375,6 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
             thread_id=data.thread_id,
             decision=decision,
             connected_integrations=data.connected_integrations,
-            google_user_email=data.google_user_email,
         )
 
         if "error" in result:

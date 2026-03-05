@@ -106,7 +106,6 @@ class ChatService:
         request: str,
         thread_id: Optional[str] = None,
         connected_integrations: Optional[list[str]] = None,
-        google_user_email: Optional[str] = None,
     ) -> dict:
         """
         Execute a dynamic workflow based on user request.
@@ -135,7 +134,6 @@ class ChatService:
             "conversation_summary": None,  # Computed by planner_node from accumulated messages
             "artifacts": [],  # Structured artifacts from completed steps
             "connected_integrations": connected_integrations or [],
-            "google_user_email": google_user_email,
             "_executor_chat": None,
             "_step_tool_calls": 0,
         }
@@ -193,7 +191,6 @@ class ChatService:
         request: str,
         thread_id: Optional[str] = None,
         connected_integrations: Optional[list[str]] = None,
-        google_user_email: Optional[str] = None,
     ) -> AsyncGenerator[dict, None]:
         """
         Execute a workflow with streaming updates.
@@ -235,8 +232,6 @@ class ChatService:
             "auth_required_integrations": None,
             # Per-request connected integrations for auth checking
             "connected_integrations": connected_integrations or [],
-            # Authenticated user's Google email for tool auto-fill
-            "google_user_email": google_user_email,
             # Structured artifacts from completed steps
             "artifacts": [],
             # Executor tool-loop state
@@ -309,6 +304,14 @@ class ChatService:
             for node_name, output in chunk.items():
                 if not isinstance(output, dict):
                     continue
+
+                # Debug: log tool node results to see errors
+                if node_name == "tools":
+                    tool_messages = output.get("messages", [])
+                    for tm in tool_messages:
+                        if hasattr(tm, "content"):
+                            content_preview = str(tm.content)[:200]
+                            logger.info(f"🔧 Tool result ({getattr(tm, 'name', '?')}): {content_preview}")
 
                 # Handle smart_router output - check auth first, then emit integrations_ready
                 if node_name == "smart_router":
@@ -490,7 +493,6 @@ class ChatService:
         thread_id: str,
         decision: dict = None,
         connected_integrations: Optional[list[str]] = None,
-        google_user_email: Optional[str] = None,
     ) -> dict:
         """
         Resume a paused workflow with a decision.
@@ -525,8 +527,6 @@ class ChatService:
         }
         if connected_integrations is not None:
             update_state["connected_integrations"] = connected_integrations
-        if google_user_email is not None:
-            update_state["google_user_email"] = google_user_email
 
         await self._workflow.get_app().aupdate_state(
             config,
@@ -578,7 +578,6 @@ class ChatService:
         thread_id: str,
         step_number: int,
         connected_integrations: Optional[list[str]] = None,
-        google_user_email: Optional[str] = None,
     ) -> dict:
         """
         Retry a failed step and continue execution.
@@ -631,8 +630,6 @@ class ChatService:
         }
         if connected_integrations is not None:
             updated_state["connected_integrations"] = connected_integrations
-        if google_user_email is not None:
-            updated_state["google_user_email"] = google_user_email
 
         # Update state in the checkpointer
         await self._workflow.get_app().aupdate_state(

@@ -139,7 +139,7 @@ class DynamicWorkflow:
         workflow.add_node("step_complete", self.nodes.step_complete_node)
 
         if self.tools or self.registry:
-            workflow.add_node("tools", self.nodes.get_tool_node())
+            workflow.add_node("tools", self.nodes.tool_node_dispatch)
 
         # Add edges
         # START -> SMART_ROUTER (if registry) -> PLANNER (or END if auth missing)

@@ -8,7 +8,6 @@ Thin coordinator that delegates to focused modules:
     workflow/executor/nodes.py     — step execution & approval flows
     workflow/executor/helpers.py   — stateless executor utilities
     workflow/step_complete.py      — step completion & artifact extraction
-    workflow/nodes_helpers.py      — EmailAwareToolNode
 
 Routing functions and other utilities live in:
 
@@ -20,15 +19,15 @@ Routing functions and other utilities live in:
 """
 
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolNode
 
 from chat.schemas import WorkflowPlan, WorkflowState, WorkflowStep
 from chat.workflow.llm import get_executor_llm, get_planner_llm
-from chat.workflow.nodes_helpers import EmailAwareToolNode  # noqa: F401
 
 # Re-export routing symbols so graph.py can import them from here (single source)
 from chat.workflow.routing import (  # noqa: F401
@@ -61,11 +60,10 @@ class WorkflowNodes:
             else self.executor_llm
         )
         self.tool_node = (
-            EmailAwareToolNode(self.tools, handle_tool_errors=True)
+            ToolNode(self.tools, handle_tool_errors=True)
             if self.tools
             else None
         )
-        self._current_user_email: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Smart Router
@@ -77,7 +75,7 @@ class WorkflowNodes:
 
         result = await run_smart_router(
             state, self.registry, self.tools,
-            self.executor_llm, self._current_user_email,
+            self.executor_llm,
         )
         # Apply tool-binding mutations returned by the standalone function
         new_tools = result.pop("_tools", None)
@@ -111,7 +109,6 @@ class WorkflowNodes:
 
         return await run_executor(
             state,
-            set_user_email_from_state_fn=self.set_user_email_from_state,
             continue_after_tools_fn=self._continue_after_tools,
             get_previous_results_fn=self._get_previous_results,
             start_step_execution_fn=self._start_step_execution,
@@ -166,15 +163,17 @@ class WorkflowNodes:
 
         return await run_step_complete(state)
 
-    def set_user_email_from_state(self, state: WorkflowState):
-        """Extract user email from workflow state and set it in the tool node."""
-        email = state.get("google_user_email")
-        self._current_user_email = email
-        if self.tool_node and isinstance(self.tool_node, EmailAwareToolNode):
-            self.tool_node.set_user_email(email)
-
     def get_tool_node(self) -> ToolNode:
         return self.tool_node
+
+    async def tool_node_dispatch(self, state: WorkflowState, config: RunnableConfig) -> dict:
+        """Dispatch to the current tool_node so the graph always uses the latest one.
+
+        The smart router may replace self.tool_node after graph compilation.
+        Using this method as the graph node ensures the graph always calls
+        the up-to-date tool node.
+        """
+        return await self.tool_node.ainvoke(state, config=config)
 
     # ------------------------------------------------------------------
     # Private helpers (delegated to executor_helpers / executor modules)
@@ -193,7 +192,6 @@ class WorkflowNodes:
             tools=self.tools,
             executor_llm=self.executor_llm,
             executor_with_tools=self.executor_with_tools,
-            current_user_email=self._current_user_email,
             start_step_execution_fn=self._start_step_execution,
         )
         (response, executor_chat, new_integrations,
