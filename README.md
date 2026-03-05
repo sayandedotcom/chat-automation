@@ -2,6 +2,8 @@
 
 AI-powered chat automation platform with an Express API, Next.js frontend, and a LangGraph-based Python agent with MCP tool integrations.
 
+**Live:** [Web](https://sayande.xyz/) · [Agent](https://agent.sayande.xyz/) · [API](https://api.sayande.xyz/)
+
 ![Workflow Graph](./workflow_graph.png)
 
 ## Architecture
@@ -48,13 +50,13 @@ openssl rand -base64 32   # paste this as SESSION_SECRET
 
 Required values in `.env`:
 
-| Variable | Where to get it |
-|---|---|
-| `SESSION_SECRET` | Run `openssl rand -base64 32` |
-| `GOOGLE_CLIENT_ID` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| Variable               | Where to get it                                                           |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `SESSION_SECRET`       | Run `openssl rand -base64 32`                                             |
+| `GOOGLE_CLIENT_ID`     | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
 | `GOOGLE_CLIENT_SECRET` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
-| `GOOGLE_API_KEY` | [Google AI Studio](https://aistudio.google.com/) |
-| `TAVILY_API_KEY` | [Tavily](https://tavily.com/) |
+| `GOOGLE_API_KEY`       | [Google AI Studio](https://aistudio.google.com/)                          |
+| `TAVILY_API_KEY`       | [Tavily](https://tavily.com/)                                             |
 
 ### 3. Google Cloud Console Setup
 
@@ -70,9 +72,9 @@ Required values in `.env`:
    ```
 5. Enable these APIs in [API Library](https://console.cloud.google.com/apis/library):
    - Google People API (for login profile)
-   - Gmail API *(if using Gmail integration)*
-   - Google Drive API *(if using Drive/Docs/Sheets/Slides)*
-   - Google Calendar API *(if using Calendar integration)*
+   - Gmail API _(if using Gmail integration)_
+   - Google Drive API _(if using Drive/Docs/Sheets/Slides)_
+   - Google Calendar API _(if using Calendar integration)_
 
 ### 4. Notion Setup (Optional)
 
