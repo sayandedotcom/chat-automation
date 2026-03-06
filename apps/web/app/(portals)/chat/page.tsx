@@ -682,12 +682,16 @@ export default function ChatPage() {
     if (isChatActive) {
       // Solid grey background when chat is active - fixed height container
       return (
-        <div className="h-screen w-full bg-[#131313] flex flex-col overflow-hidden">{children}</div>
+        <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-hidden border border-white/10 rounded-2xl">
+          {children}
+        </div>
       );
     }
     // Show planetary background when idle
     return (
-      <div className="h-screen w-full bg-[#131313] flex flex-col overflow-hidden">{children}</div>
+      <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-hidden border border-white/10 rounded-2xl">
+        {children}
+      </div>
     );
   };
 
