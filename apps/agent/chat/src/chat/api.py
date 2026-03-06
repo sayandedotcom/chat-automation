@@ -63,6 +63,11 @@ app = FastAPI(title="Chat Agent API", lifespan=lifespan)
 #     allow_headers=["*"],
 # )
 
+@app.get("/")
+async def root():
+    return {"status": "ok"}
+
+
 app.include_router(credentials_router.router)
 app.include_router(chat_router.router)
 

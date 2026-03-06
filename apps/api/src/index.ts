@@ -60,6 +60,10 @@ async function main() {
     };
   });
 
+  app.get("/", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
