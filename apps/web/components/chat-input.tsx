@@ -91,12 +91,12 @@ export function ChatInputWithMentions({
 
   return (
     <div className="w-full pb-8">
-      <div className="w-full relative">
+      <div className="w-full relative rounded-[24px] p-[1px] bg-gradient-to-b from-white/20 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.05)]">
         <ChatInput
           onSubmit={handleSubmit}
           value={value}
           onChange={onChange}
-          className="bg-[#0c0c0c] border border-white/5 rounded-[24px] shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ring-1 ring-transparent focus-within:ring-white/5 focus-within:border-white/10"
+          className="!bg-[#070707] border-0 rounded-[23px] shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ring-1 ring-transparent focus-within:ring-white/5"
         >
           <ChatInputMention
             type={mentionConfigs.member.type}
@@ -136,16 +136,16 @@ export function ChatInputWithMentions({
           {/* Top: Text input */}
           <ChatInputEditor
             placeholder=""
-            className="text-[#e5e5e5] placeholder:text-transparent min-h-[24px] text-[15px] pt-3 px-4 pb-0 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
+            className="text-[#e5e5e5] placeholder:text-transparent min-h-[32px] text-[16px] pt-4 px-5 pb-1 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
           />
 
           {/* Bottom: Actions bar */}
           <ChatInputGroupAddon align="block-end" className="flex flex-col w-full">
-            <div className="flex items-center justify-between px-3 pb-2 pt-0 w-full">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between px-4 pb-3 pt-1 w-full">
+              <div className="flex items-center gap-2">
                 <ChatInputMentionButton
                   variant="ghost"
-                  className="text-neutral-400 hover:text-neutral-200 hover:bg-white/5 rounded-full h-8 w-8 p-0"
+                  className="text-[#999999] hover:text-white hover:bg-white/10 rounded-full h-8 w-8 p-0 [&>svg]:h-[26px] [&>svg]:w-[26px] [&>svg]:stroke-[2.5]"
                 />
 
                 <Toggle
@@ -153,20 +153,20 @@ export function ChatInputWithMentions({
                   size="sm"
                   pressed={isAutoMode}
                   onPressedChange={setIsAutoMode}
-                  className="h-7 px-3 gap-2 rounded-full border border-[#2a2a2e] bg-[#1a1a1e] text-[#a1a1aa] hover:text-white hover:bg-[#2a2a2e] data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-600/40 data-[state=on]:to-indigo-600/30 data-[state=on]:border-purple-500/30 data-[state=on]:text-white transition-all shadow-sm"
+                  className="h-9 px-4 gap-2.5 rounded-2xl border border-[#3a3a3e] bg-[#222226] text-[#c0c0c8] hover:text-white hover:bg-[#333338] data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-500/50 data-[state=on]:to-indigo-500/40 data-[state=on]:border-purple-400/40 data-[state=on]:text-white transition-all shadow-sm"
                 >
-                  <span className="text-[13px] font-medium tracking-wide">Auto</span>
+                  <span className="text-[14px] font-medium tracking-wide">Auto</span>
                   <div
-                    className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
+                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${
                       isAutoMode
-                        ? "bg-white/20 text-white"
-                        : "bg-transparent border border-[#52525b]"
+                        ? "bg-white/30 text-white"
+                        : "bg-transparent border border-[#71717a]"
                     }`}
                   >
                     {isAutoMode && (
                       <svg
-                        width="8"
-                        height="8"
+                        width="10"
+                        height="10"
                         viewBox="0 0 12 12"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -174,7 +174,7 @@ export function ChatInputWithMentions({
                         <path
                           d="M2.5 6.5L5 9L9.5 3.5"
                           stroke="currentColor"
-                          strokeWidth="2"
+                          strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
@@ -184,47 +184,17 @@ export function ChatInputWithMentions({
                 </Toggle>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-neutral-400 hover:text-white hover:bg-white/5 rounded-full h-8 w-8 ml-1"
+                  className="text-[#999999] hover:text-white hover:bg-white/10 rounded-full h-8 w-8 ml-1"
                 >
-                  <Mic className="h-[18px] w-[18px]" />
+                  <Mic className="h-12 w-12 stroke-[2.5]" />
                 </Button>
                 <ChatInputSubmitButton
-                  className={`rounded-full h-8 w-8 transition-colors flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4 [&>svg]:stroke-[2.5] ${hasText ? "bg-white/20 text-white hover:bg-white/30" : "bg-[#2a2a2e] text-[#a1a1aa] hover:bg-[#3a3a3e] hover:text-white"}`}
+                  className={`rounded-full h-[34px] w-[34px] transition-all flex items-center justify-center shrink-0 [&>svg]:w-[24px] [&>svg]:h-[24px] [&>svg]:stroke-[3] drop-shadow-sm ${hasText ? "bg-gradient-to-b from-white to-[#c0c0c8] text-black shadow hover:brightness-110" : "bg-gradient-to-b from-[#6a6a6a] to-[#454545] text-[#16161a] hover:brightness-110 border border-[#404040]"}`}
                 />
-              </div>
-            </div>
-
-            {/* Competitor subtle row: Connect Your Tools */}
-            <div className="flex items-center justify-center gap-4 border-t border-white/[0.03] px-4 py-2 bg-transparent rounded-b-[24px]">
-              <span className="text-[10px] font-medium text-[#71717a] tracking-[0.04em] uppercase">
-                Connect Your Tools
-              </span>
-              <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
-                <IntegrationIcon src="/integrations/gmail.svg" alt="Gmail" />
-                <IntegrationIcon src="/integrations/notion.svg" alt="Notion" />
-                <IntegrationIcon src="/integrations/google_sheets.svg" alt="Sheets" />
-                <IntegrationIcon src="/integrations/google_docs.svg" alt="Docs" />
-                <IntegrationIcon src="/integrations/drive.svg" alt="Drive" />
-                <IntegrationIcon src="/integrations/slack.svg" alt="Slack" />
-                <div className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-[#222] text-[#a1a1aa] border border-white/10 hover:bg-[#333] transition-colors">
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
-                  </svg>
-                </div>
               </div>
             </div>
           </ChatInputGroupAddon>

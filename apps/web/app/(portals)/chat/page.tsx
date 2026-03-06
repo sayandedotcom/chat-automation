@@ -680,23 +680,14 @@ export default function ChatPage() {
   // Wrapper that conditionally shows background or solid black
   const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
     if (isChatActive) {
-      // Solid black background when chat is active - fixed height container
+      // Solid grey background when chat is active - fixed height container
       return (
-        <div className="h-screen w-full bg-[#0a0a0a] flex flex-col overflow-hidden">{children}</div>
+        <div className="h-screen w-full bg-[#131313] flex flex-col overflow-hidden">{children}</div>
       );
     }
     // Show planetary background when idle
     return (
-      // <PlanetaryBackground
-      //   backgroundContent={
-      //     <>
-      //       <ShootingStars />
-      //       <StarsBackground />
-      //     </>
-      //   }
-      // >
-      <>{children}</>
-      // </PlanetaryBackground>
+      <div className="h-screen w-full bg-[#131313] flex flex-col overflow-hidden">{children}</div>
     );
   };
 
@@ -707,10 +698,7 @@ export default function ChatPage() {
         {isIdle && (
           <div className="flex-1 flex flex-col justify-center px-4">
             <div className="w-full max-w-2xl mx-auto">
-              <ChatGreeting
-                userName={user?.name?.split(" ")[0] || "there"}
-                subtitle="Describe your workflow and I'll execute it step by step"
-              />
+              <ChatGreeting userName={user?.name?.split(" ")[0] || "there"} subtitle="" />
               <ChatInputWithMentions
                 onSubmit={executeWorkflow}
                 placeholder="Type and press enter to start chatting..."
