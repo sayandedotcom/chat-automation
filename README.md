@@ -4,6 +4,8 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 
 **Live:** [Web](https://sayande.xyz/) · [Agent](https://agent.sayande.xyz/) · [API](https://api.sayande.xyz/)
 
+**Technical Blog:** [Building an Autonomous AI Agent: A Deep Dive into the Architecture](https://sayande.hashnode.dev/building-an-autonomous-ai-agent-a-deep-dive-into-the-architecture)
+
 ![Workflow Graph](./workflow_graph.png)
 
 ## Architecture
