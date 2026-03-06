@@ -43,11 +43,5 @@
       "@types/react": "19.1.9",
       "@types/react-dom": "19.1.7"
     }
-  },
-  "lint-staged": {
-    "(apps|packages)/**/*.{js,ts,jsx,tsx}": [
-      "prettier --write",
-      "eslint --fix"
-    ]
   }
 }
