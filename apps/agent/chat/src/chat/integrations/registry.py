@@ -148,17 +148,19 @@ class IntegrationRegistry:
         missing_names = [token_to_integration[k] for k in missing_tokens]
         logger.info(f"Incrementally loading MCP servers: {missing_names}")
 
-        # Only pass the missing tokens — explicitly None-out everything else
+        # Only pass the missing tokens — explicitly blank-out everything else
         # so create_mcp_client doesn't re-create servers from env vars.
+        # Use empty strings (not None) for google_client_id/secret because
+        # create_mcp_client falls back to env vars when these are None.
         all_keys = {
             "gmail_token",
             "vercel_token",
             "notion_token",
             "tavily_api_key",
-            "google_client_id",
-            "google_client_secret",
         }
         call_args = {k: None for k in all_keys}
+        call_args["google_client_id"] = ""
+        call_args["google_client_secret"] = ""
         call_args.update(missing_tokens)
 
         client = create_mcp_client(**call_args)
