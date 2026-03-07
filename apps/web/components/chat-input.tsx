@@ -92,6 +92,16 @@ export function ChatInputWithMentions({
   return (
     <div className="w-full pb-8">
       <div className="w-full relative rounded-[24px] p-[1px] bg-gradient-to-b from-white/20 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+        <style>{`
+          .tiptap p.is-editor-empty:first-child::before,
+          .tiptap p.is-empty:first-child::before {
+            color: #555555 !important;
+            content: attr(data-placeholder);
+            float: left;
+            height: 0;
+            pointer-events: none;
+          }
+        `}</style>
         <ChatInput
           onSubmit={handleSubmit}
           value={value}
@@ -135,8 +145,8 @@ export function ChatInputWithMentions({
 
           {/* Top: Text input */}
           <ChatInputEditor
-            placeholder=""
-            className="text-[#e5e5e5] placeholder:text-transparent min-h-[32px] text-[16px] pt-4 px-5 pb-1 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
+            placeholder="Type and press enter to start chatting..."
+            className="text-[#e5e5e5] placeholder:text-[#555555] min-h-[32px] text-[16px] pt-4 px-5 pb-1 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
           />
 
           {/* Bottom: Actions bar */}
@@ -153,20 +163,20 @@ export function ChatInputWithMentions({
                   size="sm"
                   pressed={isAutoMode}
                   onPressedChange={setIsAutoMode}
-                  className="h-8 px-3.5 gap-2 rounded-[14px] border border-[#2e2e2e] bg-[#1a1a1a] text-[#8e8e8e] hover:text-[#e0e0e0] hover:bg-[#252525] data-[state=on]:bg-gradient-to-r data-[state=on]:from-[#7740a6] data-[state=on]:to-[#49448f] data-[state=on]:border-transparent data-[state=on]:text-white transition-all"
+                  className="h-8 px-3.5 gap-2 rounded-xl border border-white/[0.08] bg-[#141414] text-[#9a9a9a] hover:text-[#c0c0c0] hover:bg-[#1a1a1a] data-[state=on]:bg-gradient-to-b data-[state=on]:from-[#453957] data-[state=on]:to-[#2e2c4e] data-[state=on]:border-white/[0.1] data-[state=on]:text-[#e0dce8] transition-all duration-200"
                 >
-                  <span className="text-[14px] font-medium tracking-wide">Auto</span>
+                  <span className="text-[13px] font-medium">Auto</span>
                   <div
-                    className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                    className={`w-[16px] h-[16px] rounded-full flex items-center justify-center transition-all duration-200 ${
                       isAutoMode
-                        ? "bg-white/30 text-white"
-                        : "bg-transparent border border-[#525252]"
+                        ? "bg-white/20 text-white/90"
+                        : "bg-[#2a2a2a] border border-[#3a3a3a]"
                     }`}
                   >
                     {isAutoMode && (
                       <svg
-                        width="10"
-                        height="10"
+                        width="9"
+                        height="9"
                         viewBox="0 0 16 16"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -174,7 +184,7 @@ export function ChatInputWithMentions({
                         <path
                           d="M3.5 8.5L6.5 11.5L12.5 4.5"
                           stroke="currentColor"
-                          strokeWidth="3.5"
+                          strokeWidth="3"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
@@ -190,7 +200,7 @@ export function ChatInputWithMentions({
                   size="icon"
                   className="text-[#999999] hover:text-white hover:bg-white/10 rounded-full h-8 w-8 ml-1"
                 >
-                  <Mic className="h-12 w-12 stroke-[2.5]" />
+                  <Mic className="h-5 w-5 stroke-[2.5]" />
                 </Button>
                 <ChatInputSubmitButton
                   className={`rounded-full h-[34px] w-[34px] transition-all flex items-center justify-center shrink-0 [&>svg]:w-[24px] [&>svg]:h-[24px] [&>svg]:stroke-[3] drop-shadow-sm ${hasText ? "bg-gradient-to-b from-white to-[#c0c0c8] text-black shadow hover:brightness-110" : "bg-gradient-to-b from-[#6a6a6a] to-[#454545] text-[#16161a] hover:brightness-110 border border-[#404040]"}`}

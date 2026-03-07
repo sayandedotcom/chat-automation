@@ -204,7 +204,7 @@ export function ChatInputEditor({
   const extensions = useMemo(
     () => [
       StarterKit,
-      Placeholder.configure({ placeholder }),
+      Placeholder.configure({ placeholder, showOnlyCurrent: false }),
       KeyboardShortcuts.configure({
         getOnEnter: () => onEnterRef.current,
       }),
@@ -247,6 +247,7 @@ export function ChatInputEditor({
       onUpdate,
       editable: !(disabled || contextDisabled),
       immediatelyRender: false,
+      autofocus: true,
     },
     [extensions, disabled, contextDisabled]
   );
