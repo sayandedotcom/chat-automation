@@ -8,7 +8,6 @@ Use this for multi-step, variable-length workflows.
 from langchain_core.messages import HumanMessage
 from typing import Optional
 from collections.abc import AsyncGenerator
-import asyncio
 import uuid
 import logging
 
@@ -16,9 +15,6 @@ from chat.workflow.graph import DynamicWorkflow
 from chat.integrations.registry import get_registry, get_registry_sync
 
 logger = logging.getLogger(__name__)
-
-# Maximum time for a single workflow invocation (5 minutes)
-WORKFLOW_TIMEOUT = 300
 
 
 class ChatService:
@@ -56,6 +52,7 @@ class ChatService:
 
         self._client = None
         self._tools = []
+        self._workflow = None
         self._registry = None
         self._initialized = False
 
@@ -95,18 +92,14 @@ class ChatService:
         # Get all tools (for fallback)
         self._tools = self._registry.get_all_tools()
 
+        # Build dynamic workflow with registry for smart routing
+        self._workflow = DynamicWorkflow(
+            tools=self._tools,
+            registry=self._registry,
+        )
         self._initialized = True
 
         logger.info(f"Workflow service initialized with {len(self._tools)} tools")
-
-    def _create_workflow(self) -> DynamicWorkflow:
-        """Create a fresh DynamicWorkflow per invocation.
-
-        Each invocation gets its own WorkflowNodes so concurrent requests
-        don't overwrite each other's tool bindings in smart_router_node.
-        The checkpointer is a module-level singleton — state is shared.
-        """
-        return DynamicWorkflow(tools=self._tools, registry=self._registry)
 
     async def execute(
         self,
@@ -145,19 +138,8 @@ class ChatService:
             "_step_tool_calls": 0,
         }
 
-        # Fresh workflow per invocation to avoid shared tool-binding mutation
-        workflow = self._create_workflow()
-
-        # Execute with timeout to prevent indefinite hangs
-        try:
-            result = await asyncio.wait_for(
-                workflow.get_app().ainvoke(initial_state, config=config),
-                timeout=WORKFLOW_TIMEOUT,
-            )
-        except asyncio.TimeoutError:
-            raise TimeoutError(
-                f"Workflow timed out after {WORKFLOW_TIMEOUT}s"
-            )
+        # Execute the workflow
+        result = await self._workflow.get_app().ainvoke(initial_state, config=config)
 
         # Extract results
         messages = result.get("messages", [])
@@ -259,16 +241,13 @@ class ChatService:
             "_pending_tool_calls_message": None,
         }
 
-        # Fresh workflow per invocation to avoid shared tool-binding mutation
-        workflow = self._create_workflow()
-
         # Stream the workflow execution with both updates and messages for token-level streaming
         logger.debug("Starting astream for workflow...")
 
         # Track current executing step for token attribution
         current_executing_step = None
 
-        async for chunk in workflow.get_app().astream(
+        async for chunk in self._workflow.get_app().astream(
             initial_state,
             config=config,
             stream_mode=[
@@ -478,7 +457,7 @@ class ChatService:
         # After stream ends, check if there's a pending interrupt
         # LangGraph stores interrupt data in state.tasks
         try:
-            state_snapshot = await workflow.get_app().aget_state(config)
+            state_snapshot = await self._workflow.get_app().aget_state(config)
             if state_snapshot and state_snapshot.tasks:
                 for task in state_snapshot.tasks:
                     if hasattr(task, "interrupts") and task.interrupts:
@@ -503,8 +482,7 @@ class ChatService:
         config = {"configurable": {"thread_id": thread_id}}
 
         try:
-            workflow = self._create_workflow()
-            state = await workflow.get_app().aget_state(config)
+            state = await self._workflow.get_app().aget_state(config)
             return state.values if state else None
         except Exception as e:
             logger.error(f"Error getting workflow state: {e}")
@@ -533,11 +511,9 @@ class ChatService:
             await self.initialize()
 
         config = {"configurable": {"thread_id": thread_id}}
-        workflow = self._create_workflow()
-        app = workflow.get_app()
 
         # Get current state to verify workflow exists
-        state_snapshot = await app.aget_state(config)
+        state_snapshot = await self._workflow.get_app().aget_state(config)
         if not state_snapshot or not state_snapshot.values:
             return {"error": "Workflow not found", "thread_id": thread_id}
 
@@ -552,22 +528,14 @@ class ChatService:
         if connected_integrations is not None:
             update_state["connected_integrations"] = connected_integrations
 
-        await app.aupdate_state(
+        await self._workflow.get_app().aupdate_state(
             config,
             update_state,
             as_node="planner",  # Resume from planner to re-route to executor_with_approval
         )
 
-        # Invoke to continue execution with timeout
-        try:
-            result = await asyncio.wait_for(
-                app.ainvoke(None, config=config),
-                timeout=WORKFLOW_TIMEOUT,
-            )
-        except asyncio.TimeoutError:
-            raise TimeoutError(
-                f"Workflow resume timed out after {WORKFLOW_TIMEOUT}s"
-            )
+        # Invoke to continue execution
+        result = await self._workflow.get_app().ainvoke(None, config=config)
 
         # Build response
         result.get("messages", [])
@@ -626,11 +594,9 @@ class ChatService:
             await self.initialize()
 
         config = {"configurable": {"thread_id": thread_id}}
-        workflow = self._create_workflow()
-        app = workflow.get_app()
 
         # Get current state
-        state_snapshot = await app.aget_state(config)
+        state_snapshot = await self._workflow.get_app().aget_state(config)
         if not state_snapshot or not state_snapshot.values:
             return {"error": "Workflow not found", "thread_id": thread_id}
 
@@ -666,21 +632,13 @@ class ChatService:
             updated_state["connected_integrations"] = connected_integrations
 
         # Update state in the checkpointer
-        await app.aupdate_state(
+        await self._workflow.get_app().aupdate_state(
             config,
             updated_state,
         )
 
-        # Resume execution from the updated state with timeout
-        try:
-            result = await asyncio.wait_for(
-                app.ainvoke(None, config=config),
-                timeout=WORKFLOW_TIMEOUT,
-            )
-        except asyncio.TimeoutError:
-            raise TimeoutError(
-                f"Workflow retry timed out after {WORKFLOW_TIMEOUT}s"
-            )
+        # Resume execution from the updated state
+        result = await self._workflow.get_app().ainvoke(None, config=config)
 
         # Build response
         messages = result.get("messages", [])

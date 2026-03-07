@@ -1,9 +1,12 @@
 import type { Request, Response } from "express";
 
-async function refreshGoogleToken(
+/**
+ * Refresh a Gmail access token using the stored refresh token.
+ * Sets the new access_token cookie on the Express response.
+ */
+export async function refreshGmailToken(
   refreshToken: string,
-  res: Response,
-  accessCookieName: string
+  res: Response
 ): Promise<string | null> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -26,40 +29,45 @@ async function refreshGoogleToken(
     });
 
     if (!response.ok) {
-      console.error(`Failed to refresh ${accessCookieName}:`, await response.text());
+      console.error("Failed to refresh Gmail token:", await response.text());
       return null;
     }
 
     const data = await response.json();
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.cookie(accessCookieName, data.access_token, {
+    // Express res.cookie maxAge is in milliseconds
+    res.cookie("gmail_access_token", data.access_token, {
       httpOnly: true,
       secure: isProduction,
       sameSite: "lax",
       maxAge: data.expires_in * 1000,
     });
 
-    console.log(`${accessCookieName} refreshed successfully`);
+    console.log("Gmail access token refreshed successfully");
     return data.access_token;
   } catch (error) {
-    console.error(`Error refreshing ${accessCookieName}:`, error);
+    console.error("Error refreshing Gmail token:", error);
     return null;
   }
 }
 
-const GOOGLE_SERVICES = [
-  { access: "gmail_access_token", refresh: "gmail_refresh_token" },
-  { access: "google_docs_access_token", refresh: "google_docs_refresh_token" },
-  { access: "google_sheets_access_token", refresh: "google_sheets_refresh_token" },
-  { access: "google_slides_access_token", refresh: "google_slides_refresh_token" },
-  { access: "google_drive_access_token", refresh: "google_drive_refresh_token" },
-  { access: "google_calendar_access_token", refresh: "google_calendar_refresh_token" },
+/**
+ * All Google Workspace services share the same OAuth — any one cookie proves auth
+ * for MCP tool execution (same scopes via include_granted_scopes).
+ */
+const GOOGLE_ACCESS_COOKIES = [
+  "gmail_access_token",
+  "google_docs_access_token",
+  "google_sheets_access_token",
+  "google_slides_access_token",
+  "google_drive_access_token",
+  "google_calendar_access_token",
 ] as const;
 
 function getAnyGoogleToken(req: Request): string | null {
-  for (const service of GOOGLE_SERVICES) {
-    const val = req.cookies[service.access] as string | undefined;
+  for (const name of GOOGLE_ACCESS_COOKIES) {
+    const val = req.cookies[name] as string | undefined;
     if (val) return val;
   }
   return null;
@@ -101,23 +109,17 @@ export async function getRefreshedTokens(
   vercelToken: string | null;
   slackToken: string | null;
 }> {
+  let gmailToken = getAnyGoogleToken(req);
+  const gmailRefreshToken = (req.cookies["gmail_refresh_token"] as string) ?? null;
   const notionToken = (req.cookies["notion_access_token"] as string) ?? null;
   const vercelToken = (req.cookies["vercel_access_token"] as string) ?? null;
   const slackToken = (req.cookies["slack_access_token"] as string) ?? null;
 
-  let gmailToken: string | null = null;
-  for (const service of GOOGLE_SERVICES) {
-    const refreshToken = req.cookies[service.refresh] as string | undefined;
-    if (refreshToken) {
-      const freshToken = await refreshGoogleToken(refreshToken, res, service.access);
-      if (service.access === "gmail_access_token" && freshToken) {
-        gmailToken = freshToken;
-      }
+  if (gmailRefreshToken) {
+    const freshToken = await refreshGmailToken(gmailRefreshToken, res);
+    if (freshToken) {
+      gmailToken = freshToken;
     }
-  }
-
-  if (!gmailToken) {
-    gmailToken = getAnyGoogleToken(req);
   }
 
   return { gmailToken, notionToken, vercelToken, slackToken };

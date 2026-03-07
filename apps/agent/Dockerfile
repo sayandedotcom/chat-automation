@@ -33,7 +33,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH="/app/chat/src" \
-    PATH="/root/.local/bin:/app/.venv/bin:/usr/local/bin:$PATH"
+    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
 
 # Install Node.js 18 for MCP servers (required for npx)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -41,14 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv (needed at runtime for workspace-mcp)
+# Install uv (needed at runtime for "uv tool run workspace-mcp@...")
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Pre-install workspace-mcp at build time to avoid runtime downloads
-RUN uv tool install workspace-mcp@1.11.1
-
-# Pre-install Notion and Tavily MCP servers
-RUN npm install -g @notionhq/notion-mcp-server@2.1.0 tavily-mcp@0.2.17
 
 # Copy the virtual environment and source from builder
 COPY --from=builder /app/.venv /app/.venv
@@ -56,8 +50,4 @@ COPY --from=builder /app/chat /app/chat
 
 EXPOSE 8000
 
-# WEB_CONCURRENCY controls worker count (default 4).
-# Note: MemorySaver checkpointer is per-process — multi-turn conversation
-# continuity requires a shared checkpointer (e.g. AsyncPostgresSaver).
-ENV WEB_CONCURRENCY=4
-CMD /app/.venv/bin/python -m uvicorn chat.api:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY}
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "chat.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

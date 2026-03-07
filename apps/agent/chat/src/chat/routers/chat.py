@@ -242,8 +242,7 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                     try:
                         # Get the workflow state to check for pending interrupts
                         config = {"configurable": {"thread_id": captured_thread_id}}
-                        fallback_workflow = service._create_workflow()
-                        state_snapshot = await fallback_workflow.get_app().aget_state(
+                        state_snapshot = await service._workflow.get_app().aget_state(
                             config
                         )
 

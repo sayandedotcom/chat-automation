@@ -10,7 +10,7 @@ export const cookieConfig: CookieConfig = {
   path: "/",
   secure: config.isProduction,
   sameSite: config.isProduction ? "none" : "lax",
-  domain: config.isProduction ? new URL(config.appUrl).hostname : undefined,
+  domain: config.isProduction ? ".sayande.xyz" : undefined,
 };
 
 export function setAuthCookies(res: Response, token: string, sessionId: string): void {

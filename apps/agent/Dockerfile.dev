@@ -28,17 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-install workspace-mcp at build time (uv already available from deps stage)
-RUN uv tool install workspace-mcp@1.11.1
-
-# Pre-install Notion and Tavily MCP servers
-RUN npm install -g @notionhq/notion-mcp-server@2.1.0 tavily-mcp@0.2.17
-
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH="/app/chat/src" \
-    PATH="/root/.local/bin:/app/.venv/bin:/usr/local/bin:$PATH"
+    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
 
 # Copy source after deps so cache is only busted on source changes
 COPY . .
