@@ -153,28 +153,28 @@ export function ChatInputWithMentions({
                   size="sm"
                   pressed={isAutoMode}
                   onPressedChange={setIsAutoMode}
-                  className="h-9 px-4 gap-2.5 rounded-2xl border border-[#3a3a3e] bg-[#222226] text-[#c0c0c8] hover:text-white hover:bg-[#333338] data-[state=on]:bg-gradient-to-r data-[state=on]:from-purple-500/50 data-[state=on]:to-indigo-500/40 data-[state=on]:border-purple-400/40 data-[state=on]:text-white transition-all shadow-sm"
+                  className="h-8 px-3.5 gap-2 rounded-[14px] border border-[#2e2e2e] bg-[#1a1a1a] text-[#8e8e8e] hover:text-[#e0e0e0] hover:bg-[#252525] data-[state=on]:bg-gradient-to-r data-[state=on]:from-[#7740a6] data-[state=on]:to-[#49448f] data-[state=on]:border-transparent data-[state=on]:text-white transition-all"
                 >
                   <span className="text-[14px] font-medium tracking-wide">Auto</span>
                   <div
-                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all ${
+                    className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
                       isAutoMode
                         ? "bg-white/30 text-white"
-                        : "bg-transparent border border-[#71717a]"
+                        : "bg-transparent border border-[#525252]"
                     }`}
                   >
                     {isAutoMode && (
                       <svg
                         width="10"
                         height="10"
-                        viewBox="0 0 12 12"
+                        viewBox="0 0 16 16"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                       >
                         <path
-                          d="M2.5 6.5L5 9L9.5 3.5"
+                          d="M3.5 8.5L6.5 11.5L12.5 4.5"
                           stroke="currentColor"
-                          strokeWidth="2.5"
+                          strokeWidth="3.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
