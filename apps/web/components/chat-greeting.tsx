@@ -15,15 +15,7 @@ function getGreeting(hour: number): string {
 }
 
 function formatDate(date: Date): string {
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const months = [
     "January",
     "February",
@@ -61,10 +53,7 @@ interface ChatGreetingProps {
   subtitle?: string;
 }
 
-export function ChatGreeting({
-  userName = "Sayan",
-  subtitle,
-}: ChatGreetingProps) {
+export function ChatGreeting({ userName = "Sayan", subtitle }: ChatGreetingProps) {
   const [mounted, setMounted] = useState(false);
   const [dateStr, setDateStr] = useState("");
   const [greeting, setGreeting] = useState("");
@@ -86,14 +75,12 @@ export function ChatGreeting({
   }
 
   return (
-    <div className="space-y-1 mb-6 w-full">
-      <p className="text-sm text-[#71717a] tracking-wide">{dateStr}</p>
-      <h1 className="text-3xl md:text-4xl font-semibold text-white/90 tracking-tight">
+    <div className="space-y-1 mb-6 w-full pl-4">
+      <p className="text-base text-[#71717a] tracking-wide">{dateStr}</p>
+      <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-200 via-gray-400 to-gray-500">
         {greeting}, {userName}
       </h1>
-      {subtitle && (
-        <p className="text-sm text-[#71717a] mt-2">{subtitle}</p>
-      )}
+      {subtitle && <p className="text-sm text-[#71717a] mt-2">{subtitle}</p>}
     </div>
   );
 }
