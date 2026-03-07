@@ -33,7 +33,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH="/app/chat/src" \
-    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
+    PATH="/root/.local/bin:/app/.venv/bin:/usr/local/bin:$PATH"
 
 # Install Node.js 18 for MCP servers (required for npx)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -41,8 +41,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv (needed at runtime for "uv tool run workspace-mcp@...")
+# Install uv (needed at runtime for MCP subprocess fallback)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Pre-install MCP server binaries so they're available via shutil.which()
+# at runtime. Without this, uv/npx resolve + download dependencies on every
+# container start, which is slow and can hang.
+RUN uv tool install workspace-mcp==1.11.1
+RUN npm install -g @notionhq/notion-mcp-server@2.1.0 tavily-mcp@0.2.17
 
 # Copy the virtual environment and source from builder
 COPY --from=builder /app/.venv /app/.venv
