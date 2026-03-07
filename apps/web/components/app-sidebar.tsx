@@ -3,8 +3,8 @@
 import * as React from "react";
 import {
   GitBranch,
-  MessageSquarePlus,
-  Puzzle,
+  MessageCircle,
+  Link,
   Search,
   Settings,
   ShoppingBag,
@@ -35,7 +35,7 @@ const navItems = [
   {
     title: "New Chat",
     url: "/chat",
-    icon: MessageSquarePlus,
+    icon: MessageCircle,
   },
   // {
   //   title: "Search",
@@ -46,7 +46,7 @@ const navItems = [
   {
     title: "Integrations",
     url: "/integrations",
-    icon: Puzzle,
+    icon: Link,
   },
   // {
   //   title: "Workflows",
@@ -132,7 +132,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenu>
         </SidebarGroup>
 
-        <SidebarSeparator />
+        {/* <SidebarSeparator /> */}
 
         {/* Chats Section */}
         <NavChats chats={chats} />
