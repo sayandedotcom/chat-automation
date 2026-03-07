@@ -25,6 +25,10 @@ chatExpressRouter.post("/stream", async (req, res) => {
   const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(req, res);
   const connectedIntegrations = getConnectedIntegrations(req);
 
+  // 30s timeout for the initial connection to the agent (not the stream itself)
+  const controller = new AbortController();
+  const connectTimeout = setTimeout(() => controller.abort(), 30_000);
+
   let agentResponse: Response;
   try {
     agentResponse = await fetch(`${AGENT_API_URL}/chat/stream`, {
@@ -39,12 +43,20 @@ chatExpressRouter.post("/stream", async (req, res) => {
         slack_token: slackToken,
         connected_integrations: connectedIntegrations,
       }),
+      signal: controller.signal,
     });
   } catch (err) {
-    console.error("Failed to connect to agent:", err);
-    res.status(502).json({ error: "Failed to connect to agent service" });
+    clearTimeout(connectTimeout);
+    const isTimeout = err instanceof DOMException && err.name === "AbortError";
+    console.error(isTimeout ? "Agent connection timed out" : "Failed to connect to agent:", err);
+    res
+      .status(502)
+      .json({
+        error: isTimeout ? "Agent service timed out" : "Failed to connect to agent service",
+      });
     return;
   }
+  clearTimeout(connectTimeout);
 
   if (!agentResponse.ok) {
     const errorText = await agentResponse.text();
