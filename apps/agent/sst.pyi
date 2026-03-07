@@ -4,6 +4,13 @@
 from typing import Any
 
 class Resource:
+    class AgentService:
+        service: str
+        type: str
+        url: str
+    class AgentVpc:
+        type: str
     class App:
         name: str
         stage: str
+

@@ -6,12 +6,12 @@
 
 declare module "sst" {
   export interface Resource {
-    ApiService: {
+    AgentService: {
       service: string;
       type: "sst.aws.Service";
       url: string;
     };
-    ApiVpc: {
+    AgentVpc: {
       type: "sst.aws.Vpc";
     };
   }
