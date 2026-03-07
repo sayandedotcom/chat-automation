@@ -61,26 +61,23 @@ def create_mcp_client(
             }
         )
 
+        # Use pre-installed binary if available, fall back to uv tool run for dev
+        ws_tools = ["--single-user", "--tools", "gmail", "drive", "calendar", "docs", "sheets", "slides"]
+        if shutil.which("workspace-mcp"):
+            ws_cmd, ws_args = "workspace-mcp", ws_tools
+        else:
+            ws_cmd, ws_args = "uv", ["tool", "run", "workspace-mcp@1.11.1"] + ws_tools
+
         servers["google_workspace"] = {
             "transport": "stdio",
-            # Use pre-installed workspace-mcp binary (avoids runtime downloads)
-            "command": "workspace-mcp",
-            "args": [
-                "--single-user",
-                "--tools",
-                "gmail",
-                "drive",
-                "calendar",
-                "docs",
-                "sheets",
-                "slides",
-            ],
+            "command": ws_cmd,
+            "args": ws_args,
             "env": workspace_env,
             # Lambda CWD is /var/task (read-only). workspace-mcp creates tmp/attachments
             # relative to CWD, so set CWD to /tmp which is writable.
             "cwd": "/tmp",
         }
-        print("🔐 Google Workspace MCP configured (single-user mode, stdio)")
+        print(f"🔐 Google Workspace MCP configured (command={ws_cmd}, stdio)")
 
     if vercel_token:
         servers["vercel"] = {
