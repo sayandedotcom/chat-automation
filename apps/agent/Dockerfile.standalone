@@ -36,7 +36,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH="/app/chat/src" \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/root/.local/bin:/app/.venv/bin:$PATH"
 
 # Install Node.js for MCP servers (required for npx)
 RUN apt-get update && apt-get install -y \
@@ -47,15 +47,16 @@ RUN apt-get update && apt-get install -y \
 # Install uv (provides uvx for workspace-mcp)
 RUN pip install uv --no-cache-dir
 
+# Copy the entire builder uv state (includes Python binary downloaded by uv)
+# since uv sync uses its own python version instead of the system one
+COPY --from=builder /root/.local/share/uv /root/.local/share/uv
+
 # Pre-install workspace-mcp at build time to avoid runtime downloads
+# (must be AFTER copying builder uv state so it doesn't get overwritten)
 RUN uv tool install workspace-mcp@1.11.1
 
 # Pre-install Notion and Tavily MCP servers
 RUN npm install -g @notionhq/notion-mcp-server@2.1.0 tavily-mcp@0.2.17
-
-# Copy the entire builder uv state (includes Python binary downloaded by uv)
-# since uv sync uses its own python version instead of the system one
-COPY --from=builder /root/.local/share/uv /root/.local/share/uv
 
 # Copy the virtual environment and source
 COPY --from=builder /app/.venv /app/.venv

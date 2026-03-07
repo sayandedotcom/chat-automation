@@ -38,7 +38,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH="/app/chat/src" \
-    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
+    PATH="/root/.local/bin:/app/.venv/bin:/usr/local/bin:$PATH"
 
 # Copy source after deps so cache is only busted on source changes
 COPY . .

@@ -33,7 +33,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH="/app/chat/src" \
-    PATH="/app/.venv/bin:/usr/local/bin:$PATH"
+    PATH="/root/.local/bin:/app/.venv/bin:/usr/local/bin:$PATH"
 
 # Install Node.js 18 for MCP servers (required for npx)
 RUN apt-get update && apt-get install -y --no-install-recommends \
