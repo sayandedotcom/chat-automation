@@ -47,6 +47,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Pre-install workspace-mcp at build time to avoid runtime downloads
 RUN uv tool install workspace-mcp@1.11.1
 
+# Pre-install Notion and Tavily MCP servers
+RUN npm install -g @notionhq/notion-mcp-server@2.1.0 tavily-mcp@0.2.17
+
 # Copy the virtual environment and source from builder
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/chat /app/chat

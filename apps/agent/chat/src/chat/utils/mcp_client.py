@@ -12,6 +12,7 @@ from typing import Optional
 import asyncio
 import logging
 import os
+import shutil
 
 from chat.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_MCP_CREDENTIALS_DIR
 
@@ -63,7 +64,7 @@ def create_mcp_client(
         servers["google_workspace"] = {
             "transport": "stdio",
             # Use pre-installed workspace-mcp binary (avoids runtime downloads)
-            "command": "/root/.local/bin/workspace-mcp",
+            "command": "workspace-mcp",
             "args": [
                 "--single-user",
                 "--tools",
@@ -90,18 +91,28 @@ def create_mcp_client(
         }
 
     if notion_token:
+        # Use pre-installed binary if available, fall back to npx for dev
+        if shutil.which("notion-mcp-server"):
+            notion_cmd, notion_args = "notion-mcp-server", []
+        else:
+            notion_cmd, notion_args = "npx", ["-y", "@notionhq/notion-mcp-server@2.1.0"]
         servers["notion"] = {
             "transport": "stdio",
-            "command": "npx",
-            "args": ["-y", "@notionhq/notion-mcp-server@2.1.0"],
+            "command": notion_cmd,
+            "args": notion_args,
             "env": {**os.environ, "NOTION_TOKEN": notion_token},
         }
 
     if tavily_api_key:
+        # Use pre-installed binary if available, fall back to npx for dev
+        if shutil.which("tavily-mcp"):
+            tavily_cmd, tavily_args = "tavily-mcp", []
+        else:
+            tavily_cmd, tavily_args = "npx", ["-y", "tavily-mcp@0.2.17"]
         servers["tavily"] = {
             "transport": "stdio",
-            "command": "npx",
-            "args": ["-y", "tavily-mcp@0.2.17"],
+            "command": tavily_cmd,
+            "args": tavily_args,
             "env": {**os.environ, "TAVILY_API_KEY": tavily_api_key},
         }
 
