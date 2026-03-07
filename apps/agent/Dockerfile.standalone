@@ -47,6 +47,9 @@ RUN apt-get update && apt-get install -y \
 # Install uv (provides uvx for workspace-mcp)
 RUN pip install uv --no-cache-dir
 
+# Pre-install workspace-mcp at build time to avoid runtime downloads
+RUN uv tool install workspace-mcp@1.11.1
+
 # Copy the entire builder uv state (includes Python binary downloaded by uv)
 # since uv sync uses its own python version instead of the system one
 COPY --from=builder /root/.local/share/uv /root/.local/share/uv

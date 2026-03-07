@@ -62,13 +62,9 @@ def create_mcp_client(
 
         servers["google_workspace"] = {
             "transport": "stdio",
-            "command": "uv",
-            # Use --single-user for simplified authentication flow
-            # Credentials are pre-synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
+            # Use pre-installed workspace-mcp binary (avoids runtime downloads)
+            "command": "/root/.local/bin/workspace-mcp",
             "args": [
-                "tool",
-                "run",
-                "workspace-mcp@1.11.1",
                 "--single-user",
                 "--tools",
                 "gmail",
