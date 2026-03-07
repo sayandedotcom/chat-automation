@@ -83,7 +83,7 @@ const user = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isMobile = useIsMobile();
   return (
-    <Sidebar collapsible="icon" className="!bg-[#0c0c0c] border-r-white/5" {...props}>
+    <Sidebar collapsible="icon" className="!bg-[#0c0c0c] border-r-0" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

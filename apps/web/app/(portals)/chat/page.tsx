@@ -854,7 +854,7 @@ export default function ChatPage() {
             </StickToBottom>
 
             {/* Fixed chat input at the bottom */}
-            <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-[#0a0a0a] border-t border-white/5">
+            <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-[#131313] border-t border-white/5">
               <div className="max-w-5xl mx-auto [&>div]:pb-0">
                 <ChatInputWithMentions
                   onSubmit={executeWorkflow}
