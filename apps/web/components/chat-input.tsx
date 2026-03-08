@@ -18,6 +18,7 @@ import {
   useChatInput,
 } from "@workspace/ui/components/chat-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
 type MemberItem = {
   id: string;
@@ -155,43 +156,62 @@ export function ChatInputWithMentions({
               <div className="flex items-center gap-2">
                 <ChatInputMentionButton
                   variant="ghost"
-                  className="text-[#999999] hover:text-white hover:bg-white/10 rounded-full h-8 w-8 p-0 [&>svg]:h-[26px] [&>svg]:w-[26px] [&>svg]:stroke-[2.5]"
+                  className="text-white hover:text-white hover:bg-white/10 rounded-full h-8 w-8 p-0 [&>svg]:h-[26px] [&>svg]:w-[26px] [&>svg]:stroke-[2.5]"
                 />
-
-                <Toggle
-                  variant="outline"
-                  size="sm"
-                  pressed={isAutoMode}
-                  onPressedChange={setIsAutoMode}
-                  className="h-8 px-3.5 gap-2 rounded-xl border border-white/[0.08] bg-[#141414] text-[#9a9a9a] hover:text-[#c0c0c0] hover:bg-[#1a1a1a] data-[state=on]:bg-gradient-to-b data-[state=on]:from-[#453957] data-[state=on]:to-[#2e2c4e] data-[state=on]:border-white/[0.1] data-[state=on]:text-[#e0dce8] transition-all duration-200"
-                >
-                  <span className="text-[13px] font-medium">Auto</span>
-                  <div
-                    className={`w-[16px] h-[16px] rounded-full flex items-center justify-center transition-all duration-200 ${
-                      isAutoMode
-                        ? "bg-white/20 text-white/90"
-                        : "bg-[#2a2a2a] border border-[#3a3a3a]"
-                    }`}
-                  >
-                    {isAutoMode && (
-                      <svg
-                        width="9"
-                        height="9"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      variant="outline"
+                      size="sm"
+                      pressed={isAutoMode}
+                      onPressedChange={setIsAutoMode}
+                      className="h-8 px-3.5 gap-2 rounded-xl border border-white/[0.08] text-[#9a9a9a] hover:text-[#c0c0c0] data-[state=on]:text-[#c0bcc8] cursor-pointer select-none"
+                      style={{
+                        background: isAutoMode
+                          ? "linear-gradient(to bottom, #2d2440, #1e1b30)"
+                          : "#141414",
+                        boxShadow: isAutoMode
+                          ? "0px 4px 0px 0px #151220, 0px 0px 6px rgba(55, 45, 80, 0.25)"
+                          : "0px 0px 0px 0px #0a0a0a",
+                        transform: isAutoMode ? "translateY(0px)" : "translateY(3px)",
+                        transition: "all 0.2s ease",
+                        borderColor: isAutoMode
+                          ? "rgba(255,255,255,0.08)"
+                          : "rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <span className="text-[13px] font-medium">Auto</span>
+                      <div
+                        className={`w-[16px] h-[16px] rounded-full flex items-center justify-center transition-all duration-200 ${
+                          isAutoMode
+                            ? "bg-white/20 text-white/90"
+                            : "bg-[#2a2a2a] border border-[#3a3a3a]"
+                        }`}
                       >
-                        <path
-                          d="M3.5 8.5L6.5 11.5L12.5 4.5"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                </Toggle>
+                        {isAutoMode && (
+                          <svg
+                            width="9"
+                            height="9"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M3.5 8.5L6.5 11.5L12.5 4.5"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Auto Approve Actions</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
 
               <div className="flex items-center gap-2">
