@@ -34,14 +34,23 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 
 ## Quick Start
 
-### 1. Prerequisites
+Choose your setup method:
+
+- [**Docker Setup**](#docker-setup) — Recommended for quick start, all services containerized
+- [**Local Development**](#local-development) — For active development with hot reload
+
+---
+
+## Docker Setup
+
+### Prerequisites
 
 - **Docker** & Docker Compose
 
-### 2. Setup Environment
+### 1. Setup Environment
 
 ```bash
-cp .env.example .env
+cp .env.docker .env
 ```
 
 Generate a session secret and fill in the required values:
@@ -60,7 +69,7 @@ Required values in `.env`:
 | `GOOGLE_API_KEY`       | [Google AI Studio](https://aistudio.google.com/)                          |
 | `TAVILY_API_KEY`       | [Tavily](https://tavily.com/)                                             |
 
-### 3. Google Cloud Console Setup
+### 2. Google Cloud Console Setup
 
 1. Go to [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
 2. Create or select an **OAuth 2.0 Client ID** (Application type: Web application)
@@ -78,7 +87,7 @@ Required values in `.env`:
    - Google Drive API _(if using Drive/Docs/Sheets/Slides)_
    - Google Calendar API _(if using Calendar integration)_
 
-### 4. Notion Setup (Optional)
+### 3. Notion Setup (Optional)
 
 1. Go to [Notion Integrations](https://www.notion.so/profile/integrations) → **New integration**
 2. Set **Redirect URI** to:
@@ -91,7 +100,7 @@ Required values in `.env`:
    NOTION_CLIENT_SECRET=your-notion-client-secret
    ```
 
-### 5. Start
+### 4. Start
 
 ```bash
 docker compose up
@@ -101,64 +110,66 @@ Access at **http://localhost:8080**
 
 ---
 
-## Docker Commands
+## Local Development
+
+### Prerequisites
+
+- **Node.js** 20+
+- **pnpm** 9+
+- **Python** 3.11+ with **uv**
+- **PostgreSQL** 16 (local or cloud)
+
+### 1. Setup Environment
 
 ```bash
-# Start all services
-docker compose up
-
-# Start in background
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# View logs for specific service
-docker compose logs -f api
-docker compose logs -f agent
-
-# Stop all services
-docker compose down
-
-# Stop and reset database
-docker compose down -v
-
-# Rebuild a specific service
-docker compose build api
-docker compose build agent
-
-# Access container shell
-docker compose exec api sh
-docker compose exec agent bash
+cp .env.example .env
 ```
 
----
+Fill in the required values in `.env`:
 
-## Deployment (SST)
+| Variable               | Where to get it                                                           |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `DATABASE_URL`         | PostgreSQL connection string (local or cloud like Neon, Supabase)         |
+| `SESSION_SECRET`       | Run `openssl rand -base64 32`                                             |
+| `GOOGLE_CLIENT_ID`     | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| `GOOGLE_CLIENT_SECRET` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| `GOOGLE_API_KEY`       | [Google AI Studio](https://aistudio.google.com/)                          |
+| `TAVILY_API_KEY`       | [Tavily](https://tavily.com/)                                             |
 
-The API is configured for deployment with SST to AWS ECS Fargate:
+### 2. Google Cloud Console Setup
+
+Same as [Docker Setup](#2-google-cloud-console-setup), but use these URLs:
+
+- **Authorized redirect URIs:** `http://localhost:8000/auth/google/callback`
+- **Authorized JavaScript origins:** `http://localhost:3000`
+
+### 3. Install Dependencies
 
 ```bash
-cd apps/api
-sst deploy
+# Install Node.js dependencies
+pnpm install
+
+# Install Python dependencies
+cd apps/agent && uv sync && cd ../..
 ```
 
-Required environment variables:
+### 4. Setup Database
 
-- `DATABASE_URL`
-- `SESSION_SECRET`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_CALLBACK_URL`
-- `APP_URL`
-
-For production, update URLs:
-
-```env
-GOOGLE_CALLBACK_URL=https://yourdomain.com/auth/google/callback
-APP_URL=https://yourdomain.com
-API_BASE_URL=https://yourdomain.com
+```bash
+pnpm --filter @workspace/database db:push
 ```
+
+### 5. Start Development Servers
+
+```bash
+pnpm dev
+```
+
+This starts:
+
+- **Web** at http://localhost:3000
+- **API** at http://localhost:8000
+- **Agent** at http://localhost:8001
 
 ---
 
@@ -242,61 +253,63 @@ chat-automation/
 LangGraph workflow implementing **Plan → Route → Execute (Auto/Approval) → Loop** pattern with Human-in-the-Loop (HITL) support.
 
 ```
-                   ┌─────────┐
-                   │  START  │
-                   └────┬────┘
-                        │
-                        ▼
-              ┌──────────────────┐
-              │  SMART_ROUTER    │  ← Dynamic integration loading
-              │ (if registry)    │
-              └────────┬─────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │    PLANNER      │  ← LLM creates plan with HITL flags
-              │ (structured out)│
-              └────────┬────────┘
-                       │
-                       ▼
-              ┌────────────────────┐
-              │  ROUTE_EXECUTOR    │  ← Routes based on requires_human_approval
-              └───────┬────────────┘
-                      │
-         ┌────────────┴────────────┐
-         │                         │
-    approval=false           approval=true
-         │                         │
-         ▼                         ▼
-   ┌──────────┐          ┌────────────────────────┐
-   │ EXECUTOR │◄──┐      │ EXECUTOR_WITH_APPROVAL │◄──┐
-   │  (auto)  │   │      │   (state-based HITL)   │   │
-   └────┬─────┘   │      └───────────┬────────────┘   │
-        │         │                  │                │
-        │         │                  │                │
-        ▼         │                  ▼                │
-   ┌────────┐     │             ┌────────┐            │
-   │ TOOLS  │─────┴─────────────│ TOOLS  │────────────┘
-   └────────┘                   └────────┘
-        │                           │
-        ▼                           ▼
-   ┌───────────────────┐
-   │   STEP_COMPLETE   │  ← Clears executor state
-   └─────────┬─────────┘
-             │
-             ▼
-   ┌───────────────────────┐
-   │ should_execute_next   │
-   └───────────┬───────────┘
-               │
-       ┌───────┴───────┐
-       │               │
-   more steps        done
-       │               │
-       ▼               ▼
-   (loop)           ┌─────┐
-                    │ END │
-                    └─────┘
+        +----------+
+        |  START   |
+        +----+-----+
+             |
+             v
+    +-----------------+
+    |  SMART ROUTER   |  <-- Classify integrations, check auth
+    +--------+--------+
+             |
+             v
+    +-----------------+
+    |     PLANNER     |  <-- LLM creates plan with HITL flags
+    | (structured out)|
+    +--------+--------+
+             |
+             v
+    +--------------------+
+    |   ROUTE_EXECUTOR   |  <-- Routes based on requires_human_approval
+    +--------+-----------+
+             |
+             v
+    +--------+-------------------------+
+    |                                  |
+    | approval=false                   | approval=true
+    |                                  |
+    v                                  v
++----------+                +------------------------+
+| EXECUTOR |<---+           | EXECUTOR_WITH_APPROVAL |<---+
+| (auto)   |    |           | (state-based HITL)     |    |
++----+-----+    |           +-----------+------------+    |
+     |          |                       |                 |
+     | should_  |                       | should_         |
+     | continue |                       | continue        |
+     v          |                       v                 |
++--------+      |                  +--------+             |
+| TOOLS  |------+                  | TOOLS  |-------------+
++--------+ route_after_tools       +--------+ route_after_tools
+     | (no more tool calls)            |
+     v                                 v
+    +-------------------+
+    |   STEP_COMPLETE   |  <-- Extract artifacts, advance index
+    +---------+---------+
+              |
+              v
+    +---------------------+
+    | should_execute_next |
+    +---------+-----------+
+              |
+      +-------+-------+
+      |               |
+  route_executor     end
+      |               |
+      v               v
+    (loop)         +-----+
+                   | END |
+                   +-----+
+
 ```
 
 ### Workflow Nodes
