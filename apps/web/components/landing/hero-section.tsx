@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { StarsBackground } from "@workspace/ui/components/stars-background";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { Button } from "@workspace/ui/components/button";
@@ -56,8 +57,7 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed"
         >
-          An intelligent assistant that understands you, your team, and your
-          tools.
+          An intelligent assistant that understands you, your team, and your tools.
           <br className="hidden md:block" />
           Automate the mundane. Focus on what matters.
         </motion.p>
@@ -111,7 +111,7 @@ export function HeroSection() {
             <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
             <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
             <div className="ml-4 text-xs text-neutral-500 font-medium flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-500 to-violet-600" />
+              <Image src="/logo.png" alt="Logo" width={16} height={16} className="rounded" />
               Chat Automations
             </div>
             <div className="ml-auto flex items-center gap-4 text-xs text-neutral-600">
@@ -123,8 +123,8 @@ export function HeroSection() {
             <div className="flex items-start gap-4 self-end max-w-lg">
               <div className="bg-neutral-800/80 border border-white/5 rounded-2xl rounded-tr-sm p-4 text-sm text-neutral-200">
                 <p>
-                  Clear my calendar for the rest of the week and reschedule the
-                  important meetings to next week.
+                  Clear my calendar for the rest of the week and reschedule the important meetings
+                  to next week.
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-neutral-600 to-neutral-700 flex-shrink-0 flex items-center justify-center text-xs font-medium">
@@ -133,15 +133,14 @@ export function HeroSection() {
             </div>
 
             <div className="flex items-start gap-4 max-w-2xl">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-[0_0_20px_rgba(139,92,246,0.3)]">
-                CA
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+                <Image src="/logo.png" alt="Logo" width={36} height={36} className="rounded-full" />
               </div>
               <div className="flex flex-col gap-3">
                 <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl rounded-tl-sm p-5 text-sm text-neutral-200 shadow-[0_0_40px_rgba(139,92,246,0.1)]">
                   <p className="mb-4">
-                    I've analyzed your calendar and identified 5 meetings. I
-                    recommend canceling 3 low-priority syncs and rescheduling 2
-                    important meetings to next week.
+                    I've analyzed your calendar and identified 5 meetings. I recommend canceling 3
+                    low-priority syncs and rescheduling 2 important meetings to next week.
                   </p>
 
                   <div className="bg-black/50 rounded-xl border border-white/5 overflow-hidden">
@@ -196,9 +195,7 @@ export function HeroSection() {
                           >
                             {item.name}
                           </span>
-                          <span className="ml-auto text-neutral-500">
-                            {item.status}
-                          </span>
+                          <span className="ml-auto text-neutral-500">{item.status}</span>
                         </div>
                       ))}
                     </div>
@@ -214,9 +211,7 @@ export function HeroSection() {
 
             <div className="absolute bottom-4 left-0 right-0 px-4 md:px-6">
               <div className="flex items-center gap-3 bg-neutral-900/80 border border-white/5 rounded-xl p-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-xs font-bold">
-                  CA
-                </div>
+                <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full" />
                 <input
                   type="text"
                   placeholder="Ask Chat Automations to do something..."

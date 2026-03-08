@@ -754,9 +754,13 @@ export default function ChatPage() {
                   {/* Shimmer loading indicator while planning */}
                   {workflowStatus === "planning" && steps.length === 0 && (
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#1a1a1a] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm">🤖</span>
-                      </div>
+                      <Image
+                        src="/logo.png"
+                        alt="Logo"
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
                       <ShimmerText
                         text="Working on it..."
                         className="!text-base !font-medium"

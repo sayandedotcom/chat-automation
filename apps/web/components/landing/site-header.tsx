@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@workspace/ui/components/button";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
@@ -27,13 +28,8 @@ export function SiteHeader() {
         className="mx-auto max-w-6xl rounded-full border border-white/10 bg-black/50 backdrop-blur-xl supports-[backdrop-filter]:bg-black/30"
       >
         <div className="flex h-14 items-center justify-between px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-bold text-lg text-white"
-          >
-            <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center">
-              <span className="text-xs font-bold">CA</span>
-            </div>
+          <Link href="/" className="flex items-center gap-2 font-bold text-lg text-white">
+            <Image src="/logo.png" alt="Logo" width={28} height={28} className="rounded-lg" />
             <span className="hidden sm:inline">Chat Automations</span>
           </Link>
 
@@ -52,11 +48,7 @@ export function SiteHeader() {
           <div className="flex items-center gap-3">
             <a href={`${API_URL}/auth/google`}>
               <Button className="bg-white text-black rounded-full px-5 gap-2">
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 48 48"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
+                <svg className="w-4 h-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                   <path
                     fill="#FFC107"
                     d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
@@ -81,11 +73,7 @@ export function SiteHeader() {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="md:hidden p-2 text-neutral-400 hover:text-white"
             >
-              {isMenuOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -110,11 +98,7 @@ export function SiteHeader() {
               ))}
               <a href={`${API_URL}/auth/google`} className="mt-2">
                 <Button className="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 rounded-xl gap-2 justify-center">
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 48 48"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
+                  <svg className="w-4 h-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                     <path
                       fill="#FFC107"
                       d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"

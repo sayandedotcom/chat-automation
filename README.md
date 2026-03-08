@@ -1,4 +1,8 @@
-# Chat Automation
+<div align="center">
+  <img src="apps/web/public/logo.png" alt="Chat Automation Logo" width="120" height="120">
+  
+  # Chat Automation
+</div>
 
 AI-powered chat automation platform with an Express API, Next.js frontend, and a LangGraph-based Python agent with MCP tool integrations.
 
