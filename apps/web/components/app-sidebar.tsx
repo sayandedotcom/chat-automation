@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   GitBranch,
   MessageCircle,
-  Link,
+  Link as LinkIcon,
   Search,
   Settings,
   ShoppingBag,
@@ -47,7 +48,7 @@ const navItems = [
   {
     title: "Integrations",
     url: "/integrations",
-    icon: Link,
+    icon: LinkIcon,
   },
   // {
   //   title: "Workflows",
@@ -94,12 +95,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden"
                 asChild
               >
-                <a href="/chat">
+                <Link href="/chat">
                   <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-lg" />
-                  {/* <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Chat AI</span>
-                  </div> */}
-                </a>
+                </Link>
               </SidebarMenuButton>
               <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:translate-x-0" />
             </div>
@@ -118,13 +116,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   tooltip={item.title}
                   className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]"
                 >
-                  <a href={item.url}>
+                  <Link href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
-                    {/* {item.shortcut && (
-                      <span className="ml-auto text-xs text-zinc-500">{item.shortcut}</span>
-                    )} */}
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -146,10 +141,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               tooltip="Settings"
               className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]"
             >
-              <a href="/settings">
+              <Link href="/settings">
                 <Settings />
                 <span>Settings</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

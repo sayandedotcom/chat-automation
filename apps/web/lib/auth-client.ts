@@ -36,7 +36,7 @@ async function delay(ms: number): Promise<void> {
 async function fetchWithTimeout<T>(
   path: string,
   options?: RequestInit,
-  timeout = FETCH_TIMEOUT,
+  timeout = FETCH_TIMEOUT
 ): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -65,7 +65,7 @@ async function fetchWithTimeout<T>(
 async function fetchWithRetry<T>(
   path: string,
   options?: RequestInit,
-  retries = MAX_RETRIES,
+  retries = MAX_RETRIES
 ): Promise<T> {
   let lastError: Error | null = null;
 
@@ -127,14 +127,14 @@ function notifyListeners() {
 }
 
 export function useSession() {
-  const [data, setData] = useState<SessionData | null>(
-    sessionCache?.data ?? null,
-  );
+  const [data, setData] = useState<SessionData | null>(sessionCache?.data ?? null);
   const [isPending, setIsPending] = useState(!sessionCache);
   const [error, setError] = useState<Error | null>(null);
 
-  const refetch = useCallback(async () => {
-    setIsPending(true);
+  const refetch = useCallback(async (background = false) => {
+    if (!background) {
+      setIsPending(true);
+    }
     setError(null);
     try {
       const status = await getStatus();
@@ -179,7 +179,7 @@ export function useSession() {
       setIsPending(false);
       return;
     }
-    refetch();
+    refetch(!!sessionCache);
   }, [refetch]);
 
   return { data, isPending, error, refetch };

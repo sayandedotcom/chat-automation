@@ -19,8 +19,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isPending, session, router]);
 
-  // Always show loading spinner while pending
-  if (isPending || session === undefined) {
+  // Only show loading spinner on initial load (no cached data yet)
+  if (isPending && session === undefined) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3">
