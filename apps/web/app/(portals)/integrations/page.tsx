@@ -9,6 +9,16 @@ import { Input } from "@workspace/ui/components/input";
 import { Button } from "@workspace/ui/components/button";
 import { oauthIntegrations, type Integration } from "@/config/integrations";
 
+// Wrapper that conditionally shows background or solid black
+const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
+  // Show planetary background when idle
+  return (
+    <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-hidden border border-white/10 rounded-2xl">
+      {children}
+    </div>
+  );
+};
+
 function IntegrationCard({
   integration,
   isConnected,
@@ -146,57 +156,59 @@ export default function IntegrationsPage() {
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Background Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-white/[0.03] blur-[100px] rounded-[100%] pointer-events-none" />
+    <ContentWrapper>
+      <div className="min-h-screen bg-black relative overflow-hidden">
+        {/* Background Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-white/[0.03] blur-[100px] rounded-[100%] pointer-events-none" />
 
-      <div className="max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-20 relative z-10">
-        {/* Header */}
-        <div className="text-center space-y-3 mb-10">
-          <h1 className="text-[32px] md:text-4xl font-medium text-zinc-100 tracking-tight">
-            Integrations
-          </h1>
-          <p className="text-zinc-300 text-[15px]">
-            Connect the tools you want to use with Dimension.
-          </p>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative max-w-2xl mx-auto mb-16">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500" />
-          <Input
-            type="text"
-            placeholder="Search for integration"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-11 pl-11 pr-5 bg-zinc-900/30 border border-zinc-800/50 rounded-full text-[14px] text-zinc-200 placeholder:text-zinc-500 focus:border-zinc-700 focus:bg-zinc-900/50 focus:ring-0 focus:ring-offset-0 transition-all duration-200"
-          />
-        </div>
-
-        {/* Integrations Section */}
-        <section className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 xl:gap-x-8 gap-y-1 mt-4">
-            {filteredIntegrations.map((integration) => (
-              <IntegrationCard
-                key={integration.id}
-                integration={integration}
-                isConnected={connectionStatus[integration.id] || false}
-                isLoading={loadingStates[integration.id] || false}
-                onConnect={() => handleConnect(integration.id)}
-                onDisconnect={() => handleDisconnect(integration.id)}
-              />
-            ))}
+        <div className="max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-20 relative z-10">
+          {/* Header */}
+          <div className="text-center space-y-3 mb-10">
+            <h1 className="text-[32px] md:text-4xl font-medium text-zinc-100 tracking-tight">
+              Integrations
+            </h1>
+            <p className="text-zinc-300 text-[15px]">
+              Connect the tools you want to use with Dimension.
+            </p>
           </div>
 
-          {filteredIntegrations.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-zinc-500 text-base">
-                No integrations found matching "{searchQuery}"
-              </p>
+          {/* Search Bar */}
+          <div className="relative max-w-2xl mx-auto mb-16">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500" />
+            <Input
+              type="text"
+              placeholder="Search for integration"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-11 pl-11 pr-5 bg-zinc-900/30 border border-zinc-800/50 rounded-full text-[14px] text-zinc-200 placeholder:text-zinc-500 focus:border-zinc-700 focus:bg-zinc-900/50 focus:ring-0 focus:ring-offset-0 transition-all duration-200"
+            />
+          </div>
+
+          {/* Integrations Section */}
+          <section className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 xl:gap-x-8 gap-y-1 mt-4">
+              {filteredIntegrations.map((integration) => (
+                <IntegrationCard
+                  key={integration.id}
+                  integration={integration}
+                  isConnected={connectionStatus[integration.id] || false}
+                  isLoading={loadingStates[integration.id] || false}
+                  onConnect={() => handleConnect(integration.id)}
+                  onDisconnect={() => handleDisconnect(integration.id)}
+                />
+              ))}
             </div>
-          )}
-        </section>
+
+            {filteredIntegrations.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-zinc-500 text-base">
+                  No integrations found matching "{searchQuery}"
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
-    </div>
+    </ContentWrapper>
   );
 }
