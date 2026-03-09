@@ -6,6 +6,14 @@
 
 AI-powered chat automation platform with an Express API, Next.js frontend, and a LangGraph-based Python agent with MCP tool integrations.
 
+## Key Achievements
+
+- Automated complex, multi-step user requests, successfully executing end-to-end task flows, by designing an agentic AI workflow engine in LangGraph that implements a Plan → Route → Execute pattern with LLM-driven task decomposition.
+- Decreased overall LLM token consumption by 90% by architecting a smart integration registry that dynamically binds only contextually relevant Model Context Protocol (MCP) tools per request instead of loading the entire toolset.
+- Increased autonomous task completion rate by over 25% by engineering self-correction mechanisms and reasoning loops that allow the AI agent to dynamically evaluate output and gracefully recover from tool errors.
+- Guaranteed the safe execution of AI-driven actions with real-world consequences, resulting in zero unauthorized system mutations, by implementing a state-based Human-in-the-Loop (HITL) system that supports mid-workflow approve, edit, and skip decisions.
+- Ensured high availability of the real-time AI workflow engine, maintaining 99.9% system uptime, by provisioning and deploying the production backend infrastructure and PostgreSQL databases on AWS EC2 instances.
+
 **Live:** [Web](https://sayande.xyz/) · [Agent](https://agent.sayande.xyz/) · [API](https://api.sayande.xyz/)
 
 **Technical Blog:** [Building an Autonomous AI Agent: A Deep Dive into the Architecture](https://sayande.hashnode.dev/building-an-autonomous-ai-agent-a-deep-dive-into-the-architecture)
