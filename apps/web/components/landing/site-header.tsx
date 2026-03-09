@@ -47,7 +47,7 @@ export function SiteHeader() {
 
           <div className="flex items-center gap-3">
             <a href={`${API_URL}/auth/google`}>
-              <Button className="bg-white text-black rounded-full px-5 gap-2">
+              <Button className="bg-[#533ccf] text-white rounded-full px-5 gap-2 hover:bg-[#533ccf]">
                 <svg className="w-4 h-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                   <path
                     fill="#FFC107"
@@ -66,13 +66,10 @@ export function SiteHeader() {
                     d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
                   />
                 </svg>
-                Sign In
+                Get Started
               </Button>
             </a>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-neutral-400 hover:text-white"
-            >
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2">
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
@@ -97,7 +94,7 @@ export function SiteHeader() {
                 </Link>
               ))}
               <a href={`${API_URL}/auth/google`} className="mt-2">
-                <Button className="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 rounded-xl gap-2 justify-center">
+                <Button className="w-full bg-[#533ccf] hover:bg-[#533ccf] rounded-xl gap-2 justify-center text-white">
                   <svg className="w-4 h-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                     <path
                       fill="#FFC107"

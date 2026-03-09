@@ -96,9 +96,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               >
                 <a href="/chat">
                   <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-lg" />
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  {/* <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">Chat AI</span>
-                  </div>
+                  </div> */}
                 </a>
               </SidebarMenuButton>
               <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:translate-x-0" />
@@ -134,7 +134,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <SidebarSeparator /> */}
 
         {/* Chats Section */}
-        <NavChats chats={chats} />
+        {/* <NavChats chats={chats} /> */}
       </SidebarContent>
 
       <SidebarFooter>

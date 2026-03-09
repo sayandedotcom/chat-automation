@@ -27,7 +27,7 @@ const features = [
     title: "Email Triage & Drafts",
     desc: "Sort, prioritize, and draft responses to emails automatically.",
     icon: Mail,
-    gradient: "from-purple-500 to-pink-500",
+    gradient: "from-blue-500 to-indigo-500",
     size: "small",
   },
   {
@@ -41,7 +41,7 @@ const features = [
     title: "Slack Integration",
     desc: "Get instant answers and automate responses directly in your Slack channels.",
     icon: Slack,
-    gradient: "from-violet-500 to-purple-500",
+    gradient: "from-indigo-500 to-blue-500",
     size: "medium",
   },
   {
@@ -69,7 +69,7 @@ const stats = [
 export function FeaturesSection() {
   return (
     <section className="py-32 bg-black text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-purple-950/5 to-black pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-[#533ccf]/5 to-black pointer-events-none" />
 
       <div className="container mx-auto px-4 relative z-10">
         <motion.div
@@ -79,19 +79,20 @@ export function FeaturesSection() {
           className="flex flex-col items-center mb-20"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm text-sm text-neutral-300 mb-6">
-            <Zap className="w-4 h-4 text-purple-400" />
+            <Zap className="w-4 h-4 text-[#533ccf]" />
             <span>Powerful Features</span>
           </div>
-          <h2 className="text-4xl md:text-6xl font-bold mb-6 text-center">
-            Everything you need,
+          <h2 className="text-4xl md:text-6xl font-bold mb-6 text-center tracking-tight">
+            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400">
+              Everything you need,
+            </span>
             <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-violet-400">
+            <span className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-300 to-neutral-500">
               nothing you don't
             </span>
           </h2>
           <p className="text-neutral-400 text-center max-w-xl text-lg">
-            Connect your tools, set your preferences, and let AI handle the
-            rest.
+            Connect your tools, set your preferences, and let AI handle the rest.
           </p>
         </motion.div>
 
@@ -120,12 +121,10 @@ export function FeaturesSection() {
                   </div>
 
                   <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                  <p className="text-neutral-400 text-sm leading-relaxed">
-                    {feature.desc}
-                  </p>
+                  <p className="text-neutral-400 text-sm leading-relaxed">{feature.desc}</p>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-neutral-500 mt-6 group-hover:text-purple-400 transition-colors">
+                <div className="flex items-center gap-2 text-sm text-neutral-500 mt-6 group-hover:text-[#533ccf] transition-colors">
                   <span>Learn more</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -143,10 +142,10 @@ export function FeaturesSection() {
           {stats.map((stat, i) => (
             <div
               key={i}
-              className="relative p-8 rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/50 to-black/50 text-center group hover:border-purple-500/30 transition-colors"
+              className="relative p-8 rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/50 to-black/50 text-center group hover:border-[#533ccf]/30 transition-colors"
             >
-              <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-violet-400 mb-2">
+              <div className="absolute inset-0 bg-gradient-to-b from-[#533ccf]/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400 mb-2">
                 {stat.value}
               </div>
               <div className="text-neutral-400">{stat.label}</div>

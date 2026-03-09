@@ -21,33 +21,23 @@ export function HeroSection() {
         <ShootingStars />
       </div>
 
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[800px] bg-gradient-to-b from-purple-600/20 via-purple-900/10 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[800px] bg-gradient-to-b from-[#533ccf]/20 via-[#533ccf]/10 to-transparent rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute top-40 left-0 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-40 left-0 w-[500px] h-[500px] bg-[#533ccf]/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="z-10 flex flex-col items-center text-center max-w-5xl px-4 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm text-sm text-neutral-300"
-        >
-          <Sparkles className="w-4 h-4 text-purple-400" />
-          <span>Introducing Chat Automations AI</span>
-        </motion.div>
-
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.1]"
+          transition={{ duration: 0.6 }}
+          className="text-2xl md:text-4xl lg:text-5xl font-medium tracking-tight leading-[1.1]"
         >
-          <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-neutral-400">
-            Your AI coworker
+          <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400">
+            AI that actually
           </span>
           <br />
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-violet-400 to-purple-400">
-            that actually works
+          <span className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-300 to-neutral-500">
+            works for you.
           </span>
         </motion.h1>
 
@@ -55,46 +45,12 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed"
+          className="text-sm text-neutral-400 max-w-2xl leading-relaxed"
         >
           An intelligent assistant that understands you, your team, and your tools.
           <br className="hidden md:block" />
           Automate the mundane. Focus on what matters.
         </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="flex flex-col sm:flex-row gap-4 mt-4"
-        >
-          <Button className="group rounded-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 transition-all px-8 py-6 text-lg shadow-[0_0_60px_rgba(139,92,246,0.3)] border border-white/10 hover:shadow-[0_0_80px_rgba(139,92,246,0.4)]">
-            Get Started Free
-            <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-full border-white/10 bg-white/5 hover:bg-white/10 transition-all px-8 py-6 text-lg text-white"
-          >
-            Watch Demo
-          </Button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="flex items-center gap-6 mt-6 text-sm text-neutral-500"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>No credit card required</span>
-          </div>
-          <div className="hidden sm:block w-px h-4 bg-neutral-700" />
-          <div className="hidden sm:flex items-center gap-2">
-            <span>Free 14-day trial</span>
-          </div>
-        </motion.div>
       </div>
 
       <div className="z-20 mt-16 md:mt-24 w-full max-w-6xl px-4 [perspective:2000px]">
@@ -104,7 +60,7 @@ export function HeroSection() {
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           className="relative rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/80 to-black/90 backdrop-blur-xl shadow-2xl overflow-hidden"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#533ccf]/5 via-transparent to-blue-500/5 pointer-events-none" />
 
           <div className="flex items-center gap-2 px-4 py-4 border-b border-white/5 bg-white/[0.02]">
             <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
@@ -133,11 +89,11 @@ export function HeroSection() {
             </div>
 
             <div className="flex items-start gap-4 max-w-2xl">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(83,60,207,0.3)]">
                 <Image src="/logo.png" alt="Logo" width={36} height={36} className="rounded-full" />
               </div>
               <div className="flex flex-col gap-3">
-                <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl rounded-tl-sm p-5 text-sm text-neutral-200 shadow-[0_0_40px_rgba(139,92,246,0.1)]">
+                <div className="bg-[#533ccf]/10 border border-[#533ccf]/20 rounded-2xl rounded-tl-sm p-5 text-sm text-neutral-200 shadow-[0_0_40px_rgba(83,60,207,0.1)]">
                   <p className="mb-4">
                     I've analyzed your calendar and identified 5 meetings. I recommend canceling 3
                     low-priority syncs and rescheduling 2 important meetings to next week.
@@ -203,7 +159,7 @@ export function HeroSection() {
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-neutral-500 ml-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#533ccf]" />
                   <span>Completed in 2.3s</span>
                 </div>
               </div>
@@ -230,10 +186,10 @@ export function HeroSection() {
             </div>
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-purple-500/5 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#533ccf]/5 via-transparent to-transparent pointer-events-none" />
         </motion.div>
 
-        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[80%] h-40 bg-purple-500/20 blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[80%] h-40 bg-[#533ccf]/20 blur-[100px] pointer-events-none" />
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 h-60 bg-gradient-to-t from-black via-black/80 to-transparent z-20" />
