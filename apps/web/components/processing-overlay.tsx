@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import Image from "next/image";
+import { CircleX } from "lucide-react";
 
 const PARTICLE_COUNT = 40;
 
@@ -10,10 +11,12 @@ export function ProcessingOverlay({
   providerIcon,
   providerName,
   visible,
+  error,
 }: {
-  providerIcon: string;
-  providerName: string;
+  providerIcon?: string;
+  providerName?: string;
   visible: boolean;
+  error?: string;
 }) {
   // Generate stable random particles on mount
   const [particles] = useState(() =>
@@ -62,7 +65,11 @@ export function ProcessingOverlay({
           <div className="relative -rotate-[8deg] transition-transform duration-700 hover:scale-105 hover:-rotate-12">
             <div className="relative z-10 flex h-[88px] w-[88px] items-center justify-center overflow-hidden rounded-3xl border border-white/20 bg-white p-[16px] shadow-2xl">
               <div className="relative flex h-full w-full items-center justify-center">
-                <Image src={providerIcon} alt={providerName} fill className="object-contain" />
+                {providerIcon ? (
+                  <Image src={providerIcon} alt={providerName || "Integration"} fill className="object-contain" />
+                ) : (
+                  <CircleX className="h-8 w-8 text-red-400" />
+                )}
               </div>
             </div>
             {/* Vibrant Provider glow */}
@@ -113,12 +120,29 @@ export function ProcessingOverlay({
 
         {/* Text */}
         <div className="mt-2 flex flex-col items-center gap-2">
-          <h2 className="bg-gradient-to-b from-gray-100 via-gray-300 to-gray-500 bg-clip-text text-[22px] font-semibold tracking-tight text-transparent drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-            Processing Integration
-          </h2>
-          <p className="max-w-xs text-center text-[14px] font-medium text-zinc-400">
-            We&apos;re setting things up for you. Please don&apos;t close this window.
-          </p>
+          {error ? (
+            <>
+              <CircleX className="mb-1 h-8 w-8 text-red-400" />
+              <h2 className="bg-gradient-to-b from-red-300 to-red-500 bg-clip-text text-[22px] font-semibold tracking-tight text-transparent">
+                Integration Failed
+              </h2>
+              <p className="max-w-xs text-center text-[14px] font-medium text-zinc-400">
+                {error}
+              </p>
+              <p className="mt-1 text-[12px] text-zinc-600">
+                Redirecting back...
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="bg-gradient-to-b from-gray-100 via-gray-300 to-gray-500 bg-clip-text text-[22px] font-semibold tracking-tight text-transparent drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                Processing Integration
+              </h2>
+              <p className="max-w-xs text-center text-[14px] font-medium text-zinc-400">
+                We&apos;re setting things up for you. Please don&apos;t close this window.
+              </p>
+            </>
+          )}
         </div>
       </div>
 
