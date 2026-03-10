@@ -75,12 +75,12 @@ export async function googleAuthCallback(
   const error = req.query["error"] as string | undefined;
 
   if (error) {
-    res.redirect(`${APP_URL}/integrations?error=${encodeURIComponent(error)}`);
+    res.redirect(`${APP_URL}/integrations/callback?error=${encodeURIComponent(error)}`);
     return;
   }
 
   if (!code) {
-    res.redirect(`${APP_URL}/integrations?error=no_code`);
+    res.redirect(`${APP_URL}/integrations/callback?error=no_code`);
     return;
   }
 
@@ -88,7 +88,7 @@ export async function googleAuthCallback(
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    res.redirect(`${APP_URL}/integrations?error=missing_credentials`);
+    res.redirect(`${APP_URL}/integrations/callback?error=missing_credentials`);
     return;
   }
 
@@ -108,7 +108,7 @@ export async function googleAuthCallback(
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error(`${opts.provider} token exchange failed:`, errorData);
-      res.redirect(`${APP_URL}/integrations?error=token_exchange_failed`);
+      res.redirect(`${APP_URL}/integrations/callback?error=token_exchange_failed`);
       return;
     }
 
@@ -162,9 +162,9 @@ export async function googleAuthCallback(
       // Don't fail the OAuth flow if sync fails
     }
 
-    res.redirect(`${APP_URL}/integrations?success=${opts.provider}`);
+    res.redirect(`${APP_URL}/integrations/callback?provider=${opts.provider}`);
   } catch (err) {
     console.error(`${opts.provider} OAuth error:`, err);
-    res.redirect(`${APP_URL}/integrations?error=oauth_failed`);
+    res.redirect(`${APP_URL}/integrations/callback?error=oauth_failed`);
   }
 }

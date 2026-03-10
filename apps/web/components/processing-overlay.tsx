@@ -101,7 +101,7 @@ export function ProcessingOverlay({
 
           {/* App icon */}
           <div className="relative rotate-[8deg] transition-transform duration-700 hover:scale-105 hover:rotate-12">
-            <div className="relative z-10 flex h-[88px] w-[88px] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] p-[16px] shadow-2xl">
+            <div className="relative z-10 flex h-[92px] w-[92px] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a0a] p-[12px] shadow-2xl">
               <div className="relative flex h-full w-full items-center justify-center">
                 <Image src="/logo.png" alt="App" fill className="object-contain" />
               </div>

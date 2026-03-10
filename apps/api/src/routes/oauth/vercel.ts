@@ -33,12 +33,12 @@ vercelRouter.get("/callback", async (req, res) => {
   const error = req.query["error"] as string | undefined;
 
   if (error) {
-    res.redirect(`${APP_URL}/integrations?error=${encodeURIComponent(error)}`);
+    res.redirect(`${APP_URL}/integrations/callback?error=${encodeURIComponent(error)}`);
     return;
   }
 
   if (!code) {
-    res.redirect(`${APP_URL}/integrations?error=no_code`);
+    res.redirect(`${APP_URL}/integrations/callback?error=no_code`);
     return;
   }
 
@@ -46,7 +46,7 @@ vercelRouter.get("/callback", async (req, res) => {
   const clientSecret = process.env.VERCEL_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    res.redirect(`${APP_URL}/integrations?error=missing_credentials`);
+    res.redirect(`${APP_URL}/integrations/callback?error=missing_credentials`);
     return;
   }
 
@@ -67,7 +67,7 @@ vercelRouter.get("/callback", async (req, res) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error("Vercel token exchange failed:", errorData);
-      res.redirect(`${APP_URL}/integrations?error=token_exchange_failed`);
+      res.redirect(`${APP_URL}/integrations/callback?error=token_exchange_failed`);
       return;
     }
 
@@ -80,9 +80,9 @@ vercelRouter.get("/callback", async (req, res) => {
       maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
     });
 
-    res.redirect(`${APP_URL}/integrations?success=vercel`);
+    res.redirect(`${APP_URL}/integrations/callback?provider=vercel`);
   } catch (err) {
     console.error("Vercel OAuth error:", err);
-    res.redirect(`${APP_URL}/integrations?error=oauth_failed`);
+    res.redirect(`${APP_URL}/integrations/callback?error=oauth_failed`);
   }
 });

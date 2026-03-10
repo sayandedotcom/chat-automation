@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
@@ -8,17 +8,14 @@ import { Search } from "lucide-react";
 import { Input } from "@workspace/ui/components/input";
 
 import { IntegrationCard } from "@/components/integration-card";
-import { ProcessingOverlay } from "@/components/processing-overlay";
 
 import { useTRPC } from "@/lib/trpc";
 
-import { integrations, oauthIntegrations } from "@/config/integrations";
-
-const MIN_PROCESSING_MS = 2500;
+import { oauthIntegrations } from "@/config/integrations";
 
 export const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="scrollbar-hide m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-auto rounded-2xl border border-white/10 bg-[#131313]">
+    <div className="scrollbar-hide m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-auto rounded-2xl bg-[#131313] outline-none">
       {children}
     </div>
   );
@@ -27,54 +24,12 @@ export const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
 export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [processingProvider, setProcessingProvider] = useState<string | null>(null);
-  const [overlayVisible, setOverlayVisible] = useState(false);
 
   const trpc = useTRPC();
   const { data: connectionStatus = {}, refetch: refetchStatus } = useQuery(
     trpc.integrations.status.queryOptions()
   );
   const disconnectMutation = useMutation(trpc.integrations.disconnect.mutationOptions());
-
-  // Resolve provider ID → icon and name from config
-  const providerInfo = useMemo(() => {
-    if (!processingProvider) return null;
-    const found = integrations.find((i) => i.id === processingProvider);
-    return found ? { icon: found.icon, name: found.name } : null;
-  }, [processingProvider]);
-
-  // Handle success/error params from OAuth callback
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const success = params.get("success");
-    const error = params.get("error");
-
-    if (success) {
-      // Show overlay immediately
-      setProcessingProvider(success);
-      setOverlayVisible(true);
-
-      // Clean up URL
-      window.history.replaceState({}, "", window.location.pathname);
-
-      // Refetch status + enforce minimum display time
-      const start = Date.now();
-      refetchStatus().then(() => {
-        const elapsed = Date.now() - start;
-        const remaining = Math.max(0, MIN_PROCESSING_MS - elapsed);
-        setTimeout(() => {
-          // Fade out then remove
-          setOverlayVisible(false);
-          setTimeout(() => setProcessingProvider(null), 700);
-        }, remaining);
-      });
-    }
-
-    if (error) {
-      console.error("OAuth error:", error);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = (integrationId: string) => {
     setLoadingStates((prev) => ({ ...prev, [integrationId]: true }));
@@ -105,17 +60,7 @@ export default function IntegrationsPage() {
   }, [searchQuery]);
 
   return (
-    <>
-      {/* Processing overlay */}
-      {processingProvider && providerInfo && (
-        <ProcessingOverlay
-          providerIcon={providerInfo.icon}
-          providerName={providerInfo.name}
-          visible={overlayVisible}
-        />
-      )}
-
-      <ContentWrapper>
+    <ContentWrapper>
         <div className="relative min-h-screen bg-[#0A0A0A]">
           {/* Background Glow and Gradient */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[500px]">
@@ -201,6 +146,5 @@ export default function IntegrationsPage() {
           </div>
         </div>
       </ContentWrapper>
-    </>
   );
 }
