@@ -13,6 +13,7 @@ import {
   Sparkles,
   SquarePen,
   WandSparkles,
+  PanelLeftIcon,
 } from "lucide-react";
 
 import { NavChats } from "@/components/nav-chats";
@@ -32,6 +33,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePathname } from "next/navigation";
 import { cn } from "@workspace/ui/lib/utils";
+import { Button } from "@workspace/ui/components/button";
 
 // Navigation items for the top section
 const navItems = [
@@ -86,23 +88,32 @@ const user = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isMobile = useIsMobile();
   const pathname = usePathname();
-  
+
   return (
     <Sidebar collapsible="icon" className="!bg-[#000000] border-r-0" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex w-full items-center gap-2">
+            <div className="flex w-full items-center gap-2 pb-4 pt-2">
               <SidebarMenuButton
                 size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden hover:bg-[#000000] hover:border-0"
                 asChild
               >
                 <Link href="/chat">
                   <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-lg" />
                 </Link>
               </SidebarMenuButton>
-              <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:translate-x-0" />
+              <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:mx-auto cursor-pointer group/trigger">
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  width={28}
+                  height={28}
+                  className="rounded-lg hidden group-data-[collapsible=icon]:block group-hover/trigger:!hidden object-contain"
+                />
+                <PanelLeftIcon className="!size-5 block group-data-[collapsible=icon]:hidden group-hover/trigger:!block" />
+              </SidebarTrigger>
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -120,12 +131,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   isActive={pathname === item.url || pathname.startsWith(`${item.url}/`)}
                   className={cn(
                     "h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]",
-                    (pathname === item.url || pathname.startsWith(`${item.url}/`)) && "bg-[#1A1A1A] ring-1 ring-white/10 text-white"
+                    (pathname === item.url || pathname.startsWith(`${item.url}/`)) &&
+                      "bg-[#1A1A1A] ring-1 ring-white/10 text-white"
                   )}
                 >
                   <Link href={item.url}>
                     <item.icon />
-                    <span>{item.title}</span>
+                    <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400">
+                      {item.title}
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -149,12 +163,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
               className={cn(
                 "h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]",
-                (pathname === "/settings" || pathname.startsWith("/settings/")) && "bg-[#1A1A1A] ring-1 ring-white/10 text-white"
+                (pathname === "/settings" || pathname.startsWith("/settings/")) &&
+                  "bg-[#1A1A1A] ring-1 ring-white/10 text-white"
               )}
             >
               <Link href="/settings">
                 <Settings />
-                <span>Settings</span>
+                <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400">
+                  Settings
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
