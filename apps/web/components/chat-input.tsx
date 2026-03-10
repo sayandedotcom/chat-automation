@@ -147,7 +147,7 @@ export function ChatInputWithMentions({
           {/* Top: Text input */}
           <ChatInputEditor
             placeholder="Type and press enter to start chatting..."
-            className="text-[#e5e5e5] placeholder:text-[#555555] min-h-[32px] text-[15px] pt-4 px-5 pb-1 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
+            className="text-[#c8ccd8] placeholder:text-[#555555] min-h-[32px] text-[15px] pt-4 px-5 pb-1 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
           />
 
           {/* Bottom: Actions bar */}

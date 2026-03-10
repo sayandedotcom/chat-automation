@@ -165,6 +165,7 @@ export interface ChatInputEditorProps {
   onEnter?: () => void;
   placeholder?: string;
   className?: string;
+  style?: React.CSSProperties;
   value?: ChatInputValue;
   onChange?: (value: ChatInputValue) => void;
 }
@@ -174,6 +175,7 @@ export function ChatInputEditor({
   onEnter,
   placeholder = "Type a message...",
   className,
+  style,
   value,
   onChange,
 }: ChatInputEditorProps) {
@@ -274,6 +276,9 @@ export function ChatInputEditor({
     <>
       <style>{`
 				.tiptap:focus { outline: none; }
+				.tiptap { caret-color: currentColor; }
+				.tiptap p.is-empty::selection,
+				.tiptap p.is-empty *::selection { background: transparent; }
 				.tiptap p.is-editor-empty:first-child::before {
 					color: var(--muted-foreground);
 					content: attr(data-placeholder);
@@ -285,6 +290,7 @@ export function ChatInputEditor({
       <EditorContent
         editor={editor}
         className={cn("w-full h-full max-h-48 px-4 pt-4 pb-2 overflow-y-auto", className)}
+        style={style}
       />
     </>
   );
