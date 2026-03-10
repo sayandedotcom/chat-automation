@@ -4,7 +4,7 @@ import { nodeConfig } from "@workspace/eslint-config/node";
 export default [
   ...nodeConfig,
   {
-    ignores: [".sst/**", "dist/**"],
+    ignores: [".sst/**", "dist/**", "sst-env.d.ts"],
   },
   {
     files: ["**/__tests__/**/*.ts", "**/*.test.ts"],
