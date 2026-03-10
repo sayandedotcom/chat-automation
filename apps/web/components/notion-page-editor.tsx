@@ -44,6 +44,61 @@ function extractTitle(args: Record<string, unknown>): string {
   return "";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function richTextToMarkdown(richTexts: any[]): string {
+  if (!Array.isArray(richTexts)) return "";
+  return richTexts
+    .map((rt) => {
+      let text = rt.text?.content ?? rt.plain_text ?? "";
+      if (!text) return "";
+      const a = rt.annotations ?? {};
+      if (a.code) text = `\`${text}\``;
+      if (a.bold) text = `**${text}**`;
+      if (a.italic) text = `*${text}*`;
+      if (a.strikethrough) text = `~~${text}~~`;
+      if (rt.text?.link?.url) text = `[${text}](${rt.text.link.url})`;
+      return text;
+    })
+    .join("");
+}
+
+const LIST_TYPES = new Set([
+  "bulleted_list_item", "numbered_list_item", "to_do",
+]);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function blockToMarkdown(block: any): { text: string; type: string } | null {
+  const type: string = block.type || block.object;
+  const data = block[type];
+  if (!data) return null;
+
+  const text = data.rich_text ? richTextToMarkdown(data.rich_text) : "";
+
+  switch (type) {
+    case "heading_1":
+      return { text: `# ${text}`, type };
+    case "heading_2":
+      return { text: `## ${text}`, type };
+    case "heading_3":
+      return { text: `### ${text}`, type };
+    case "bulleted_list_item":
+      return { text: `- ${text}`, type };
+    case "numbered_list_item":
+      return { text: `1. ${text}`, type };
+    case "to_do":
+      return { text: `- [${data.checked ? "x" : " "}] ${text}`, type };
+    case "quote":
+      return { text: `> ${text}`, type };
+    case "code":
+      return { text: `\`\`\`${data.language ?? ""}\n${text}\n\`\`\``, type };
+    case "divider":
+      return { text: "---", type };
+    case "paragraph":
+    default:
+      return { text, type: "paragraph" };
+  }
+}
+
 function extractContent(args: Record<string, unknown>): string {
   // Simple flat format (from edited content)
   if (typeof args.content === "string") return args.content;
@@ -53,21 +108,144 @@ function extractContent(args: Record<string, unknown>): string {
   const children = args.children as any[];
   if (!Array.isArray(children)) return "";
 
-  const lines: string[] = [];
+  const parts: { text: string; type: string }[] = [];
   for (const block of children) {
-    const type = block.type || block.object;
-    const data = block[type];
-    if (data?.rich_text) {
-      const text = data.rich_text
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((rt: any) => rt.text?.content ?? rt.plain_text ?? "")
-        .join("");
-      if (text) lines.push(text);
-    } else if (typeof data === "string") {
-      lines.push(data);
-    }
+    const md = blockToMarkdown(block);
+    if (md !== null) parts.push(md);
   }
-  return lines.join("\n");
+
+  // Smart spacing: \n between consecutive list items, \n\n around headings/code/dividers
+  let result = "";
+  for (let idx = 0; idx < parts.length; idx++) {
+    const cur = parts[idx]!;
+    if (idx > 0) {
+      const prev = parts[idx - 1]!;
+      const bothList = LIST_TYPES.has(prev.type) && LIST_TYPES.has(cur.type);
+      result += bothList ? "\n" : "\n\n";
+    }
+    result += cur.text;
+  }
+  return result;
+}
+
+/** Convert markdown string back to Notion block objects for the API. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function markdownToNotionBlocks(markdown: string): any[] {
+  const lines = markdown.split("\n");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const blocks: any[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i]!;
+
+    // Skip empty lines
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
+
+    // Code block
+    if (line.trimStart().startsWith("```")) {
+      const lang = line.trimStart().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i]!.trimStart().startsWith("```")) {
+        codeLines.push(lines[i]!);
+        i++;
+      }
+      i++; // skip closing ```
+      blocks.push({
+        type: "code",
+        code: {
+          rich_text: [{ type: "text", text: { content: codeLines.join("\n") } }],
+          language: lang || "plain text",
+        },
+      });
+      continue;
+    }
+
+    // Divider
+    if (/^---+$/.test(line.trim())) {
+      blocks.push({ type: "divider", divider: {} });
+      i++;
+      continue;
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
+    if (headingMatch) {
+      const level = headingMatch[1]!.length as 1 | 2 | 3;
+      const type = `heading_${level}` as const;
+      blocks.push({
+        type,
+        [type]: { rich_text: [{ type: "text", text: { content: headingMatch[2]! } }] },
+      });
+      i++;
+      continue;
+    }
+
+    // Bulleted list
+    if (line.match(/^[-*]\s+/)) {
+      const text = line.replace(/^[-*]\s+/, "");
+      // To-do item
+      const todoMatch = text.match(/^\[([ xX])\]\s*(.*)/);
+      if (todoMatch) {
+        blocks.push({
+          type: "to_do",
+          to_do: {
+            rich_text: [{ type: "text", text: { content: todoMatch[2] } }],
+            checked: todoMatch[1] !== " ",
+          },
+        });
+      } else {
+        blocks.push({
+          type: "bulleted_list_item",
+          bulleted_list_item: {
+            rich_text: [{ type: "text", text: { content: text } }],
+          },
+        });
+      }
+      i++;
+      continue;
+    }
+
+    // Numbered list
+    const numberedMatch = line.match(/^\d+\.\s+(.+)/);
+    if (numberedMatch) {
+      blocks.push({
+        type: "numbered_list_item",
+        numbered_list_item: {
+          rich_text: [{ type: "text", text: { content: numberedMatch[1] } }],
+        },
+      });
+      i++;
+      continue;
+    }
+
+    // Quote
+    if (line.startsWith("> ")) {
+      blocks.push({
+        type: "quote",
+        quote: {
+          rich_text: [{ type: "text", text: { content: line.slice(2) } }],
+        },
+      });
+      i++;
+      continue;
+    }
+
+    // Paragraph (default)
+    blocks.push({
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: line } }],
+      },
+    });
+    i++;
+  }
+
+  return blocks;
 }
 
 export function NotionPageEditor({
@@ -105,13 +283,22 @@ export function NotionPageEditor({
     setIsCollapsed(true);
 
     if (isDirty()) {
+      // Convert markdown back to Notion API format so the page preserves structure
+      const notionArgs: Record<string, unknown> = {
+        properties: {
+          title: [{ type: "text", text: { content: title } }],
+        },
+        children: markdownToNotionBlocks(content),
+      };
+      // Preserve parent from original args if present
+      if (args.parent) notionArgs.parent = args.parent;
       onApprove(stepNumber, "edit", {
-        tool_calls: [{ id: toolCall.id, arguments: { title, content } }],
+        tool_calls: [{ id: toolCall.id, arguments: notionArgs }],
       });
     } else {
       onApprove(stepNumber, "approve");
     }
-  }, [title, content, isDirty, isCreating, actionTaken, onApprove, stepNumber, toolCall.id]);
+  }, [title, content, args, isDirty, isCreating, actionTaken, onApprove, stepNumber, toolCall.id]);
 
   const handleCancel = useCallback(() => {
     if (actionTaken) return;

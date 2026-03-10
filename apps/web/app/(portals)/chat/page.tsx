@@ -205,11 +205,21 @@ export default function ChatPage() {
         const decoder = new TextDecoder();
         let buffer = "";
 
+        let eventCount = 0;
+        let lastEventType = "";
+        let lastEventTime = Date.now();
+
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log(
+              `🔚 [SSE] Stream ended (reader.done=true). Total events: ${eventCount}, last event: "${lastEventType}", buffer remaining: "${buffer.slice(0, 200)}"`
+            );
+            break;
+          }
 
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
@@ -217,16 +227,33 @@ export default function ChatPage() {
             if (line.startsWith("data: ")) {
               try {
                 const data = JSON.parse(line.slice(6));
-                console.log("📥 SSE RECEIVED:", data.type, data);
+                eventCount++;
+                const now = Date.now();
+                const gap = now - lastEventTime;
+                if (gap > 5000) {
+                  console.log(
+                    `⏱️ [SSE] Gap of ${(gap / 1000).toFixed(1)}s before event #${eventCount} (type="${data.type}")`
+                  );
+                }
+                lastEventType = data.type;
+                lastEventTime = now;
+                console.log(`📥 [SSE] #${eventCount} type="${data.type}"`, data);
                 handleStreamEvent(data);
               } catch (e) {
                 // Ignore parse errors for incomplete JSON
-                console.log("⚠️ Failed to parse SSE:", line);
+                console.log("⚠️ [SSE] Failed to parse:", line.slice(0, 200));
               }
+            } else if (line.trim() && !line.startsWith(":")) {
+              // Log unexpected non-data, non-comment lines
+              console.log(`❓ [SSE] Non-data line: "${line.slice(0, 200)}"`);
             }
           }
         }
 
+        // Stream ended — check if we got a proper completion
+        console.log(
+          `🏁 [SSE] Post-stream state check: workflowStatus will be read from React state on next render`
+        );
         // Note: Don't set workflowStatus to complete here
         // The status is managed by handleStreamEvent based on actual events
         // This allows the workflow to stay in "executing" state while waiting for approval
@@ -289,6 +316,17 @@ export default function ChatPage() {
     thinking?: string;
     duration_ms?: number;
   }) => {
+    console.log(`🔄 [SSE] event.type="${event.type}"`, {
+      thread_id: event.thread_id,
+      current_step: event.current_step,
+      total_steps: event.total_steps,
+      is_complete: event.plan?.is_complete,
+      steps_count: event.plan?.steps?.length,
+      step_statuses: event.plan?.steps?.map((s) => `${s.step_number}:${s.status}`),
+      has_message: !!event.message,
+      has_interrupt: !!event.interrupt,
+    });
+
     switch (event.type) {
       case "integrations_ready":
         // Handle integration loading complete
@@ -373,6 +411,15 @@ export default function ChatPage() {
         break;
 
       case "progress":
+        console.log(
+          `📊 [PROGRESS] thread=${event.thread_id}, current_step=${event.current_step}, is_complete=${event.plan?.is_complete}`,
+          {
+            incoming_steps: event.plan?.steps?.map(
+              (s) => `${s.step_number}:${s.status}${s.result ? "(has result)" : ""}`
+            ),
+          }
+        );
+
         if (event.thread_id) {
           threadIdRef.current = event.thread_id;
           // Persist thread_id in URL so it survives page reload
@@ -391,17 +438,24 @@ export default function ChatPage() {
         if (event.plan?.steps) {
           setSteps((prev) => {
             // Merge step data, preserving pending_approval status and tool_calls
-            return event.plan!.steps.map((s) => {
+            const merged = event.plan!.steps.map((s) => {
               const existingStep = prev.find((p) => p.step_number === s.step_number);
               // If we locally marked a step as awaiting_approval, keep that
               const preserveApproval = existingStep?.status === "awaiting_approval";
+              const finalStatus = (
+                preserveApproval ? "awaiting_approval" : s.status
+              ) as WorkflowStep["status"];
+
+              if (preserveApproval) {
+                console.log(
+                  `⚠️ [PROGRESS] Step ${s.step_number}: backend says "${s.status}" but preserving local "awaiting_approval"`
+                );
+              }
+
               return {
                 step_number: s.step_number,
                 description: s.description,
-                // Use awaiting_approval from backend OR preserve local awaiting_approval
-                status: (preserveApproval
-                  ? "awaiting_approval"
-                  : s.status) as WorkflowStep["status"],
+                status: finalStatus,
                 tools_used: s.tools_used,
                 result: s.result,
                 requires_human_approval: s.requires_human_approval,
@@ -413,6 +467,12 @@ export default function ChatPage() {
                 tool_calls: existingStep?.tool_calls,
               };
             });
+
+            console.log(
+              `📊 [PROGRESS] Steps after merge:`,
+              merged.map((s) => `${s.step_number}:${s.status}`)
+            );
+            return merged;
           });
           setWorkflowStatus("executing");
         }
@@ -422,6 +482,7 @@ export default function ChatPage() {
         }
 
         if (event.plan?.is_complete) {
+          console.log(`✅ [PROGRESS] is_complete=true, setting workflowStatus to "complete"`);
           setWorkflowStatus("complete");
         }
         break;
@@ -438,6 +499,10 @@ export default function ChatPage() {
         break;
 
       case "done":
+        console.log(
+          `✅ [DONE] Received "done" event. Setting workflowStatus to "complete". Current steps:`,
+          steps.map((s) => `${s.step_number}:${s.status}`)
+        );
         setWorkflowStatus("complete");
         break;
 
@@ -458,7 +523,7 @@ export default function ChatPage() {
 
       case "approval_required":
         // Workflow is paused waiting for approval
-        console.log("🔐 Received approval_required event:", event);
+        console.log("🔐 [APPROVAL] Received approval_required event:", event);
         if (event.thread_id) {
           threadIdRef.current = event.thread_id;
           const approvalUrl = new URL(window.location.href);
@@ -469,7 +534,11 @@ export default function ChatPage() {
         }
         // Update the step status to pending_approval
         if (event.interrupt?.step_number) {
-          console.log("📝 Updating step", event.interrupt.step_number, "to pending_approval");
+          console.log(
+            "📝 [APPROVAL] Updating step",
+            event.interrupt.step_number,
+            "to awaiting_approval"
+          );
           setSteps((prev) =>
             prev.map((step) =>
               step.step_number === event.interrupt!.step_number
@@ -487,6 +556,10 @@ export default function ChatPage() {
         }
         // Stop workflow execution - don't mark as complete
         setWorkflowStatus("executing");
+        break;
+
+      default:
+        console.warn(`⚠️ [SSE] Unhandled event type: "${event.type}"`, event);
         break;
     }
   };
@@ -674,6 +747,20 @@ export default function ChatPage() {
     threadIdRef.current = null;
   }, []);
 
+  // === DEBUG: Log state changes ===
+  useEffect(() => {
+    console.log(
+      `🎯 [STATE] workflowStatus="${workflowStatus}", steps=[${steps.map((s) => `${s.step_number}:${s.status}`).join(", ")}], currentStep=${currentStep}`
+    );
+  }, [workflowStatus, steps, currentStep]);
+
+  useEffect(() => {
+    if (error) {
+      console.log(`❌ [STATE] error="${error}"`);
+    }
+  }, [error]);
+  // === END DEBUG ===
+
   const isIdle = workflowStatus === "idle";
   const isChatActive = !isIdle;
 
@@ -717,8 +804,8 @@ export default function ChatPage() {
             {/* Scrollable content area - takes remaining space */}
             <StickToBottom
               className="flex-1 overflow-hidden relative"
-              resize="smooth"
-              initial="smooth"
+              resize="instant"
+              initial="instant"
             >
               <StickToBottom.Content className="px-4 pt-6 pb-4">
                 <div className="max-w-5xl mx-auto space-y-6">
@@ -753,7 +840,7 @@ export default function ChatPage() {
 
                   {/* Shimmer loading indicator while planning */}
                   {workflowStatus === "planning" && steps.length === 0 && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
                       <Image
                         src="/logo.png"
                         alt="Logo"

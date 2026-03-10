@@ -37,18 +37,15 @@ export function ThinkingIndicator({
       </button>
 
       {/* Expanded thinking content */}
-      <div
-        className={cn(
-          "overflow-hidden transition-all duration-300 ease-out",
-          isExpanded ? "max-h-96 opacity-100 mt-1.5" : "max-h-0 opacity-0",
-        )}
-      >
-        <div className="pl-4 border-l border-white/10">
-          <p className="text-sm text-white/40 leading-relaxed italic">
-            {content}
-          </p>
+      {isExpanded && (
+        <div className="mt-1.5">
+          <div className="pl-4 border-l border-white/10">
+            <p className="text-sm text-white/40 leading-relaxed italic">
+              {content}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

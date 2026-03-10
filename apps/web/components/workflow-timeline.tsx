@@ -61,13 +61,7 @@ export interface ToolCallPreview {
 export interface WorkflowStep {
   step_number: number;
   description: string;
-  status:
-    | "pending"
-    | "in_progress"
-    | "completed"
-    | "failed"
-    | "skipped"
-    | "awaiting_approval";
+  status: "pending" | "in_progress" | "completed" | "failed" | "skipped" | "awaiting_approval";
   result?: string;
   error?: string;
   tools_used?: string[];
@@ -106,7 +100,7 @@ interface WorkflowTimelineProps {
   onApprove?: (
     stepNumber: number,
     action: "approve" | "edit" | "skip",
-    content?: Record<string, unknown>,
+    content?: Record<string, unknown>
   ) => void;
   isComplete?: boolean;
   className?: string;
@@ -172,20 +166,19 @@ function shouldShowRichCard(step: WorkflowStep): boolean {
   const primaryTool = step.tools_used?.[0] || "general";
 
   // Always show card for web-search with results
-  if (
-    primaryTool === "web-search" &&
-    (step.search_results?.length || step.result)
-  ) {
+  if (primaryTool === "web-search" && (step.search_results?.length || step.result)) {
+    console.log(`🃏 [RICH-CARD] Step ${step.step_number}: YES (web-search with results)`);
     return true;
   }
 
   // Show card for rich result tools with substantial results
-  if (
-    richResultTools.has(primaryTool) &&
-    step.result &&
-    step.result.length > 100
-  ) {
+  if (richResultTools.has(primaryTool) && step.result && step.result.length > 100) {
+    console.log(`🃏 [RICH-CARD] Step ${step.step_number}: YES (${primaryTool} with ${step.result.length} chars)`);
     return true;
+  }
+
+  if (richResultTools.has(primaryTool)) {
+    console.log(`🃏 [RICH-CARD] Step ${step.step_number}: NO (${primaryTool} is rich-eligible but result_len=${step.result?.length || 0} < 100)`);
   }
 
   return false;
@@ -204,44 +197,29 @@ export function WorkflowTimeline({
   className,
 }: WorkflowTimelineProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
-  const [animatedSteps, setAnimatedSteps] = useState<Set<number>>(new Set());
   const timelineRef = useRef<HTMLDivElement>(null);
 
   // Filter steps to only show visible ones (not pending) - memoized to prevent infinite loops
-  const visibleSteps = useMemo(
-    () => steps.filter((step) => step.status !== "pending"),
-    [steps],
-  );
+  const visibleSteps = useMemo(() => {
+    const visible = steps.filter((step) => step.status !== "pending");
+    console.log(`👁️ [TIMELINE] All steps: [${steps.map(s => `${s.step_number}:${s.status}`).join(', ')}]`);
+    console.log(`👁️ [TIMELINE] Visible (non-pending): [${visible.map(s => `${s.step_number}:${s.status}`).join(', ')}]`);
+    return visible;
+  }, [steps]);
 
   // Get stable identifiers for dependency tracking
   const visibleStepNumbers = visibleSteps.map((s) => s.step_number).join(",");
   const activeStepNumbers = visibleSteps
-    .filter(
-      (s) => s.status === "in_progress" || s.status === "awaiting_approval",
-    )
+    .filter((s) => s.status === "in_progress" || s.status === "awaiting_approval")
     .map((s) => s.step_number)
     .join(",");
-
-  // Track which steps have been animated (for entrance animation)
-  useEffect(() => {
-    setAnimatedSteps((prev) => {
-      const newSet = new Set(prev);
-      let hasNew = false;
-      visibleSteps.forEach((step) => {
-        if (!prev.has(step.step_number)) {
-          newSet.add(step.step_number);
-          hasNew = true;
-        }
-      });
-      return hasNew ? newSet : prev;
-    });
-  }, [visibleStepNumbers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-expand steps that are in_progress or awaiting_approval
   useEffect(() => {
     if (!activeStepNumbers) return;
 
     const activeIds = activeStepNumbers.split(",").map(Number);
+    console.log(`🔽 [COLLAPSE] Auto-expanding active steps: [${activeIds.join(', ')}]`);
     setExpandedSteps((prev) => {
       const next = new Set(prev);
       let changed = false;
@@ -251,11 +229,20 @@ export function WorkflowTimeline({
           changed = true;
         }
       });
+      if (changed) {
+        console.log(`🔽 [COLLAPSE] expandedSteps updated: [${Array.from(next).join(', ')}]`);
+      }
       return changed ? next : prev;
     });
   }, [activeStepNumbers]);
 
+  // Debug: log expandedSteps changes
+  useEffect(() => {
+    console.log(`🔽 [COLLAPSE] Current expandedSteps: [${Array.from(expandedSteps).join(', ')}]`);
+  }, [expandedSteps]);
+
   const toggleStep = (stepNumber: number) => {
+    console.log(`🔽 [COLLAPSE] User toggled step ${stepNumber}`);
     setExpandedSteps((prev) => {
       const next = new Set(prev);
       if (next.has(stepNumber)) {
@@ -263,6 +250,7 @@ export function WorkflowTimeline({
       } else {
         next.add(stepNumber);
       }
+      console.log(`🔽 [COLLAPSE] After toggle: [${Array.from(next).join(', ')}]`);
       return next;
     });
   };
@@ -295,11 +283,7 @@ export function WorkflowTimeline({
                 </div>
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
-                <ThinkingIndicator
-                  content={planThinking}
-                  duration={2}
-                  defaultExpanded={false}
-                />
+                <ThinkingIndicator content={planThinking} duration={2} defaultExpanded={false} />
               </div>
             </div>
           )}
@@ -355,20 +339,27 @@ export function WorkflowTimeline({
             const primaryTool = step.tools_used?.[0] || "general";
             const toolIcon = toolIconMap[primaryTool];
             const isRichCard = shouldShowRichCard(step);
-            const isNewStep = !animatedSteps.has(step.step_number);
+
+            // Determine which rendering branch this step will take
+            const hasToolCalls = !!(step.tool_calls && step.tool_calls.length > 0);
+            const toolCallBranchActive = hasToolCalls && ["awaiting_approval", "in_progress", "completed", "skipped"].includes(step.status);
+            let renderBranch = "unknown";
+            if (toolCallBranchActive) {
+              const integration = step.tool_calls![0]?.integration;
+              renderBranch = `tool-card(integration=${integration}, tool=${step.tool_calls![0]?.tool_name})`;
+            } else if (step.status === "awaiting_approval") {
+              renderBranch = "generic-approval";
+            } else if (step.status === "failed") {
+              renderBranch = "failed-card";
+            } else if (isRichCard && step.status === "completed") {
+              renderBranch = `rich-card(tool=${primaryTool}, expanded=${isExpanded})`;
+            } else {
+              renderBranch = `simple-line(tool=${primaryTool})`;
+            }
+            console.log(`🎨 [RENDER] Step ${step.step_number}: status="${step.status}", branch="${renderBranch}", hasToolCalls=${hasToolCalls}, tool_calls=[${(step.tool_calls || []).map(tc => `${tc.integration}/${tc.tool_name}`).join(',')}], isRichCard=${isRichCard}, result_len=${step.result?.length || 0}`);
 
             return (
-              <div
-                key={step.step_number}
-                className={cn(
-                  "relative",
-                  // Entrance animation for new steps
-                  "animate-in fade-in slide-in-from-top-2 duration-400",
-                )}
-                style={{
-                  animationDelay: isNewStep ? `${index * 100}ms` : "0ms",
-                }}
-              >
+              <div key={step.step_number} className="relative">
                 {/* Step row with circle and content */}
                 <div className="flex items-start gap-4">
                   {/* Left side - circle indicator on the timeline */}
@@ -380,9 +371,7 @@ export function WorkflowTimeline({
                     ) : step.status === "awaiting_approval" ? (
                       (() => {
                         const integration = step.tool_calls?.[0]?.integration;
-                        const iconPath = integration
-                          ? `/integrations/${integration}.svg`
-                          : null;
+                        const iconPath = integration ? `/integrations/${integration}.svg` : null;
                         return (
                           <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
                             {iconPath ? (
@@ -437,6 +426,7 @@ export function WorkflowTimeline({
                         const primaryToolCall = step.tool_calls![0];
                         const integration = primaryToolCall?.integration;
                         const isCompleted = step.status !== "awaiting_approval";
+                        console.log(`🎨 [TOOL-CARD] Step ${step.step_number}: integration="${integration}", tool="${primaryToolCall?.tool_name}", isCompleted=${isCompleted}, hasOnApprove=${!!onApprove}`);
 
                         // Gmail → EmailComposer
                         if (
@@ -535,9 +525,7 @@ export function WorkflowTimeline({
                         if (
                           integration === "google_sheets" &&
                           primaryToolCall &&
-                          step.tool_calls!.some(
-                            (tc) => tc.tool_name === "create_spreadsheet",
-                          ) &&
+                          step.tool_calls!.some((tc) => tc.tool_name === "create_spreadsheet") &&
                           (onApprove || isCompleted)
                         ) {
                           return (
@@ -557,7 +545,9 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // All integrations have tool-specific UI above — no fallback needed                        return null;
+                        // All integrations have tool-specific UI above — no fallback needed
+                        console.warn(`⚠️ [TOOL-CARD] Step ${step.step_number}: No matching editor for integration="${integration}", tool="${primaryToolCall?.tool_name}" — rendering NULL`);
+                        return null;
                       })()
                     ) : step.status === "awaiting_approval" ? (
                       // Generic approval card (no tool_calls) — with Google Calendar fallback
@@ -576,9 +566,7 @@ export function WorkflowTimeline({
                         if (isCalendarCreate && onApprove) {
                           // Extract any email addresses mentioned in the description
                           const emailMatches =
-                            step.description.match(
-                              /[\w.+%-]+@[\w-]+\.[\w.]+/g,
-                            ) || [];
+                            step.description.match(/[\w.+%-]+@[\w-]+\.[\w.]+/g) || [];
 
                           // Default start = next full hour, end = 1h after
                           const now = new Date();
@@ -617,6 +605,7 @@ export function WorkflowTimeline({
                         }
 
                         // All integrations have tool-specific UI — no generic fallback needed
+                        console.warn(`⚠️ [GENERIC-APPROVAL] Step ${step.step_number}: No matching generic editor for desc="${step.description.slice(0, 80)}" — rendering NULL`);
                         return null;
                       })()
                     ) : step.status === "failed" ? (
@@ -624,9 +613,7 @@ export function WorkflowTimeline({
                       <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 overflow-hidden">
                         <div className="px-4 py-3">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm text-red-300">
-                              {step.description}
-                            </p>
+                            <p className="text-sm text-red-300">{step.description}</p>
                             {onRetry && (
                               <Button
                                 size="sm"
@@ -640,9 +627,7 @@ export function WorkflowTimeline({
                             )}
                           </div>
                           {step.error && (
-                            <p className="text-xs text-red-400/70 mt-2">
-                              {step.error}
-                            </p>
+                            <p className="text-xs text-red-400/70 mt-2">{step.error}</p>
                           )}
                         </div>
                       </div>
@@ -692,24 +677,15 @@ export function WorkflowTimeline({
                                 {step.result && (
                                   <div className="space-y-2">
                                     {primaryTool === "web-search" ? (
-                                      step.search_results &&
-                                      step.search_results.length > 0 ? (
-                                        <SearchResultsList
-                                          results={step.search_results}
-                                        />
+                                      step.search_results && step.search_results.length > 0 ? (
+                                        <SearchResultsList results={step.search_results} />
                                       ) : (
                                         (() => {
-                                          const parsed = parseSearchResults(
-                                            step.result || "",
-                                          );
+                                          const parsed = parseSearchResults(step.result || "");
                                           return parsed.length > 0 ? (
-                                            <SearchResultsList
-                                              results={parsed}
-                                            />
+                                            <SearchResultsList results={parsed} />
                                           ) : (
-                                            <MarkdownRenderer
-                                              content={step.result}
-                                            />
+                                            <MarkdownRenderer content={step.result} />
                                           );
                                         })()
                                       )
@@ -726,9 +702,7 @@ export function WorkflowTimeline({
                         {step.thinking && (
                           <ThinkingIndicator
                             content={step.thinking}
-                            duration={Math.round(
-                              (step.thinking_duration_ms || 2000) / 1000,
-                            )}
+                            duration={Math.round((step.thinking_duration_ms || 2000) / 1000)}
                             defaultExpanded={false}
                           />
                         )}
@@ -743,17 +717,15 @@ export function WorkflowTimeline({
                               "text-sm",
                               step.status === "in_progress" && "text-white/60",
                               step.status === "completed" && "text-white/50",
-                              step.status === "skipped" && "text-white/40",
+                              step.status === "skipped" && "text-white/40"
                             )}
                           >
                             <span>{step.description}</span>
-                            {step.status === "completed" &&
-                              step.result &&
-                              !isRichCard && (
-                                <div className="mt-2 text-gray-400">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
+                            {step.status === "completed" && step.result && !isRichCard && (
+                              <div className="mt-2 text-gray-400">
+                                <MarkdownRenderer content={step.result} />
+                              </div>
+                            )}
                           </div>
                         </div>
                         {/* Per-step thinking */}
@@ -761,9 +733,7 @@ export function WorkflowTimeline({
                           <div className="ml-7">
                             <ThinkingIndicator
                               content={step.thinking}
-                              duration={Math.round(
-                                (step.thinking_duration_ms || 2000) / 1000,
-                              )}
+                              duration={Math.round((step.thinking_duration_ms || 2000) / 1000)}
                               defaultExpanded={false}
                             />
                           </div>
