@@ -10,7 +10,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from chat.config import GOOGLE_MCP_CREDENTIALS_DIR as MCP_CREDENTIALS_DIR
-from chat.schemas import GmailCredentialsSyncSchema
+from chat.schemas import GoogleCredentialsSyncSchema
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ def health():
     return {"status": "ok"}
 
 
-@router.post("/sync-gmail-credentials")
-async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
+@router.post("/sync-google-credentials")
+async def sync_google_credentials(data: GoogleCredentialsSyncSchema):
     """
-    Sync Gmail OAuth credentials from frontend to MCP's credential store.
+    Sync Google OAuth credentials from frontend to MCP's credential store.
     Called ONLY from the OAuth callback — not during token refresh.
     The token and scopes must come from the same OAuth flow.
     """
@@ -66,11 +66,11 @@ async def sync_gmail_credentials(data: GmailCredentialsSyncSchema):
         with open(cred_file, "w") as f:
             json.dump(credentials, f, indent=2)
 
-        print(f"Gmail credentials synced to {cred_file}")
-        return {"status": "success", "message": "Gmail credentials synced to MCP"}
+        print(f"Google credentials synced to {cred_file}")
+        return {"status": "success", "message": "Google credentials synced to MCP"}
 
     except Exception as e:
-        print(f"Error syncing Gmail credentials: {e}")
+        print(f"Error syncing Google credentials: {e}")
         import traceback
 
         traceback.print_exc()

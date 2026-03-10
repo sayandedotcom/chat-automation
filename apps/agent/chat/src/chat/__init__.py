@@ -5,13 +5,13 @@ A LangGraph-based chat agent with MCP tool integrations.
 """
 
 from chat.service import ChatService
-from chat.schemas import WorkflowState, WorkflowPlan, GmailCredentialsSyncSchema
+from chat.schemas import WorkflowState, WorkflowPlan, GoogleCredentialsSyncSchema
 
 __all__ = [
     "ChatService",
     "WorkflowState",
     "WorkflowPlan",
-    "GmailCredentialsSyncSchema",
+    "GoogleCredentialsSyncSchema",
 ]
 
 

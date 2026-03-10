@@ -137,7 +137,7 @@ export async function googleAuthCallback(
 
     // Sync to MCP credential store
     try {
-      const syncResponse = await fetch(`${AGENT_API_URL}/sync-gmail-credentials`, {
+      const syncResponse = await fetch(`${AGENT_API_URL}/sync-google-credentials`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

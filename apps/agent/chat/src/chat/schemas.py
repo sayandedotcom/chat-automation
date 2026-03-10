@@ -179,8 +179,8 @@ class WorkflowState(TypedDict):
     _pending_tool_calls_message: Optional[dict]
 
 
-class GmailCredentialsSyncSchema(BaseModel):
-    """Schema for syncing Gmail OAuth credentials to MCP."""
+class GoogleCredentialsSyncSchema(BaseModel):
+    """Schema for syncing Google OAuth credentials to MCP."""
 
     access_token: str = Field(..., description="Google OAuth access token")
     refresh_token: str = Field(
