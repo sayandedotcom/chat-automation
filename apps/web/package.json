@@ -53,9 +53,9 @@
     "@workspace/prettier-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "dotenv": "^17.2.3",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.3",
     "jsdom": "^26.0.0",
-    "prettier": "^3.7.4",
+    "prettier": "^3.8.1",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.3",
     "vitest": "^3.0.0"
