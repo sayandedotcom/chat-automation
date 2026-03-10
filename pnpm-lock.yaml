@@ -520,6 +520,9 @@ importers:
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
+      tailwind-scrollbar:
+        specifier: ^4.0.2
+        version: 4.0.2(react@19.1.1)(tailwindcss@4.1.11)
       tailwind-scrollbar-hide:
         specifier: ^4.0.0
         version: 4.0.0(tailwindcss@4.1.11)
@@ -13393,6 +13396,12 @@ snapshots:
       ansi-styles: 5.2.0
       react-is: 17.0.2
 
+  prism-react-renderer@2.4.1(react@19.1.1):
+    dependencies:
+      '@types/prismjs': 1.26.6
+      clsx: 2.1.1
+      react: 19.1.1
+
   prism-react-renderer@2.4.1(react@19.2.1):
     dependencies:
       '@types/prismjs': 1.26.6
@@ -14485,6 +14494,13 @@ snapshots:
   tailwind-scrollbar-hide@4.0.0(tailwindcss@4.1.17):
     dependencies:
       tailwindcss: 4.1.17
+
+  tailwind-scrollbar@4.0.2(react@19.1.1)(tailwindcss@4.1.11):
+    dependencies:
+      prism-react-renderer: 2.4.1(react@19.1.1)
+      tailwindcss: 4.1.11
+    transitivePeerDependencies:
+      - react
 
   tailwind-scrollbar@4.0.2(react@19.2.1)(tailwindcss@4.1.17):
     dependencies:
