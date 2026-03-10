@@ -35,7 +35,7 @@ function IntegrationCard({
   return (
     <div className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-white/[0.03] transition-colors duration-200 cursor-pointer group">
       {/* Icon Container */}
-      <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center flex-shrink-0">
+      <div className="w-11 h-11 rounded-xl bg-white/90 border border-neutral-300/30 flex items-center justify-center flex-shrink-0 shadow-[inset_0_1px_3px_rgba(255,255,255,0.2)]">
         <Image
           src={integration.icon}
           alt={integration.name}
