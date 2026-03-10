@@ -47,9 +47,7 @@ export default function IntegrationCallbackPage() {
       const elapsed = Date.now() - start;
       const remaining = Math.max(0, MIN_PROCESSING_MS - elapsed);
       setTimeout(() => {
-        setOverlayVisible(false);
-        // Wait for fade-out, then navigate
-        setTimeout(() => router.replace("/integrations"), 700);
+        router.replace("/integrations");
       }, remaining);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
