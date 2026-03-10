@@ -8,13 +8,10 @@ import { useMutation } from "@tanstack/react-query";
 import { StickToBottom } from "use-stick-to-bottom";
 
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
-import { ShootingStars } from "@workspace/ui/components/shooting-stars";
-import { StarsBackground } from "@workspace/ui/components/stars-background";
 
 import { ChatGreeting } from "@/components/chat-greeting";
 import { ChatInputWithMentions } from "@/components/chat-input";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
-import { PlanetaryBackground } from "@/components/planetary-background";
 import { WorkflowStep, WorkflowTimeline } from "@/components/workflow-timeline";
 
 import { useSession } from "@/lib/auth-client";
@@ -113,7 +110,7 @@ export default function ChatPage() {
     } catch {
       // Corrupted storage — ignore
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Persist session to sessionStorage when a workflow completes or turns are archived
   useEffect(() => {

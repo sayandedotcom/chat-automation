@@ -1,19 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  Calendar,
-  Mail,
-  FileText,
-  Slack,
-  Github,
-  Trello,
-  Zap,
-  Shield,
-  Clock,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
+import { ArrowRight, Calendar, FileText, Github, Mail, Slack, Trello, Zap } from "lucide-react";
 
 const features = [
   {
@@ -68,35 +56,34 @@ const stats = [
 
 export function FeaturesSection() {
   return (
-    <section className="py-32 bg-black text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-[#533ccf]/5 to-black pointer-events-none" />
+    <section className="relative overflow-hidden bg-black py-32 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black via-[#533ccf]/5 to-black" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="relative z-10 container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="flex flex-col items-center mb-20"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm text-sm text-neutral-300 mb-6">
-            <Zap className="w-4 h-4 text-[#533ccf]" />
+          className="mb-20 flex flex-col items-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-neutral-300 backdrop-blur-sm">
+            <Zap className="h-4 w-4 text-[#533ccf]" />
             <span>Powerful Features</span>
           </div>
-          <h2 className="text-4xl md:text-6xl font-bold mb-6 text-center tracking-tight">
-            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400">
+          <h2 className="mb-6 text-center text-4xl font-bold tracking-tight md:text-6xl">
+            <span className="bg-gradient-to-b from-white to-neutral-400 bg-clip-text text-transparent">
               Everything you need,
             </span>
             <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-300 to-neutral-500">
+            <span className="bg-gradient-to-b from-neutral-300 to-neutral-500 bg-clip-text text-transparent">
               nothing you don't
             </span>
           </h2>
-          <p className="text-neutral-400 text-center max-w-xl text-lg">
+          <p className="max-w-xl text-center text-lg text-neutral-400">
             Connect your tools, set your preferences, and let AI handle the rest.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-20">
+        <div className="mb-20 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, i) => (
             <motion.div
               key={i}
@@ -104,29 +91,27 @@ export function FeaturesSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1, duration: 0.5 }}
-              className={`group relative p-6 md:p-8 rounded-2xl border border-white/10 bg-neutral-900/50 hover:bg-neutral-900/80 transition-all duration-300 cursor-pointer ${
+              className={`group relative cursor-pointer rounded-2xl border border-white/10 bg-neutral-900/50 p-6 transition-all duration-300 hover:bg-neutral-900/80 md:p-8 ${
                 feature.size === "large" ? "lg:col-span-2 lg:row-span-2" : ""
-              } ${feature.size === "medium" ? "lg:col-span-1" : ""}`}
-            >
+              } ${feature.size === "medium" ? "lg:col-span-1" : ""}`}>
               <div
-                className={`absolute top-0 right-0 w-[200px] h-[200px] bg-gradient-to-br ${feature.gradient} opacity-5 rounded-full blur-[60px] group-hover:opacity-15 transition-opacity duration-500 -translate-y-1/2 translate-x-1/2`}
+                className={`absolute top-0 right-0 h-[200px] w-[200px] bg-gradient-to-br ${feature.gradient} translate-x-1/2 -translate-y-1/2 rounded-full opacity-5 blur-[60px] transition-opacity duration-500 group-hover:opacity-15`}
               />
 
-              <div className="relative z-10 flex flex-col h-full justify-between">
+              <div className="relative z-10 flex h-full flex-col justify-between">
                 <div>
                   <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 shadow-lg`}
-                  >
-                    <feature.icon className="w-6 h-6 text-white" />
+                    className={`h-12 w-12 rounded-xl bg-gradient-to-br ${feature.gradient} mb-5 flex items-center justify-center shadow-lg`}>
+                    <feature.icon className="h-6 w-6 text-white" />
                   </div>
 
-                  <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                  <p className="text-neutral-400 text-sm leading-relaxed">{feature.desc}</p>
+                  <h3 className="mb-3 text-xl font-bold">{feature.title}</h3>
+                  <p className="text-sm leading-relaxed text-neutral-400">{feature.desc}</p>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-neutral-500 mt-6 group-hover:text-[#533ccf] transition-colors">
+                <div className="mt-6 flex items-center gap-2 text-sm text-neutral-500 transition-colors group-hover:text-[#533ccf]">
                   <span>Learn more</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
             </motion.div>
@@ -137,15 +122,13 @@ export function FeaturesSection() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
+          className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {stats.map((stat, i) => (
             <div
               key={i}
-              className="relative p-8 rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/50 to-black/50 text-center group hover:border-[#533ccf]/30 transition-colors"
-            >
-              <div className="absolute inset-0 bg-gradient-to-b from-[#533ccf]/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400 mb-2">
+              className="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-neutral-900/50 to-black/50 p-8 text-center transition-colors hover:border-[#533ccf]/30">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-[#533ccf]/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="mb-2 bg-gradient-to-b from-white to-neutral-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {stat.value}
               </div>
               <div className="text-neutral-400">{stat.label}</div>
@@ -154,7 +137,7 @@ export function FeaturesSection() {
         </motion.div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none" />
+      <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-40 bg-gradient-to-t from-black to-transparent" />
     </section>
   );
 }

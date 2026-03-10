@@ -1,38 +1,41 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { cn } from "@workspace/ui/lib/utils";
+import Image from "next/image";
+
 import {
-  X,
-  Loader2,
-  RotateCcw,
+  Calendar,
+  Check,
   ChevronDown,
   ChevronUp,
-  Globe,
-  Mail,
-  Calendar,
-  FileText,
   Clock,
-  Search,
-  Check,
+  FileText,
+  Globe,
+  Loader2,
+  Mail,
   Plus,
+  RotateCcw,
+  Search,
+  X,
 } from "lucide-react";
+
 import { Button } from "@workspace/ui/components/button";
-import Image from "next/image";
+import { cn } from "@workspace/ui/lib/utils";
+
 import {
   toolIconMap as configToolIconMap,
   toolNameMap as configToolNameMap,
 } from "@/config/integrations";
-import { SearchResultsList, parseSearchResults } from "./search-results-list";
-import { ThinkingIndicator } from "./thinking-indicator";
-import { DocumentPreviewCard } from "./document-preview-card";
-import { EmailComposer } from "./email-composer";
-import { DocumentEditor } from "./document-editor";
-import { NotionPageEditor } from "./notion-page-editor";
+
 import { CalendarEventEditor } from "./calendar-event-editor";
-import { SheetsEditor } from "./sheets-editor";
+import { DocumentEditor } from "./document-editor";
+import { EmailComposer } from "./email-composer";
 import { MarkdownRenderer } from "./markdown-renderer";
+import { NotionPageEditor } from "./notion-page-editor";
+import { SearchResultsList, parseSearchResults } from "./search-results-list";
+import { SheetsEditor } from "./sheets-editor";
+import { ThinkingIndicator } from "./thinking-indicator";
 
 // Thinking event from the backend
 export interface ThinkingEvent {
@@ -134,10 +137,10 @@ function getStatusIcon(tool: string, description: string) {
   const lowerDesc = description.toLowerCase();
 
   if (lowerDesc.includes("email") || tool === "gmail") {
-    return <Mail className="w-4 h-4 text-white/50" />;
+    return <Mail className="h-4 w-4 text-white/50" />;
   }
   if (lowerDesc.includes("calendar") || tool === "google-calendar") {
-    return <Calendar className="w-4 h-4 text-white/50" />;
+    return <Calendar className="h-4 w-4 text-white/50" />;
   }
   if (
     lowerDesc.includes("document") ||
@@ -145,20 +148,20 @@ function getStatusIcon(tool: string, description: string) {
     tool === "notion" ||
     tool === "google-docs"
   ) {
-    return <FileText className="w-4 h-4 text-white/50" />;
+    return <FileText className="h-4 w-4 text-white/50" />;
   }
   if (lowerDesc.includes("time") || lowerDesc.includes("schedule")) {
-    return <Clock className="w-4 h-4 text-white/50" />;
+    return <Clock className="h-4 w-4 text-white/50" />;
   }
   if (lowerDesc.includes("search") || tool === "web-search") {
-    return <Search className="w-4 h-4 text-white/50" />;
+    return <Search className="h-4 w-4 text-white/50" />;
   }
   if (lowerDesc.includes("vercel") || tool === "vercel") {
-    return <Globe className="w-4 h-4 text-white/50" />;
+    return <Globe className="h-4 w-4 text-white/50" />;
   }
 
   // Default: simple dot
-  return <div className="w-1.5 h-1.5 rounded-full bg-white/40" />;
+  return <div className="h-1.5 w-1.5 rounded-full bg-white/40" />;
 }
 
 // Check if a step should show a rich result card (with expandable content)
@@ -173,12 +176,16 @@ function shouldShowRichCard(step: WorkflowStep): boolean {
 
   // Show card for rich result tools with substantial results
   if (richResultTools.has(primaryTool) && step.result && step.result.length > 100) {
-    console.log(`🃏 [RICH-CARD] Step ${step.step_number}: YES (${primaryTool} with ${step.result.length} chars)`);
+    console.log(
+      `🃏 [RICH-CARD] Step ${step.step_number}: YES (${primaryTool} with ${step.result.length} chars)`
+    );
     return true;
   }
 
   if (richResultTools.has(primaryTool)) {
-    console.log(`🃏 [RICH-CARD] Step ${step.step_number}: NO (${primaryTool} is rich-eligible but result_len=${step.result?.length || 0} < 100)`);
+    console.log(
+      `🃏 [RICH-CARD] Step ${step.step_number}: NO (${primaryTool} is rich-eligible but result_len=${step.result?.length || 0} < 100)`
+    );
   }
 
   return false;
@@ -202,8 +209,12 @@ export function WorkflowTimeline({
   // Filter steps to only show visible ones (not pending) - memoized to prevent infinite loops
   const visibleSteps = useMemo(() => {
     const visible = steps.filter((step) => step.status !== "pending");
-    console.log(`👁️ [TIMELINE] All steps: [${steps.map(s => `${s.step_number}:${s.status}`).join(', ')}]`);
-    console.log(`👁️ [TIMELINE] Visible (non-pending): [${visible.map(s => `${s.step_number}:${s.status}`).join(', ')}]`);
+    console.log(
+      `👁️ [TIMELINE] All steps: [${steps.map((s) => `${s.step_number}:${s.status}`).join(", ")}]`
+    );
+    console.log(
+      `👁️ [TIMELINE] Visible (non-pending): [${visible.map((s) => `${s.step_number}:${s.status}`).join(", ")}]`
+    );
     return visible;
   }, [steps]);
 
@@ -219,7 +230,7 @@ export function WorkflowTimeline({
     if (!activeStepNumbers) return;
 
     const activeIds = activeStepNumbers.split(",").map(Number);
-    console.log(`🔽 [COLLAPSE] Auto-expanding active steps: [${activeIds.join(', ')}]`);
+    console.log(`🔽 [COLLAPSE] Auto-expanding active steps: [${activeIds.join(", ")}]`);
     setExpandedSteps((prev) => {
       const next = new Set(prev);
       let changed = false;
@@ -230,7 +241,7 @@ export function WorkflowTimeline({
         }
       });
       if (changed) {
-        console.log(`🔽 [COLLAPSE] expandedSteps updated: [${Array.from(next).join(', ')}]`);
+        console.log(`🔽 [COLLAPSE] expandedSteps updated: [${Array.from(next).join(", ")}]`);
       }
       return changed ? next : prev;
     });
@@ -238,7 +249,7 @@ export function WorkflowTimeline({
 
   // Debug: log expandedSteps changes
   useEffect(() => {
-    console.log(`🔽 [COLLAPSE] Current expandedSteps: [${Array.from(expandedSteps).join(', ')}]`);
+    console.log(`🔽 [COLLAPSE] Current expandedSteps: [${Array.from(expandedSteps).join(", ")}]`);
   }, [expandedSteps]);
 
   const toggleStep = (stepNumber: number) => {
@@ -250,7 +261,7 @@ export function WorkflowTimeline({
       } else {
         next.add(stepNumber);
       }
-      console.log(`🔽 [COLLAPSE] After toggle: [${Array.from(next).join(', ')}]`);
+      console.log(`🔽 [COLLAPSE] After toggle: [${Array.from(next).join(", ")}]`);
       return next;
     });
   };
@@ -263,12 +274,12 @@ export function WorkflowTimeline({
   const lineHeight = visibleSteps.length > 0 ? `calc(100% - 12px)` : "0px";
 
   return (
-    <div className={cn("w-full max-w-5xl mx-auto py-4", className)}>
+    <div className={cn("mx-auto w-full max-w-5xl py-4", className)}>
       {/* Timeline with vertical line */}
       <div className="relative" ref={timelineRef}>
         {/* Animated vertical timeline line */}
         <div
-          className="absolute left-[9px] top-3 w-[2px] bg-white/10 transition-all duration-500 ease-out"
+          className="absolute top-3 left-[9px] w-[2px] bg-white/10 transition-all duration-500 ease-out"
           style={{ height: lineHeight }}
         />
 
@@ -277,12 +288,12 @@ export function WorkflowTimeline({
           {/* Initial thinking from planner */}
           {planThinking && (
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 relative z-10">
-                <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
+              <div className="relative z-10 flex-shrink-0">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
+                  <div className="h-1.5 w-1.5 rounded-full bg-white/60" />
                 </div>
               </div>
-              <div className="flex-1 min-w-0 pt-0.5">
+              <div className="min-w-0 flex-1 pt-0.5">
                 <ThinkingIndicator content={planThinking} duration={2} defaultExpanded={false} />
               </div>
             </div>
@@ -291,12 +302,12 @@ export function WorkflowTimeline({
           {/* Integration indicator (e.g., "Added 2 integrations successfully") */}
           {loadedIntegrations && loadedIntegrations.length > 0 && (
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 relative z-10">
-                <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center">
-                  <Check className="w-3 h-3 text-white/80" />
+              <div className="relative z-10 flex-shrink-0">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10">
+                  <Check className="h-3 w-3 text-white/80" />
                 </div>
               </div>
-              <div className="flex-1 min-w-0 pt-0.5">
+              <div className="min-w-0 flex-1 pt-0.5">
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-white/70">
                     Added {loadedIntegrations.length} integration
@@ -322,12 +333,12 @@ export function WorkflowTimeline({
           {/* Status messages (e.g., "Added 2 integrations successfully") */}
           {statusMessages?.map((msg, idx) => (
             <div key={`status-${idx}`} className="flex items-start gap-4">
-              <div className="flex-shrink-0 relative z-10">
-                <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
-                  <Plus className="w-3 h-3 text-white/50" />
+              <div className="relative z-10 flex-shrink-0">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
+                  <Plus className="h-3 w-3 text-white/50" />
                 </div>
               </div>
-              <div className="flex-1 min-w-0 pt-0.5">
+              <div className="min-w-0 flex-1 pt-0.5">
                 <p className="text-sm text-white/50">{msg.text}</p>
               </div>
             </div>
@@ -342,7 +353,9 @@ export function WorkflowTimeline({
 
             // Determine which rendering branch this step will take
             const hasToolCalls = !!(step.tool_calls && step.tool_calls.length > 0);
-            const toolCallBranchActive = hasToolCalls && ["awaiting_approval", "in_progress", "completed", "skipped"].includes(step.status);
+            const toolCallBranchActive =
+              hasToolCalls &&
+              ["awaiting_approval", "in_progress", "completed", "skipped"].includes(step.status);
             let renderBranch = "unknown";
             if (toolCallBranchActive) {
               const integration = step.tool_calls![0]?.integration;
@@ -356,24 +369,26 @@ export function WorkflowTimeline({
             } else {
               renderBranch = `simple-line(tool=${primaryTool})`;
             }
-            console.log(`🎨 [RENDER] Step ${step.step_number}: status="${step.status}", branch="${renderBranch}", hasToolCalls=${hasToolCalls}, tool_calls=[${(step.tool_calls || []).map(tc => `${tc.integration}/${tc.tool_name}`).join(',')}], isRichCard=${isRichCard}, result_len=${step.result?.length || 0}`);
+            console.log(
+              `🎨 [RENDER] Step ${step.step_number}: status="${step.status}", branch="${renderBranch}", hasToolCalls=${hasToolCalls}, tool_calls=[${(step.tool_calls || []).map((tc) => `${tc.integration}/${tc.tool_name}`).join(",")}], isRichCard=${isRichCard}, result_len=${step.result?.length || 0}`
+            );
 
             return (
               <div key={step.step_number} className="relative">
                 {/* Step row with circle and content */}
                 <div className="flex items-start gap-4">
                   {/* Left side - circle indicator on the timeline */}
-                  <div className="flex-shrink-0 relative z-10">
+                  <div className="relative z-10 flex-shrink-0">
                     {step.status === "in_progress" ? (
-                      <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/40 flex items-center justify-center">
-                        <Loader2 className="w-3 h-3 animate-spin text-white/60" />
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0a0a]">
+                        <Loader2 className="h-3 w-3 animate-spin text-white/60" />
                       </div>
                     ) : step.status === "awaiting_approval" ? (
                       (() => {
                         const integration = step.tool_calls?.[0]?.integration;
                         const iconPath = integration ? `/integrations/${integration}.svg` : null;
                         return (
-                          <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/30 flex items-center justify-center">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/30 bg-[#0a0a0a]">
                             {iconPath ? (
                               <Image
                                 src={iconPath}
@@ -383,38 +398,38 @@ export function WorkflowTimeline({
                                 className="object-contain grayscale"
                               />
                             ) : (
-                              <Loader2 className="w-3 h-3 animate-spin text-white/60" />
+                              <Loader2 className="h-3 w-3 animate-spin text-white/60" />
                             )}
                           </div>
                         );
                       })()
                     ) : step.status === "failed" ? (
-                      <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-red-500/50 flex items-center justify-center">
-                        <X className="w-3 h-3 text-red-400" />
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-red-500/50 bg-[#0a0a0a]">
+                        <X className="h-3 w-3 text-red-400" />
                       </div>
                     ) : step.status === "completed" ? (
-                      <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
                         {toolIcon ? (
                           <Image
                             src={toolIcon}
                             alt={primaryTool}
                             width={12}
                             height={12}
-                            className="object-contain grayscale opacity-70"
+                            className="object-contain opacity-70 grayscale"
                           />
                         ) : (
-                          <Check className="w-3 h-3 text-white/50" />
+                          <Check className="h-3 w-3 text-white/50" />
                         )}
                       </div>
                     ) : (
-                      <div className="w-5 h-5 rounded-full bg-[#0a0a0a] border-2 border-white/20 flex items-center justify-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
+                        <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
                       </div>
                     )}
                   </div>
 
                   {/* Right side - content */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     {/* TOOL-SPECIFIC CARD — for steps with tool_calls (active or completed) */}
                     {step.tool_calls &&
                     step.tool_calls.length > 0 &&
@@ -426,7 +441,9 @@ export function WorkflowTimeline({
                         const primaryToolCall = step.tool_calls![0];
                         const integration = primaryToolCall?.integration;
                         const isCompleted = step.status !== "awaiting_approval";
-                        console.log(`🎨 [TOOL-CARD] Step ${step.step_number}: integration="${integration}", tool="${primaryToolCall?.tool_name}", isCompleted=${isCompleted}, hasOnApprove=${!!onApprove}`);
+                        console.log(
+                          `🎨 [TOOL-CARD] Step ${step.step_number}: integration="${integration}", tool="${primaryToolCall?.tool_name}", isCompleted=${isCompleted}, hasOnApprove=${!!onApprove}`
+                        );
 
                         // Gmail → EmailComposer
                         if (
@@ -546,7 +563,9 @@ export function WorkflowTimeline({
                         }
 
                         // All integrations have tool-specific UI above — no fallback needed
-                        console.warn(`⚠️ [TOOL-CARD] Step ${step.step_number}: No matching editor for integration="${integration}", tool="${primaryToolCall?.tool_name}" — rendering NULL`);
+                        console.warn(
+                          `⚠️ [TOOL-CARD] Step ${step.step_number}: No matching editor for integration="${integration}", tool="${primaryToolCall?.tool_name}" — rendering NULL`
+                        );
                         return null;
                       })()
                     ) : step.status === "awaiting_approval" ? (
@@ -605,12 +624,14 @@ export function WorkflowTimeline({
                         }
 
                         // All integrations have tool-specific UI — no generic fallback needed
-                        console.warn(`⚠️ [GENERIC-APPROVAL] Step ${step.step_number}: No matching generic editor for desc="${step.description.slice(0, 80)}" — rendering NULL`);
+                        console.warn(
+                          `⚠️ [GENERIC-APPROVAL] Step ${step.step_number}: No matching generic editor for desc="${step.description.slice(0, 80)}" — rendering NULL`
+                        );
                         return null;
                       })()
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
-                      <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 overflow-hidden">
+                      <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-[#1a1a1a]">
                         <div className="px-4 py-3">
                           <div className="flex items-center justify-between">
                             <p className="text-sm text-red-300">{step.description}</p>
@@ -619,15 +640,14 @@ export function WorkflowTimeline({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => onRetry(step.step_number)}
-                                className="h-7 px-2 text-xs border-red-500/50 text-red-400 hover:bg-red-500/20 bg-transparent"
-                              >
-                                <RotateCcw className="w-3 h-3 mr-1" />
+                                className="h-7 border-red-500/50 bg-transparent px-2 text-xs text-red-400 hover:bg-red-500/20">
+                                <RotateCcw className="mr-1 h-3 w-3" />
                                 Retry
                               </Button>
                             )}
                           </div>
                           {step.error && (
-                            <p className="text-xs text-red-400/70 mt-2">{step.error}</p>
+                            <p className="mt-2 text-xs text-red-400/70">{step.error}</p>
                           )}
                         </div>
                       </div>
@@ -635,20 +655,19 @@ export function WorkflowTimeline({
                       /* RICH RESULT CARD (Web Search, etc.) */
                       <div className="space-y-2">
                         <div
-                          className="rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden cursor-pointer"
-                          onClick={() => toggleStep(step.step_number)}
-                        >
+                          className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]"
+                          onClick={() => toggleStep(step.step_number)}>
                           {/* Card header with tool info */}
-                          <div className="px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center justify-between px-4 py-3">
                             <div className="flex items-center gap-3">
                               {toolIcon && (
-                                <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
                                   <Image
                                     src={toolIcon}
                                     alt={primaryTool}
                                     width={14}
                                     height={14}
-                                    className="object-contain grayscale opacity-80"
+                                    className="object-contain opacity-80 grayscale"
                                   />
                                 </div>
                               )}
@@ -656,21 +675,21 @@ export function WorkflowTimeline({
                                 {toolNameMap[primaryTool] || primaryTool}
                               </span>
                             </div>
-                            <button className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 transition-colors">
+                            <button className="rounded-lg bg-white/5 p-1.5 transition-colors hover:bg-white/15">
                               {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-white/70" />
+                                <ChevronUp className="h-4 w-4 text-white/70" />
                               ) : (
-                                <ChevronDown className="w-4 h-4 text-white/70" />
+                                <ChevronDown className="h-4 w-4 text-white/70" />
                               )}
                             </button>
                           </div>
 
                           {/* Expanded content */}
                           {isExpanded && (
-                            <div className="px-4 pb-4 border-t border-white/5">
+                            <div className="border-t border-white/5 px-4 pb-4">
                               <div className="pt-3">
                                 {step.error && (
-                                  <div className="text-sm text-red-400 bg-red-500/10 rounded-lg p-3">
+                                  <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
                                     <strong>Error:</strong> {step.error}
                                   </div>
                                 )}
@@ -718,8 +737,7 @@ export function WorkflowTimeline({
                               step.status === "in_progress" && "text-white/60",
                               step.status === "completed" && "text-white/50",
                               step.status === "skipped" && "text-white/40"
-                            )}
-                          >
+                            )}>
                             <span>{step.description}</span>
                             {step.status === "completed" && step.result && !isRichCard && (
                               <div className="mt-2 text-gray-400">
