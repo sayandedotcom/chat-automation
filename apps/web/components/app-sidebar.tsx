@@ -27,10 +27,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePathname } from "next/navigation";
+import { cn } from "@workspace/ui/lib/utils";
 
 // Navigation items for the top section
 const navItems = [
@@ -84,6 +85,8 @@ const user = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isMobile = useIsMobile();
+  const pathname = usePathname();
+  
   return (
     <Sidebar collapsible="icon" className="!bg-[#000000] border-r-0" {...props}>
       <SidebarHeader>
@@ -114,7 +117,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuButton
                   asChild
                   tooltip={item.title}
-                  className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]"
+                  isActive={pathname === item.url || pathname.startsWith(`${item.url}/`)}
+                  className={cn(
+                    "h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]",
+                    (pathname === item.url || pathname.startsWith(`${item.url}/`)) && "bg-[#1A1A1A] ring-1 ring-white/10 text-white"
+                  )}
                 >
                   <Link href={item.url}>
                     <item.icon />
@@ -139,7 +146,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton
               asChild
               tooltip="Settings"
-              className="h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]"
+              isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
+              className={cn(
+                "h-9 text-[15px] text-zinc-200 [&>svg]:size-[18px]",
+                (pathname === "/settings" || pathname.startsWith("/settings/")) && "bg-[#1A1A1A] ring-1 ring-white/10 text-white"
+              )}
             >
               <Link href="/settings">
                 <Settings />
