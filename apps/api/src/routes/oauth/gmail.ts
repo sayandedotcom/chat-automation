@@ -1,5 +1,6 @@
-import { Router, type IRouter } from "express";
-import { googleAuthInit, googleAuthCallback, API_BASE_URL } from "./helpers.js";
+import { type IRouter, Router } from "express";
+
+import { API_BASE_URL, googleAuthCallback, googleAuthInit } from "./helpers.js";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",

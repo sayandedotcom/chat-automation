@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+
 import { env } from "./env.js";
 
 declare global {

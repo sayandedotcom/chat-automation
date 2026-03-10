@@ -1,19 +1,10 @@
 "use client";
 
-import { Extension } from "@tiptap/core";
-import { Mention as MentionExtension } from "@tiptap/extension-mention";
-import Placeholder from "@tiptap/extension-placeholder";
-import type { Editor, JSONContent } from "@tiptap/react";
-import { EditorContent, ReactRenderer, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import type { SuggestionProps } from "@tiptap/suggestion";
-import { ArrowUpIcon, Loader2, PlusIcon } from "lucide-react";
-
 import {
   type ComponentProps,
+  type ReactNode,
   createContext,
   forwardRef,
-  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -22,13 +13,17 @@ import {
   useRef,
   useState,
 } from "react";
+
+import { Extension } from "@tiptap/core";
+import { Mention as MentionExtension } from "@tiptap/extension-mention";
+import Placeholder from "@tiptap/extension-placeholder";
+import type { Editor, JSONContent } from "@tiptap/react";
+import { EditorContent, ReactRenderer, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import type { SuggestionProps } from "@tiptap/suggestion";
+import { ArrowUpIcon, Loader2, PlusIcon } from "lucide-react";
 import tippyDefault, { type Instance } from "tippy.js";
 
-// Handle tippy.js ESM/CJS interop
-const tippy =
-  typeof tippyDefault === "function"
-    ? tippyDefault
-    : (tippyDefault as unknown as { default: typeof tippyDefault }).default;
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
@@ -43,6 +38,12 @@ import {
   InputGroupText,
 } from "@workspace/ui/components/input-group";
 import { cn } from "@workspace/ui/lib/utils";
+
+// Handle tippy.js ESM/CJS interop
+const tippy =
+  typeof tippyDefault === "function"
+    ? tippyDefault
+    : (tippyDefault as unknown as { default: typeof tippyDefault }).default;
 
 export type ChatInputValue = JSONContent;
 
@@ -148,12 +149,10 @@ export function ChatInput({
         onChange,
         editor,
         setEditor,
-      }}
-    >
+      }}>
       <InputGroup
-        className={cn("focus-within:ring-1 focus-within:ring-ring rounded-2xl", className)}
-        {...props}
-      >
+        className={cn("focus-within:ring-ring rounded-2xl focus-within:ring-1", className)}
+        {...props}>
         {children}
       </InputGroup>
     </ChatInputContext.Provider>
@@ -289,7 +288,7 @@ export function ChatInputEditor({
 			`}</style>
       <EditorContent
         editor={editor}
-        className={cn("w-full h-full max-h-48 px-4 pt-4 pb-2 overflow-y-auto", className)}
+        className={cn("h-full max-h-48 w-full overflow-y-auto px-4 pt-4 pb-2", className)}
         style={style}
       />
     </>
@@ -443,7 +442,7 @@ const GenericMentionList = forwardRef(
     );
 
     return (
-      <div className="min-w-48 max-w-64 max-h-48 bg-popover text-popover-foreground border border-border rounded-lg shadow-md flex flex-col gap-1 overflow-y-auto p-1">
+      <div className="bg-popover text-popover-foreground border-border flex max-h-48 max-w-64 min-w-48 flex-col gap-1 overflow-y-auto rounded-lg border p-1 shadow-md">
         {items.length ? (
           items.map((item, index) => (
             <Button
@@ -451,7 +450,7 @@ const GenericMentionList = forwardRef(
               variant="ghost"
               size="sm"
               className={cn(
-                "flex justify-start px-1 py-2 gap-2",
+                "flex justify-start gap-2 px-1 py-2",
                 selectedIndex === index && "bg-accent"
               )}
               onClick={() => selectItem(index)}
@@ -459,8 +458,7 @@ const GenericMentionList = forwardRef(
                 if (el) {
                   itemRefs.current[index] = el;
                 }
-              }}
-            >
+              }}>
               {renderItem ? (
                 renderItem(item, selectedIndex === index)
               ) : (
@@ -469,7 +467,7 @@ const GenericMentionList = forwardRef(
             </Button>
           ))
         ) : (
-          <div className="text-sm text-muted-foreground px-2 py-1.5">No results found</div>
+          <div className="text-muted-foreground px-2 py-1.5 text-sm">No results found</div>
         )}
       </div>
     );
@@ -577,8 +575,7 @@ export function ChatInputSubmitButton({
         className={cn("rounded-full", className)}
         onClick={handleClick}
         disabled={effectiveDisabled}
-        {...props}
-      >
+        {...props}>
         <StopIcon className="h-4 w-4" />
 
         <span className="sr-only">Stop</span>
@@ -594,8 +591,7 @@ export function ChatInputSubmitButton({
         className={cn("rounded-full", className)}
         onClick={handleClick}
         disabled={effectiveDisabled}
-        {...props}
-      >
+        {...props}>
         <Loader2 className="h-4 w-4 animate-spin" />
         <span className="sr-only">Loading</span>
       </InputGroupButton>
@@ -609,8 +605,7 @@ export function ChatInputSubmitButton({
       className={cn("rounded-full", className)}
       onClick={handleClick}
       disabled={effectiveDisabled}
-      {...props}
-    >
+      {...props}>
       <ArrowUpIcon />
       <span className="sr-only">Send</span>
     </InputGroupButton>
@@ -624,8 +619,7 @@ const StopIcon = ({ className }: { className?: string }) => (
     viewBox="0 0 16 16"
     fill="currentColor"
     className={className}
-    aria-hidden="true"
-  >
+    aria-hidden="true">
     <title>Stop</title>
     <rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor" />
   </svg>
@@ -647,9 +641,8 @@ export function ChatInputMentionButton({
         <InputGroupButton
           variant="outline"
           size="icon-sm"
-          className={cn("rounded-full shrink-0", className)}
-          {...props}
-        >
+          className={cn("shrink-0 rounded-full", className)}
+          {...props}>
           <PlusIcon className="h-4 w-4" />
           <span className="sr-only">Add Mention</span>
         </InputGroupButton>
@@ -663,8 +656,7 @@ export function ChatInputMentionButton({
                 editor.commands.insertContent(config.trigger);
                 editor.commands.focus();
               }
-            }}
-          >
+            }}>
             {config.trigger} {config.type}
           </DropdownMenuItem>
         ))}

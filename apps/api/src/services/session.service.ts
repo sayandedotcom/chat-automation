@@ -1,9 +1,11 @@
-import { prisma } from "@workspace/database";
 import type { Request, Response } from "express";
-import { createSessionToken, decryptSessionToken, generateSessionId } from "./jwe.service.js";
-import { cookieConfig, setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
-import { COOKIE_MAX_AGE } from "../config/index.js";
+
+import { prisma } from "@workspace/database";
+
 import type { SessionUser } from "../@types/index.js";
+import { COOKIE_MAX_AGE } from "../config/index.js";
+import { clearAuthCookies, cookieConfig, setAuthCookies } from "../utils/cookies.js";
+import { createSessionToken, decryptSessionToken, generateSessionId } from "./jwe.service.js";
 
 export async function createSession(
   user: SessionUser,

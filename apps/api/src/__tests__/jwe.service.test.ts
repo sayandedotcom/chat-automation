@@ -1,4 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  createSessionToken,
+  decryptSessionToken,
+  generateSessionId,
+} from "../services/jwe.service.js";
 
 vi.mock("../config/index.js", () => ({
   config: {
@@ -23,12 +29,6 @@ vi.mock("../config/index.js", () => ({
   },
   COOKIE_MAX_AGE: 604800,
 }));
-
-import {
-  createSessionToken,
-  decryptSessionToken,
-  generateSessionId,
-} from "../services/jwe.service.js";
 
 describe("JWE Service", () => {
   const mockPayload = {

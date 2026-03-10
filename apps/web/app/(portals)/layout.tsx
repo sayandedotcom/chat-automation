@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+
 import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
-import { AppSidebar } from "@/components/app-sidebar";
+
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar";
+
+import { AppSidebar } from "@/components/app-sidebar";
+
+import { useSession } from "@/lib/auth-client";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession();

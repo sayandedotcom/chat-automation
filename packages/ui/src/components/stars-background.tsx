@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef, RefObject, useCallback } from "react";
+import React, { RefObject, useCallback, useEffect, useRef, useState } from "react";
+
 import { cn } from "@workspace/ui/lib/utils";
 
 interface StarProps {
@@ -118,5 +119,5 @@ export const StarsBackground: React.FC<StarBackgroundProps> = ({
     };
   }, [stars]);
 
-  return <canvas ref={canvasRef} className={cn("h-full w-full absolute inset-0", className)} />;
+  return <canvas ref={canvasRef} className={cn("absolute inset-0 h-full w-full", className)} />;
 };

@@ -1,6 +1,7 @@
 import type { Response } from "express";
-import { config, COOKIE_MAX_AGE } from "../config/index.js";
+
 import type { CookieConfig } from "../@types/index.js";
+import { COOKIE_MAX_AGE, config } from "../config/index.js";
 
 export const cookieConfig: CookieConfig = {
   name: "session_token",

@@ -2,7 +2,6 @@
  * Root router combining all sub-routers.
  * This is the main entry point for the tRPC API.
  */
-
 import { router } from "../server/trpc.js";
 import { authRouter } from "./auth.js";
 import { chatRouter } from "./chat.js";

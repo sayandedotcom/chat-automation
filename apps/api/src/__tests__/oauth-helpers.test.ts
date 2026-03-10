@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Request, Response } from "express";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { getCookieDomain, googleAuthCallback, googleAuthInit } from "../routes/oauth/helpers.js";
 
 const originalEnv = { ...process.env };
 
@@ -22,8 +24,6 @@ vi.mock("../config/index.js", () => ({
   },
   COOKIE_MAX_AGE: 604800,
 }));
-
-import { getCookieDomain, googleAuthInit, googleAuthCallback } from "../routes/oauth/helpers.js";
 
 describe("OAuth Helpers", () => {
   let mockRes: Partial<Response>;

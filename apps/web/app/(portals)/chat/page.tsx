@@ -1,20 +1,26 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { StickToBottom } from "use-stick-to-bottom";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import Image from "next/image";
+
 import { useMutation } from "@tanstack/react-query";
-import { useTRPC } from "@/lib/trpc";
-import { useSession } from "@/lib/auth-client";
-import { PlanetaryBackground } from "@/components/planetary-background";
+import { StickToBottom } from "use-stick-to-bottom";
+
+import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
 import { ShootingStars } from "@workspace/ui/components/shooting-stars";
 import { StarsBackground } from "@workspace/ui/components/stars-background";
+
 import { ChatGreeting } from "@/components/chat-greeting";
 import { ChatInputWithMentions } from "@/components/chat-input";
-import { WorkflowTimeline, WorkflowStep } from "@/components/workflow-timeline";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { PlanetaryBackground } from "@/components/planetary-background";
+import { WorkflowStep, WorkflowTimeline } from "@/components/workflow-timeline";
+
+import { useSession } from "@/lib/auth-client";
+import { useTRPC } from "@/lib/trpc";
+
 import { integrations as integrationConfig } from "@/config/integrations";
-import Image from "next/image";
-import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -769,14 +775,14 @@ export default function ChatPage() {
     if (isChatActive) {
       // Solid grey background when chat is active - fixed height container
       return (
-        <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-hidden border border-white/10 rounded-2xl">
+        <div className="m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131313]">
           {children}
         </div>
       );
     }
     // Show planetary background when idle
     return (
-      <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-hidden border border-white/10 rounded-2xl">
+      <div className="m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131313]">
         {children}
       </div>
     );
@@ -784,11 +790,11 @@ export default function ChatPage() {
 
   return (
     <ContentWrapper>
-      <div className="flex flex-col w-full h-full z-10 relative">
+      <div className="relative z-10 flex h-full w-full flex-col">
         {/* Idle state - show greeting and input */}
         {isIdle && (
-          <div className="flex-1 flex flex-col justify-center px-4">
-            <div className="w-full max-w-2xl mx-auto">
+          <div className="flex flex-1 flex-col justify-center px-4">
+            <div className="mx-auto w-full max-w-2xl">
               <ChatGreeting userName={user?.name?.split(" ")[0] || "there"} subtitle="" />
               <ChatInputWithMentions
                 onSubmit={executeWorkflow}
@@ -803,18 +809,17 @@ export default function ChatPage() {
           <>
             {/* Scrollable content area - takes remaining space */}
             <StickToBottom
-              className="flex-1 overflow-hidden relative [&>div]:scrollbar-thin [&>div]:scrollbar-thumb-[#2a2a2a] [&>div]:scrollbar-track-transparent [&>div]:scrollbar-thumb-rounded-full"
+              className="[&>div]:scrollbar-thin [&>div]:scrollbar-thumb-[#2a2a2a] [&>div]:scrollbar-track-transparent [&>div]:scrollbar-thumb-rounded-full relative flex-1 overflow-hidden"
               resize="instant"
-              initial="instant"
-            >
+              initial="instant">
               <StickToBottom.Content className="px-4 pt-6 pb-4">
-                <div className="max-w-5xl mx-auto space-y-6">
+                <div className="mx-auto max-w-5xl space-y-6">
                   {/* Completed previous turns */}
                   {completedTurns.map((turn) => (
                     <div key={turn.id} className="space-y-4">
                       {/* Previous turn: user message bubble */}
                       <div className="flex justify-end">
-                        <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
+                        <div className="max-w-xl rounded-2xl rounded-tr-sm bg-[#1f1f1f] px-4 py-3">
                           <MarkdownRenderer content={turn.userMessage} />
                         </div>
                       </div>
@@ -833,7 +838,7 @@ export default function ChatPage() {
 
                   {/* Current turn: user message bubble */}
                   <div className="flex justify-end">
-                    <div className="bg-[#1f1f1f] rounded-2xl rounded-tr-sm px-4 py-3 max-w-xl">
+                    <div className="max-w-xl rounded-2xl rounded-tr-sm bg-[#1f1f1f] px-4 py-3">
                       <MarkdownRenderer content={originalRequest} />
                     </div>
                   </div>
@@ -871,9 +876,9 @@ export default function ChatPage() {
                   {/* Auth required card */}
                   {authRequired && authRequired.length > 0 && (
                     <div className="flex items-start gap-4">
-                      <div className="w-2 h-2 mt-2 rounded-full bg-amber-400 flex-shrink-0" />
+                      <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-amber-400" />
                       <div className="max-w-md space-y-3">
-                        <p className="text-zinc-300 text-sm">
+                        <p className="text-sm text-zinc-300">
                           To continue with your request, please connect{" "}
                           {authRequired.map((i) => i.display_name).join(" and ")}.
                         </p>
@@ -885,9 +890,8 @@ export default function ChatPage() {
                             return (
                               <div
                                 key={integration.connect_id}
-                                className="flex items-center gap-3 rounded-xl bg-[#1a1a1a] border border-white/[0.06] px-4 py-3"
-                              >
-                                <div className="w-8 h-8 rounded-lg bg-[#252525] flex items-center justify-center flex-shrink-0">
+                                className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#1a1a1a] px-4 py-3">
+                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#252525]">
                                   {config?.icon ? (
                                     <Image
                                       src={config.icon}
@@ -897,32 +901,31 @@ export default function ChatPage() {
                                       className="object-contain"
                                     />
                                   ) : (
-                                    <span className="text-zinc-400 text-xs">
+                                    <span className="text-xs text-zinc-400">
                                       {integration.display_name.charAt(0)}
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-zinc-200 text-sm font-medium">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-zinc-200">
                                     {integration.display_name}
                                   </p>
                                   {config?.description && (
-                                    <p className="text-zinc-500 text-xs truncate">
+                                    <p className="truncate text-xs text-zinc-500">
                                       {config.description}
                                     </p>
                                   )}
                                 </div>
                                 <a
                                   href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
-                                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-zinc-200 text-xs font-medium transition-colors"
-                                >
+                                  className="flex-shrink-0 rounded-lg bg-white/[0.08] px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/[0.12]">
                                   Connect
                                 </a>
                               </div>
                             );
                           })}
                         </div>
-                        <p className="text-zinc-600 text-xs">
+                        <p className="text-xs text-zinc-600">
                           After connecting, try your request again.
                         </p>
                       </div>
@@ -932,9 +935,9 @@ export default function ChatPage() {
                   {/* Error display */}
                   {error && !authRequired && (
                     <div className="flex items-start gap-4">
-                      <div className="w-2 h-2 mt-2 rounded-full bg-red-400 flex-shrink-0" />
-                      <div className="rounded-2xl bg-[#1a1a1a] border border-red-500/30 px-4 py-3">
-                        <p className="text-red-400 text-sm">
+                      <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-red-400" />
+                      <div className="rounded-2xl border border-red-500/30 bg-[#1a1a1a] px-4 py-3">
+                        <p className="text-sm text-red-400">
                           <strong>Error:</strong> {error}
                         </p>
                       </div>
@@ -945,8 +948,8 @@ export default function ChatPage() {
             </StickToBottom>
 
             {/* Fixed chat input at the bottom */}
-            <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-[#131313]">
-              <div className="max-w-5xl mx-auto [&>div]:pb-0">
+            <div className="flex-shrink-0 bg-[#131313] px-4 pt-2 pb-4">
+              <div className="mx-auto max-w-5xl [&>div]:pb-0">
                 <ChatInputWithMentions
                   onSubmit={executeWorkflow}
                   placeholder={

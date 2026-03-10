@@ -1,10 +1,11 @@
-import { Router, type IRouter } from "express";
+import { type IRouter, Router } from "express";
+
 import {
-  googleLogin,
-  googleCallback,
-  logout,
-  getCurrentUser,
   getAuthStatus,
+  getCurrentUser,
+  googleCallback,
+  googleLogin,
+  logout,
 } from "../controllers/auth.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 

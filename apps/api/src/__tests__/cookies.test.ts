@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Response } from "express";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { clearAuthCookies, cookieConfig, setAuthCookies } from "../utils/cookies.js";
 
 vi.mock("../config/index.js", () => ({
   config: {
@@ -20,8 +22,6 @@ vi.mock("../config/index.js", () => ({
   },
   COOKIE_MAX_AGE: 604800,
 }));
-
-import { cookieConfig, setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
 
 describe("Cookies Utils", () => {
   let mockRes: Partial<Response>;

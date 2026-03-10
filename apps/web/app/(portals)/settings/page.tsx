@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@workspace/ui/components/button";
+
 import { signOut } from "@/lib/auth-client";
 
 function SettingsPage() {
@@ -13,7 +14,7 @@ function SettingsPage() {
   const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
     // Show planetary background when idle
     return (
-      <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-hidden border border-white/10 rounded-2xl">
+      <div className="m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131313]">
         {children}
       </div>
     );
@@ -21,8 +22,8 @@ function SettingsPage() {
 
   return (
     <ContentWrapper>
-      <div className="max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-20 relative z-10">
-        <h1 className="text-2xl font-bold mb-8">Settings</h1>
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 py-20 lg:px-12">
+        <h1 className="mb-8 text-2xl font-bold">Settings</h1>
         <Button onClick={handleSignOut} variant="destructive">
           Sign out
         </Button>

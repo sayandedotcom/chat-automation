@@ -1,6 +1,7 @@
 "use client";
+import React, { useEffect, useRef, useState } from "react";
+
 import { cn } from "@workspace/ui/lib/utils";
-import React, { useEffect, useState, useRef } from "react";
 
 interface ShootingStar {
   id: number;
@@ -111,7 +112,7 @@ export const ShootingStars: React.FC<ShootingStarsProps> = ({
   }, [star]);
 
   return (
-    <svg ref={svgRef} className={cn("w-full h-full absolute inset-0", className)}>
+    <svg ref={svgRef} className={cn("absolute inset-0 h-full w-full", className)}>
       {star && (
         <rect
           key={star.id}

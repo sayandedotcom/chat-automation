@@ -1,5 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Request, Response } from "express";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { prisma } from "@workspace/database";
+
+import {
+  createSessionToken,
+  decryptSessionToken,
+  generateSessionId,
+} from "../services/jwe.service.js";
+import {
+  cleanupExpiredSessions,
+  createSession,
+  destroySession,
+  validateSession,
+} from "../services/session.service.js";
+import { clearAuthCookies, setAuthCookies } from "../utils/cookies.js";
 
 vi.mock("@workspace/database", () => ({
   prisma: {
@@ -50,20 +65,6 @@ vi.mock("../config/index.js", () => ({
   },
   COOKIE_MAX_AGE: 604800,
 }));
-
-import { prisma } from "@workspace/database";
-import {
-  createSessionToken,
-  decryptSessionToken,
-  generateSessionId,
-} from "../services/jwe.service.js";
-import { setAuthCookies, clearAuthCookies } from "../utils/cookies.js";
-import {
-  createSession,
-  validateSession,
-  destroySession,
-  cleanupExpiredSessions,
-} from "../services/session.service.js";
 
 const mockPrisma = vi.mocked(prisma);
 const mockCreateSessionToken = vi.mocked(createSessionToken);

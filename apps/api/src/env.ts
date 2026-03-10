@@ -1,6 +1,6 @@
+import { createEnv } from "@t3-oss/env-core";
 import dotenv from "dotenv";
 import path from "path";
-import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
 // Load root .env before validation — must happen here (not index.ts)

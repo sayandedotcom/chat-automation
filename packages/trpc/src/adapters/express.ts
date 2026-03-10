@@ -2,14 +2,14 @@
  * Express adapter for tRPC.
  * Provides middleware and utilities for integrating tRPC with Express.
  */
-
-import type { Express, Request } from "express";
 import {
-  createExpressMiddleware as trpcExpressMiddleware,
   type CreateExpressContextOptions,
+  createExpressMiddleware as trpcExpressMiddleware,
 } from "@trpc/server/adapters/express";
-import { appRouter, type AppRouter } from "../routers/index.js";
-import { createContext, type SessionInfo } from "../server/context.js";
+import type { Express, Request } from "express";
+
+import { type AppRouter, appRouter } from "../routers/index.js";
+import { type SessionInfo, createContext } from "../server/context.js";
 
 export { appRouter, type AppRouter };
 

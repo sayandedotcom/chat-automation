@@ -3,12 +3,14 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import passport from "passport";
+
 import { mountTRPC, setSessionGetter } from "@workspace/trpc/adapters/express";
+
+import "./@types/express.d.js";
 import { config, validateEnv } from "./config/index.js";
-import { googleStrategy } from "./services/google.service.js";
 import { sessionMiddleware } from "./middlewares/index.js";
 import { authRouter, chatRouter, oauthRouter } from "./routes/index.js";
-import "./@types/express.d.js";
+import { googleStrategy } from "./services/google.service.js";
 
 passport.use(googleStrategy);
 

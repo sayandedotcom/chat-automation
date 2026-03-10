@@ -1,20 +1,24 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Search } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useTRPC } from "@/lib/trpc";
-import { Input } from "@workspace/ui/components/input";
-import { oauthIntegrations, integrations } from "@/config/integrations";
+import { useEffect, useMemo, useState } from "react";
 
-import { ProcessingOverlay } from "@/components/processing-overlay";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Search } from "lucide-react";
+
+import { Input } from "@workspace/ui/components/input";
+
 import { IntegrationCard } from "@/components/integration-card";
+import { ProcessingOverlay } from "@/components/processing-overlay";
+
+import { useTRPC } from "@/lib/trpc";
+
+import { integrations, oauthIntegrations } from "@/config/integrations";
 
 const MIN_PROCESSING_MS = 2500;
 
 export const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="h-[calc(100vh-1rem)] m-2 w-[calc(100%-1rem)] bg-[#131313] flex flex-col overflow-auto scrollbar-hide border border-white/10 rounded-2xl">
+    <div className="scrollbar-hide m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-auto rounded-2xl border border-white/10 bg-[#131313]">
       {children}
     </div>
   );
@@ -112,43 +116,43 @@ export default function IntegrationsPage() {
       )}
 
       <ContentWrapper>
-        <div className="min-h-screen bg-[#0A0A0A] relative">
+        <div className="relative min-h-screen bg-[#0A0A0A]">
           {/* Background Glow and Gradient */}
-          <div className="absolute top-0 inset-x-0 h-[500px] pointer-events-none">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[500px]">
             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-white/[0.02] to-transparent" />
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[100px] bg-white/[0.06] blur-[120px] rounded-[100%]" />
+            <div className="absolute top-0 left-1/2 h-[100px] w-[1000px] -translate-x-1/2 rounded-[100%] bg-white/[0.06] blur-[120px]" />
           </div>
 
-          <div className="max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-20 relative z-10">
+          <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 py-20 lg:px-12">
             {/* Header */}
-            <div className="text-center space-y-3 mb-10">
-              <h1 className="text-[32px] md:text-4xl font-medium bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-400 tracking-tight">
+            <div className="mb-10 space-y-3 text-center">
+              <h1 className="bg-gradient-to-b from-white to-neutral-400 bg-clip-text text-[32px] font-medium tracking-tight text-transparent md:text-4xl">
                 Integrations
               </h1>
-              <p className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-300 to-neutral-500 text-[15px]">
+              <p className="bg-gradient-to-b from-neutral-300 to-neutral-500 bg-clip-text text-[15px] text-transparent">
                 Connect the tools you want to use with chat ai.
               </p>
             </div>
 
             {/* Search Bar */}
-            <div className="relative max-w-2xl mx-auto mb-16">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500" />
+            <div className="relative mx-auto mb-16 max-w-2xl">
+              <Search className="absolute top-1/2 left-4 h-[18px] w-[18px] -translate-y-1/2 text-zinc-500" />
               <Input
                 type="text"
                 placeholder="Search for integration"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-11 pl-11 pr-5 bg-zinc-900/30 border border-zinc-800/50 rounded-full text-[14px] text-white placeholder:text-zinc-500 focus:border-zinc-700 focus:bg-zinc-900/50 focus:ring-0 focus:ring-offset-0 transition-all duration-200"
+                className="h-11 w-full rounded-full border border-zinc-800/50 bg-zinc-900/30 pr-5 pl-11 text-[14px] text-white transition-all duration-200 placeholder:text-zinc-500 focus:border-zinc-700 focus:bg-zinc-900/50 focus:ring-0 focus:ring-offset-0"
               />
             </div>
 
             {/* Integrations Section */}
-            <section className="flex flex-col gap-10 mt-4">
+            <section className="mt-4 flex flex-col gap-10">
               {filteredIntegrations.filter((i) => connectionStatus[i.id]).length > 0 && (
                 <div className="space-y-4">
-                  <h2 className="text-[15px] font-semibold text-white/90 px-1">Connected</h2>
-                  <div className="bg-[#191919] border border-white/5 rounded-[24px] p-4 md:p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 xl:gap-x-8 gap-y-2">
+                  <h2 className="px-1 text-[15px] font-semibold text-white/90">Connected</h2>
+                  <div className="rounded-[24px] border border-white/5 bg-[#191919] p-4 md:p-6">
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
                       {filteredIntegrations
                         .filter((i) => connectionStatus[i.id])
                         .map((integration) => (
@@ -168,8 +172,8 @@ export default function IntegrationsPage() {
 
               {filteredIntegrations.filter((i) => !connectionStatus[i.id]).length > 0 && (
                 <div className="space-y-4">
-                  <h2 className="text-[15px] font-semibold text-white/90 px-1">Productivity</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 xl:gap-x-8 gap-y-2 px-1">
+                  <h2 className="px-1 text-[15px] font-semibold text-white/90">Productivity</h2>
+                  <div className="grid grid-cols-1 gap-x-6 gap-y-2 px-1 md:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
                     {filteredIntegrations
                       .filter((i) => !connectionStatus[i.id])
                       .map((integration) => (
@@ -187,8 +191,8 @@ export default function IntegrationsPage() {
               )}
 
               {filteredIntegrations.length === 0 && (
-                <div className="text-center py-16">
-                  <p className="text-zinc-500 text-base">
+                <div className="py-16 text-center">
+                  <p className="text-base text-zinc-500">
                     No integrations found matching &quot;{searchQuery}&quot;
                   </p>
                 </div>

@@ -1,6 +1,7 @@
-import { Router, type IRouter } from "express";
+import { type IRouter, Router } from "express";
 import { Readable, Transform } from "stream";
-import { getRefreshedTokens, getConnectedIntegrations } from "@workspace/trpc/lib/token-utils";
+
+import { getConnectedIntegrations, getRefreshedTokens } from "@workspace/trpc/lib/token-utils";
 
 const AGENT_API_URL = process.env.AGENT_API_URL as string;
 

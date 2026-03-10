@@ -2,8 +2,7 @@
  * Auth router for session endpoints.
  * Provides type-safe session access via tRPC.
  */
-
-import { router, publicProcedure, protectedProcedure } from "../server/trpc.js";
+import { protectedProcedure, publicProcedure, router } from "../server/trpc.js";
 
 export const authRouter = router({
   /**

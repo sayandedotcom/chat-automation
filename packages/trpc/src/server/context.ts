@@ -2,7 +2,6 @@
  * Context types and creation for tRPC.
  * Supports both Express and standalone contexts.
  */
-
 import type { Request, Response } from "express";
 
 /**

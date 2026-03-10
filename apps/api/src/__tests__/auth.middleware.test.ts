@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { optionalAuth, requireAuth, sessionMiddleware } from "../middlewares/auth.middleware.js";
+import { validateSession } from "../services/session.service.js";
 
 vi.mock("../services/session.service.js", () => ({
   validateSession: vi.fn(),
 }));
-
-import { validateSession } from "../services/session.service.js";
-import { sessionMiddleware, requireAuth, optionalAuth } from "../middlewares/auth.middleware.js";
 
 const mockValidateSession = vi.mocked(validateSession);
 

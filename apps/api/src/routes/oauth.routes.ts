@@ -1,10 +1,11 @@
-import { Router, type IRouter } from "express";
+import { type IRouter, Router } from "express";
+
 import { gmailRouter } from "./oauth/gmail.js";
+import { googleCalendarRouter } from "./oauth/google-calendar.js";
 import { googleDocsRouter } from "./oauth/google-docs.js";
+import { googleDriveRouter } from "./oauth/google-drive.js";
 import { googleSheetsRouter } from "./oauth/google-sheets.js";
 import { googleSlidesRouter } from "./oauth/google-slides.js";
-import { googleDriveRouter } from "./oauth/google-drive.js";
-import { googleCalendarRouter } from "./oauth/google-calendar.js";
 import { notionRouter } from "./oauth/notion.js";
 import { vercelRouter } from "./oauth/vercel.js";
 

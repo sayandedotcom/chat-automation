@@ -1,12 +1,13 @@
-import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, publicProcedure, middleware } from "../server/trpc.js";
-import type { ExpressContext } from "../server/context.js";
+import { z } from "zod";
+
 import {
+  getConnectedIntegrations,
   getRefreshedTokens,
   getTokensFromCookies,
-  getConnectedIntegrations,
 } from "../lib/token-utils.js";
+import type { ExpressContext } from "../server/context.js";
+import { middleware, publicProcedure, router } from "../server/trpc.js";
 
 const requiresExpressContext = middleware(({ ctx, next }) => {
   if (!("req" in ctx)) {

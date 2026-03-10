@@ -1,5 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
+import passport from "passport";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  getAuthStatus,
+  getCurrentUser,
+  googleCallback,
+  googleLogin,
+  logout,
+} from "../controllers/auth.controller.js";
+import { createSession, destroySession } from "../services/session.service.js";
 
 vi.mock("passport", () => ({
   default: {
@@ -31,16 +41,6 @@ vi.mock("../config/index.js", () => ({
   },
   COOKIE_MAX_AGE: 604800,
 }));
-
-import passport from "passport";
-import { createSession, destroySession } from "../services/session.service.js";
-import {
-  googleLogin,
-  googleCallback,
-  logout,
-  getCurrentUser,
-  getAuthStatus,
-} from "../controllers/auth.controller.js";
 
 const mockPassport = vi.mocked(passport);
 const mockCreateSession = vi.mocked(createSession);

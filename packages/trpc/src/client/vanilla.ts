@@ -2,9 +2,9 @@
  * Vanilla tRPC client for non-React contexts.
  * Use this for server-side calls, scripts, or non-React applications.
  */
-
 import { createTRPCClient, httpBatchLink, loggerLink } from "@trpc/client";
 import superjson from "superjson";
+
 import type { AppRouter } from "../routers/index.js";
 
 export type { AppRouter };

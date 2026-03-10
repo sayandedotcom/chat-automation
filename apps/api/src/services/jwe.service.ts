@@ -1,6 +1,7 @@
 import { EncryptJWT, jwtDecrypt } from "jose";
-import { config, COOKIE_MAX_AGE } from "../config/index.js";
+
 import type { JWEPayload } from "../@types/index.js";
+import { COOKIE_MAX_AGE, config } from "../config/index.js";
 
 function getEncryptionKey(): Uint8Array {
   const secret = config.sessionSecret;

@@ -1,7 +1,9 @@
 import { Strategy as GoogleStrategy, type VerifyCallback } from "passport-google-oauth20";
+
 import { prisma } from "@workspace/database";
+
+import type { OAuthProfile, SessionUser } from "../@types/index.js";
 import { config } from "../config/index.js";
-import type { SessionUser, OAuthProfile } from "../@types/index.js";
 
 export const googleStrategy = new GoogleStrategy(
   {

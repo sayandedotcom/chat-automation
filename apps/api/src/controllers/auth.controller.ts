@@ -1,8 +1,9 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 import passport from "passport";
+
+import type { SessionUser } from "../@types/index.js";
 import { config } from "../config/index.js";
 import { createSession, destroySession } from "../services/session.service.js";
-import type { SessionUser } from "../@types/index.js";
 
 export function googleLogin(req: Request, res: Response, next: NextFunction) {
   console.log("[Auth] Starting Google OAuth login");

@@ -9,8 +9,8 @@
  * @website: https://kokonutui.com
  * @github: https://github.com/kokonut-labs/kokonutui
  */
-
 import { motion } from "motion/react";
+
 import { cn } from "@workspace/ui/lib/utils";
 
 interface Text_01Props {
@@ -32,15 +32,14 @@ export default function ShimmerText({
             backgroundPosition: ["200% center", "-200% center"],
           }}
           className={cn(
-            "bg-[length:200%_100%] bg-gradient-to-r from-neutral-950 via-neutral-400 to-neutral-950 bg-clip-text font-bold text-3xl text-transparent dark:from-white dark:via-neutral-600 dark:to-white",
+            "bg-gradient-to-r from-neutral-950 via-neutral-400 to-neutral-950 bg-[length:200%_100%] bg-clip-text text-3xl font-bold text-transparent dark:from-white dark:via-neutral-600 dark:to-white",
             className
           )}
           transition={{
             duration: 2.5,
             ease: "linear",
             repeat: Number.POSITIVE_INFINITY,
-          }}
-        >
+          }}>
           {text}
         </motion.h1>
       </motion.div>
