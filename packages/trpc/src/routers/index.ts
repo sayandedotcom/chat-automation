@@ -5,7 +5,6 @@
 
 import { router } from "../server/trpc.js";
 import { authRouter } from "./auth.js";
-import { greetingRouter } from "./greeting.js";
 import { chatRouter } from "./chat.js";
 import { integrationsRouter } from "./integrations.js";
 
@@ -15,7 +14,6 @@ import { integrationsRouter } from "./integrations.js";
  */
 export const appRouter = router({
   auth: authRouter,
-  greeting: greetingRouter,
   chat: chatRouter,
   integrations: integrationsRouter,
 });

@@ -39,7 +39,6 @@ export interface CreateClientOptions {
  * const client = createClient({ url: `${process.env.NEXT_PUBLIC_API_URL}/trpc` });
  *
  * // Make type-safe API calls
- * const greeting = await client.greeting.hello.query({ name: 'World' });
  * const users = await client.users.list.query();
  * ```
  */
