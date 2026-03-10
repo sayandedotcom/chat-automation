@@ -192,13 +192,7 @@ class GoogleCredentialsSyncSchema(BaseModel):
     client_id: str = Field(..., description="Google OAuth client ID")
     client_secret: str = Field(..., description="Google OAuth client secret")
     scopes: list[str] = Field(
-        default_factory=lambda: [
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/gmail.send",
-            "https://www.googleapis.com/auth/gmail.compose",
-            "https://www.googleapis.com/auth/gmail.modify",
-            "https://www.googleapis.com/auth/gmail.labels",
-        ],
-        description="OAuth scopes",
+        default_factory=list,
+        description="OAuth scopes granted by the authorization flow",
     )
     expiry: Optional[str] = Field(default=None, description="Token expiry timestamp")
