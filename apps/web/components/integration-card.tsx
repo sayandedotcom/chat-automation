@@ -2,11 +2,19 @@
 
 import Image from "next/image";
 
-import { Loader2 } from "lucide-react";
-
 import { Button } from "@workspace/ui/components/button";
 
 import type { Integration } from "@/config/integrations";
+
+function DotLoader() {
+  return (
+    <span className="flex items-center justify-center gap-1">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-duration:1s]" />
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:0.2s] [animation-duration:1s]" />
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:0.4s] [animation-duration:1s]" />
+    </span>
+  );
+}
 
 export function IntegrationCard({
   integration,
@@ -54,8 +62,8 @@ export function IntegrationCard({
             size="sm"
             onClick={onDisconnect}
             disabled={isLoading}
-            className="flex h-9 w-[100px] flex-shrink-0 justify-center rounded-2xl bg-zinc-800/80 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
-            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Connected"}
+            className="flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-2xl bg-zinc-800/80 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
+            {isLoading ? <DotLoader /> : "Connected"}
           </Button>
         ) : (
           <Button
@@ -63,8 +71,8 @@ export function IntegrationCard({
             size="sm"
             onClick={onConnect}
             disabled={isLoading}
-            className="flex h-9 w-[100px] flex-shrink-0 justify-center rounded-2xl bg-zinc-800 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
-            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Connect"}
+            className="flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-2xl bg-zinc-800 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
+            {isLoading ? <DotLoader /> : "Connect"}
           </Button>
         )
       ) : (
