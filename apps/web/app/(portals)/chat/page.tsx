@@ -803,7 +803,7 @@ export default function ChatPage() {
           <>
             {/* Scrollable content area - takes remaining space */}
             <StickToBottom
-              className="flex-1 overflow-hidden relative"
+              className="flex-1 overflow-hidden relative [&>div]:scrollbar-thin [&>div]:scrollbar-thumb-[#2a2a2a] [&>div]:scrollbar-track-transparent [&>div]:scrollbar-thumb-rounded-full"
               resize="instant"
               initial="instant"
             >
