@@ -1,11 +1,14 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+
 import Image from "next/image";
-import { Button } from "@workspace/ui/components/button";
+import Link from "next/link";
+
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+
+import { Button } from "@workspace/ui/components/button";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -20,26 +23,24 @@ export function SiteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-4 left-4 right-4 z-50">
+    <header className="fixed top-4 right-4 left-4 z-50">
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mx-auto max-w-6xl rounded-full border border-white/10 bg-black/50 backdrop-blur-xl supports-[backdrop-filter]:bg-black/30"
-      >
+        className="mx-auto max-w-6xl rounded-full border border-white/10 bg-black/50 backdrop-blur-xl supports-[backdrop-filter]:bg-black/30">
         <div className="flex h-14 items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 font-bold text-lg text-white">
+          <Link href="/" className="flex items-center gap-2 text-lg font-bold text-white">
             <Image src="/logo.png" alt="Logo" width={28} height={28} className="rounded-lg" />
             <span className="hidden sm:inline">Chat Automations</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
+          <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-4 py-2 rounded-full text-neutral-400 hover:text-white hover:bg-white/5 transition-all"
-              >
+                className="rounded-full px-4 py-2 text-neutral-400 transition-all hover:bg-white/5 hover:text-white">
                 {link.label}
               </Link>
             ))}
@@ -47,8 +48,8 @@ export function SiteHeader() {
 
           <div className="flex items-center gap-3">
             <a href={`${API_URL}/auth/google`}>
-              <Button className="bg-[#533ccf] text-white rounded-full px-5 gap-2 hover:bg-[#533ccf]">
-                <svg className="w-4 h-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <Button className="gap-2 rounded-full bg-[#533ccf] px-5 text-white hover:bg-[#533ccf]">
+                <svg className="h-4 w-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                   <path
                     fill="#FFC107"
                     d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
@@ -69,8 +70,8 @@ export function SiteHeader() {
                 Get Started
               </Button>
             </a>
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2">
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 md:hidden">
+              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -80,22 +81,20 @@ export function SiteHeader() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-white/10 px-6 py-4"
-          >
+            className="border-t border-white/10 px-6 py-4 md:hidden">
             <nav className="flex flex-col gap-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-4 py-3 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-all"
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                  className="rounded-xl px-4 py-3 text-neutral-400 transition-all hover:bg-white/5 hover:text-white"
+                  onClick={() => setIsMenuOpen(false)}>
                   {link.label}
                 </Link>
               ))}
               <a href={`${API_URL}/auth/google`} className="mt-2">
-                <Button className="w-full bg-[#533ccf] hover:bg-[#533ccf] rounded-xl gap-2 justify-center text-white">
-                  <svg className="w-4 h-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <Button className="w-full justify-center gap-2 rounded-xl bg-[#533ccf] text-white hover:bg-[#533ccf]">
+                  <svg className="h-4 w-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                     <path
                       fill="#FFC107"
                       d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"

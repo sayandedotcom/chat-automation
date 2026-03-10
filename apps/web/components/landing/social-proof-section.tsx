@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Slack, FileText, ListTodo, Figma, Github, Trello } from "lucide-react";
+import { Figma, FileText, Github, ListTodo, Slack, Trello } from "lucide-react";
 
 const integrations = [
   { name: "Slack", icon: Slack },
@@ -39,20 +39,19 @@ const testimonials = [
 
 export function SocialProofSection() {
   return (
-    <section className="py-24 bg-black text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-[#533ccf]/10 to-black pointer-events-none" />
+    <section className="relative overflow-hidden bg-black py-24 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black via-[#533ccf]/10 to-black" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="relative z-10 container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
-        >
-          <p className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-300 to-neutral-500 text-sm uppercase tracking-wider mb-4 font-medium">
+          className="mb-16 text-center">
+          <p className="mb-4 bg-gradient-to-b from-neutral-300 to-neutral-500 bg-clip-text text-sm font-medium tracking-wider text-transparent uppercase">
             Trusted by teams at
           </p>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
             {integrations.map((item, i) => (
               <motion.div
                 key={i}
@@ -60,16 +59,15 @@ export function SocialProofSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-2 text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer"
-              >
-                <item.icon className="w-6 h-6" />
+                className="flex cursor-pointer items-center gap-2 text-neutral-500 transition-colors hover:text-neutral-300">
+                <item.icon className="h-6 w-6" />
                 <span className="font-medium">{item.name}</span>
               </motion.div>
             ))}
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
+        <div className="mt-20 grid grid-cols-1 gap-6 md:grid-cols-3">
           {testimonials.map((testimonial, i) => (
             <motion.div
               key={i}
@@ -77,17 +75,16 @@ export function SocialProofSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.15 }}
-              className="group relative p-8 rounded-2xl border border-white/10 bg-neutral-900/30 hover:bg-neutral-900/50 hover:border-[#533ccf]/20 transition-all duration-300"
-            >
-              <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-[#533ccf]/5 rounded-full blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity" />
+              className="group relative rounded-2xl border border-white/10 bg-neutral-900/30 p-8 transition-all duration-300 hover:border-[#533ccf]/20 hover:bg-neutral-900/50">
+              <div className="absolute top-0 right-0 h-[150px] w-[150px] rounded-full bg-[#533ccf]/5 opacity-0 blur-[50px] transition-opacity group-hover:opacity-100" />
 
               <div className="relative z-10">
-                <p className="text-neutral-300 text-lg leading-relaxed mb-6">
+                <p className="mb-6 text-lg leading-relaxed text-neutral-300">
                   "{testimonial.quote}"
                 </p>
 
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-[#533ccf] flex items-center justify-center text-sm font-bold">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#533ccf] text-sm font-bold">
                     {testimonial.avatar}
                   </div>
                   <div>

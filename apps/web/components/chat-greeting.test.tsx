@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 function getGreeting(hour: number): string {
   if (hour >= 5 && hour < 12) {

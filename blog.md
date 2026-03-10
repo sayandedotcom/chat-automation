@@ -30,11 +30,11 @@ User Request
 
 Three pillars hold it up:
 
-| Pillar | Technology | Role |
-|--------|-----------|------|
-| **Orchestration** | LangGraph `StateGraph` | Plan -> Route -> Execute -> Loop lifecycle |
-| **Intelligence** | Gemini 2.5 Flash | Planning (structured output), execution (tool-calling), classification |
-| **Tool Ecosystem** | Model Context Protocol (MCP) | 10+ integrations via standardized tool interfaces |
+| Pillar             | Technology                   | Role                                                                   |
+| ------------------ | ---------------------------- | ---------------------------------------------------------------------- |
+| **Orchestration**  | LangGraph `StateGraph`       | Plan -> Route -> Execute -> Loop lifecycle                             |
+| **Intelligence**   | Gemini 2.5 Flash             | Planning (structured output), execution (tool-calling), classification |
+| **Tool Ecosystem** | Model Context Protocol (MCP) | 10+ integrations via standardized tool interfaces                      |
 
 ---
 
@@ -299,12 +299,12 @@ class WorkflowPlanOutput(BaseModel):
 
 The planner's system prompt encodes explicit rules for what needs approval:
 
-| Requires Approval | Does NOT Require Approval |
-|---|---|
-| Creating documents, pages, files | Searching or researching |
-| Sending emails or messages | Reading documents or emails |
-| Updating or deleting content | Listing or fetching data |
-| Publishing or sharing | Analyzing or summarizing |
+| Requires Approval                | Does NOT Require Approval   |
+| -------------------------------- | --------------------------- |
+| Creating documents, pages, files | Searching or researching    |
+| Sending emails or messages       | Reading documents or emails |
+| Updating or deleting content     | Listing or fetching data    |
+| Publishing or sharing            | Analyzing or summarizing    |
 
 The key insight: **the LLM decides at planning time which steps are dangerous, not at execution time.** This means routing is instant — just a boolean lookup — and the user sees the full plan with approval markers before any execution begins.
 
@@ -688,17 +688,17 @@ Adding a new integration requires no Python code changes. You add a YAML entry w
 
 ### Supported Integrations
 
-| Integration | Tools | Capabilities |
-|---|---|---|
-| Gmail | 15 | Send, draft, search, read, label, filter emails |
-| Google Docs | 18 | Create, edit, comment, export, format documents |
-| Google Sheets | 11 | Create, read, write, format spreadsheets |
-| Google Slides | 9 | Create, edit, comment on presentations |
-| Google Calendar | 6 | Create, modify, delete events, check availability |
-| Google Drive | 17 | Search, manage, share, permission files |
-| Notion | 21 | Create pages, manage databases, search workspace |
-| Vercel | 12 | Deploy, manage domains, view build logs |
-| Web Search | 5 | Search, extract, crawl, research web content |
+| Integration     | Tools | Capabilities                                      |
+| --------------- | ----- | ------------------------------------------------- |
+| Gmail           | 15    | Send, draft, search, read, label, filter emails   |
+| Google Docs     | 18    | Create, edit, comment, export, format documents   |
+| Google Sheets   | 11    | Create, read, write, format spreadsheets          |
+| Google Slides   | 9     | Create, edit, comment on presentations            |
+| Google Calendar | 6     | Create, modify, delete events, check availability |
+| Google Drive    | 17    | Search, manage, share, permission files           |
+| Notion          | 21    | Create pages, manage databases, search workspace  |
+| Vercel          | 12    | Deploy, manage domains, view build logs           |
+| Web Search      | 5     | Search, extract, crawl, research web content      |
 
 ---
 
@@ -738,6 +738,7 @@ _INTEGRATION_EXTRACTORS = {
 ```
 
 The extraction algorithm does two passes:
+
 - **Pass 1**: Check unique ID fields (e.g., `documentId`). These match exactly one integration.
 - **Pass 2**: For generic `id` fields, require a confirming URL field (e.g., `htmlLink`, `webViewLink`) to disambiguate.
 
@@ -888,12 +889,15 @@ The `WorkflowState` is the single source of truth. Every node receives it, reads
 ## Key Design Decisions
 
 ### 1. LLM-Driven HITL Classification
+
 Rule-based systems (e.g., "all Gmail tools need approval") are too coarse. _Searching_ emails is safe; _sending_ emails is dangerous. The planner LLM understands intent and classifies each step individually.
 
 ### 2. State-Based HITL Over interrupt()
+
 The graph exits cleanly at approval points. The frontend renders rich, editable previews. Users can modify tool arguments before execution. Resuming is a clean state injection, not a coroutine resume.
 
 ### 3. Singleton LLM Instances
+
 Three singletons — planner, executor, classifier — initialized lazily, reused across all requests. No cold-start per request.
 
 ```python
@@ -907,15 +911,19 @@ def get_planner_llm():
 ```
 
 ### 4. Config-Driven Integration Management
+
 Adding a new integration = adding a YAML entry. Zero Python code changes. The registry, classifier, and hint system all derive from the same config file.
 
 ### 5. Multi-Hop Tool Calling with Safety Bounds
+
 The executor chains multiple tool calls per step (search -> read -> create), but `MAX_TOOL_CALLS_PER_STEP = 10` prevents runaway loops. The scoped `_executor_chat` keeps step conversations isolated.
 
 ### 6. Scoped Executor Conversations
+
 Each step gets its own conversation (`_executor_chat`) separate from the main `messages` history. This prevents tool result bleed between steps and keeps executor context focused.
 
 ### 7. Artifact-Aware Smart Routing
+
 The classifier doesn't need to be perfect. Continuation detection and identity keyword matching auto-include integrations from prior turns, and incremental loading catches anything the classifier missed at runtime.
 
 ---

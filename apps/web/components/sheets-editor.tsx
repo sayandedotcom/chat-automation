@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, Check, X } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
-import { Button } from "@workspace/ui/components/button";
+import { useCallback, useEffect, useState } from "react";
+
 import Image from "next/image";
+
+import { Check, ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
+
+import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
+
 import type { ToolCallPreview } from "./workflow-timeline";
 
 interface SheetColumn {
@@ -23,7 +27,7 @@ interface SheetsEditorProps {
   onApprove: (
     stepNumber: number,
     action: "approve" | "edit" | "skip",
-    content?: Record<string, unknown>,
+    content?: Record<string, unknown>
   ) => void;
   completed?: boolean;
   className?: string;
@@ -87,9 +91,7 @@ function sheetsFromModifyArgs(args: Record<string, unknown>): SheetColumn[] {
 }
 
 function deriveSheets(toolCalls: ToolCallPreview[]): SheetDef[] {
-  const createCall = toolCalls.find(
-    (tc) => tc.tool_name === "create_spreadsheet",
-  );
+  const createCall = toolCalls.find((tc) => tc.tool_name === "create_spreadsheet");
   if (!createCall) return [];
 
   const args = createCall.arguments;
@@ -100,8 +102,8 @@ function deriveSheets(toolCalls: ToolCallPreview[]): SheetDef[] {
   if (sheets.length === 0 || sheets.every((s) => s.columns.length === 0)) {
     const modifyCall = toolCalls.find((tc) =>
       ["modify_sheet_values", "write_values", "batch_update", "update_values"].includes(
-        tc.tool_name,
-      ),
+        tc.tool_name
+      )
     );
     if (modifyCall) {
       const cols = sheetsFromModifyArgs(modifyCall.arguments);
@@ -117,7 +119,7 @@ function deriveSheets(toolCalls: ToolCallPreview[]): SheetDef[] {
         } else {
           // Backfill columns into the first (empty) sheet
           sheets = sheets.map((s, i) =>
-            i === 0 ? { ...s, name: sheetName || s.name, columns: cols } : s,
+            i === 0 ? { ...s, name: sheetName || s.name, columns: cols } : s
           );
         }
       }
@@ -141,13 +143,11 @@ export function SheetsEditor({
   completed = false,
   className,
 }: SheetsEditorProps) {
-  const createCall = toolCalls.find(
-    (tc) => tc.tool_name === "create_spreadsheet",
-  );
+  const createCall = toolCalls.find((tc) => tc.tool_name === "create_spreadsheet");
   const args = createCall?.arguments ?? {};
 
   const rawTitle = String(
-    args.title ?? args.spreadsheet_title ?? args.name ?? "Untitled Spreadsheet",
+    args.title ?? args.spreadsheet_title ?? args.name ?? "Untitled Spreadsheet"
   );
 
   const sheets = deriveSheets(toolCalls);
@@ -156,7 +156,7 @@ export function SheetsEditor({
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [isCreating, setIsCreating] = useState(false);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
-    completed ? "created" : null,
+    completed ? "created" : null
   );
 
   useEffect(() => {
@@ -196,25 +196,23 @@ export function SheetsEditor({
   return (
     <div
       className={cn(
-        "rounded-2xl bg-[#1a1a1a] border overflow-hidden",
+        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
           : "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]",
-        className,
-      )}
-    >
+        className
+      )}>
       {/* ── Header ── */}
       <div
         className={cn(
-          "px-4 py-3 flex items-center justify-between",
+          "flex items-center justify-between px-4 py-3",
           !isCollapsed && "border-b border-white/5",
-          actionTaken && "cursor-pointer hover:bg-white/[0.02] transition-colors",
+          actionTaken && "cursor-pointer transition-colors hover:bg-white/[0.02]"
         )}
-        onClick={actionTaken ? () => setIsCollapsed((v) => !v) : undefined}
-      >
+        onClick={actionTaken ? () => setIsCollapsed((v) => !v) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15">
             <Image
               src="/integrations/google_sheets.svg"
               alt="Google Sheets"
@@ -223,20 +221,17 @@ export function SheetsEditor({
               className="object-contain"
             />
           </div>
-          <span className="text-sm font-medium text-white/90">
-            Spreadsheet Structure
-          </span>
+          <span className="text-sm font-medium text-white/90">Spreadsheet Structure</span>
           {actionTaken && (
             <div
               className={cn(
-                "w-5 h-5 rounded-full flex items-center justify-center",
-                actionTaken === "created" ? "bg-emerald-500/20" : "bg-white/10",
-              )}
-            >
+                "flex h-5 w-5 items-center justify-center rounded-full",
+                actionTaken === "created" ? "bg-emerald-500/20" : "bg-white/10"
+              )}>
               {actionTaken === "created" ? (
-                <Check className="w-3 h-3 text-emerald-400" />
+                <Check className="h-3 w-3 text-emerald-400" />
               ) : (
-                <X className="w-3 h-3 text-white/40" />
+                <X className="h-3 w-3 text-white/40" />
               )}
             </div>
           )}
@@ -250,10 +245,9 @@ export function SheetsEditor({
                 e.stopPropagation();
                 handleCancel();
               }}
-              className="p-1 rounded-md hover:bg-white/5 transition-colors"
-              title="Cancel"
-            >
-              <X className="w-3.5 h-3.5 text-white/40 hover:text-white/60" />
+              className="rounded-md p-1 transition-colors hover:bg-white/5"
+              title="Cancel">
+              <X className="h-3.5 w-3.5 text-white/40 hover:text-white/60" />
             </button>
           )}
           <button
@@ -261,12 +255,11 @@ export function SheetsEditor({
               e.stopPropagation();
               setIsCollapsed((v) => !v);
             }}
-            className="p-1 rounded-md hover:bg-white/5 transition-colors"
-          >
+            className="rounded-md p-1 transition-colors hover:bg-white/5">
             {isCollapsed ? (
-              <ChevronDown className="w-3.5 h-3.5 text-white/40" />
+              <ChevronDown className="h-3.5 w-3.5 text-white/40" />
             ) : (
-              <ChevronUp className="w-3.5 h-3.5 text-white/40" />
+              <ChevronUp className="h-3.5 w-3.5 text-white/40" />
             )}
           </button>
         </div>
@@ -275,19 +268,16 @@ export function SheetsEditor({
       {/* ── Body ── */}
       {!isCollapsed && (
         <>
-          <div className="px-5 pt-5 pb-3 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent space-y-5">
+          <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[420px] space-y-5 overflow-y-auto px-5 pt-5 pb-3">
             {/* Spreadsheet title + counts */}
             <div>
-              <h3 className="text-lg font-semibold text-white leading-snug">
-                {rawTitle}
-              </h3>
-              <p className="text-sm text-white/40 mt-0.5">
+              <h3 className="text-lg leading-snug font-semibold text-white">{rawTitle}</h3>
+              <p className="mt-0.5 text-sm text-white/40">
                 {sheets.length === 1 ? "1 sheet" : `${sheets.length} sheets`}
                 {totalColumns > 0 && (
                   <>
                     {" · "}
-                    {totalColumns}{" "}
-                    {totalColumns === 1 ? "column" : "columns"}
+                    {totalColumns} {totalColumns === 1 ? "column" : "columns"}
                   </>
                 )}
               </p>
@@ -298,13 +288,11 @@ export function SheetsEditor({
               {sheets.map((sheet, idx) => (
                 <div key={idx}>
                   {/* Sheet header */}
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="w-5 h-5 rounded-full bg-indigo-500/80 text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
+                  <div className="mb-2.5 flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/80 text-[11px] font-semibold text-white">
                       {idx + 1}
                     </span>
-                    <span className="text-sm font-medium text-white/90">
-                      {sheet.name}
-                    </span>
+                    <span className="text-sm font-medium text-white/90">{sheet.name}</span>
                   </div>
 
                   {/* Column pills */}
@@ -313,20 +301,13 @@ export function SheetsEditor({
                       sheet.columns.map((col, cIdx) => (
                         <div
                           key={cIdx}
-                          className="flex items-baseline gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.07]"
-                        >
-                          <span className="text-xs font-medium text-white/85">
-                            {col.name}
-                          </span>
-                          <span className="text-[11px] text-white/35">
-                            ({col.type})
-                          </span>
+                          className="flex items-baseline gap-1 rounded-lg border border-white/[0.07] bg-white/[0.06] px-2.5 py-1">
+                          <span className="text-xs font-medium text-white/85">{col.name}</span>
+                          <span className="text-[11px] text-white/35">({col.type})</span>
                         </div>
                       ))
                     ) : (
-                      <span className="text-xs text-white/30 italic">
-                        No columns defined
-                      </span>
+                      <span className="text-xs text-white/30 italic">No columns defined</span>
                     )}
                   </div>
                 </div>
@@ -336,29 +317,26 @@ export function SheetsEditor({
 
           {/* ── Footer ── */}
           {!actionTaken && (
-            <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
+            <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-2.5">
               <button
-                className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="rounded-lg p-2 transition-colors hover:bg-white/5"
                 tabIndex={-1}
-                title="Regenerate"
-              >
-                <RotateCcw className="w-4 h-4 text-white/40" />
+                title="Regenerate">
+                <RotateCcw className="h-4 w-4 text-white/40" />
               </button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCancel}
                 disabled={isCreating}
-                className="px-4 h-9 bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200"
-              >
+                className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleApprove}
                 disabled={isCreating}
-                className="px-4 h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2"
-              >
+                className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
                 {isCreating ? (
                   "Creating..."
                 ) : (

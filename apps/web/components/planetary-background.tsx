@@ -10,14 +10,12 @@ export function PlanetaryBackground({
   backgroundContent?: React.ReactNode;
 }) {
   return (
-    <div className="relative w-full h-screen bg-[#08080f] overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden bg-[#08080f]">
       {/* Background Content (Stars, etc) - Rendered first so it's behind everything */}
-      <div className="absolute inset-0 pointer-events-none">
-        {backgroundContent}
-      </div>
+      <div className="pointer-events-none absolute inset-0">{backgroundContent}</div>
 
       {/* Subtle star particles */}
-      <div className="absolute inset-0 opacity-40 pointer-events-none">
+      <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
           className="absolute inset-0"
           style={{
@@ -41,10 +39,10 @@ export function PlanetaryBackground({
       </div>
 
       {/* Large planetary sphere at the bottom */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[180vw] md:w-[140vw] aspect-square pointer-events-none">
+      <div className="pointer-events-none absolute bottom-0 left-1/2 aspect-square w-[180vw] -translate-x-1/2 md:w-[140vw]">
         {/* Planet body - positioned so only top arc is visible */}
         <div
-          className="absolute bottom-[-85%] left-1/2 -translate-x-1/2 w-full h-full rounded-full"
+          className="absolute bottom-[-85%] left-1/2 h-full w-full -translate-x-1/2 rounded-full"
           style={{
             background: `
               radial-gradient(ellipse 100% 100% at 50% 0%, 
@@ -58,14 +56,12 @@ export function PlanetaryBackground({
               inset 0 200px 300px -100px rgba(139, 92, 246, 0.08),
               inset 0 100px 200px -50px rgba(88, 28, 135, 0.1)
             `,
-          }}
-        >
+          }}>
           {/* Secondary glow below the edge */}
           <div
-            className="absolute top-0 left-[5%] right-[5%] h-[60px] rounded-full"
+            className="absolute top-0 right-[5%] left-[5%] h-[60px] rounded-full"
             style={{
-              background:
-                "linear-gradient(180deg, rgba(139, 92, 246, 0.15) 0%, transparent 100%)",
+              background: "linear-gradient(180deg, rgba(139, 92, 246, 0.15) 0%, transparent 100%)",
               filter: "blur(20px)",
             }}
           />
@@ -73,7 +69,7 @@ export function PlanetaryBackground({
 
         {/* Atmospheric glow above the planet */}
         <div
-          className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[80%] h-[30%]"
+          className="absolute bottom-[12%] left-1/2 h-[30%] w-[80%] -translate-x-1/2"
           style={{
             background:
               "radial-gradient(ellipse 100% 100% at 50% 100%, rgba(88, 28, 135, 0.2) 0%, transparent 70%)",
@@ -83,7 +79,7 @@ export function PlanetaryBackground({
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+      <div className="relative z-10 flex h-full flex-col items-center justify-center">
         {children}
       </div>
     </div>

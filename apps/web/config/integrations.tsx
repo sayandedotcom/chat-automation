@@ -131,10 +131,10 @@ export const liveIntegrations = integrations.filter((i) => i.isLive);
 
 /** Map tool ID → icon path (for workflow timeline) */
 export const toolIconMap: Record<string, string> = Object.fromEntries(
-  integrations.map((i) => [i.id, i.icon]),
+  integrations.map((i) => [i.id, i.icon])
 );
 
 /** Map tool ID → display name (for workflow timeline) */
 export const toolNameMap: Record<string, string> = Object.fromEntries(
-  integrations.map((i) => [i.id, i.name]),
+  integrations.map((i) => [i.id, i.name])
 );

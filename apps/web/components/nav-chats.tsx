@@ -1,6 +1,7 @@
 "use client";
 
-import { SquarePen, MoreHorizontal, Trash2, Edit, Share } from "lucide-react";
+import { Edit, MoreHorizontal, Share, SquarePen, Trash2 } from "lucide-react";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +30,7 @@ export function NavChats({ chats }: { chats: Chat[] }) {
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel className="text-[13px] text-zinc-300 font-medium">Chats</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-[13px] font-medium text-zinc-300">Chats</SidebarGroupLabel>
       <SidebarMenu>
         {chats.map((chat) => (
           <SidebarMenuItem key={chat.id}>
@@ -49,8 +50,7 @@ export function NavChats({ chats }: { chats: Chat[] }) {
               <DropdownMenuContent
                 className="w-48 rounded-lg"
                 side={isMobile ? "bottom" : "right"}
-                align={isMobile ? "end" : "start"}
-              >
+                align={isMobile ? "end" : "start"}>
                 <DropdownMenuItem>
                   <Edit className="text-muted-foreground" />
                   <span>Rename</span>

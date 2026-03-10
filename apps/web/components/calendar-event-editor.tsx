@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { z } from "zod";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import Image from "next/image";
+
 import {
-  X,
+  CalendarIcon,
+  Check,
   ChevronDown,
   ChevronUp,
-  RotateCcw,
-  Check,
   Plus,
+  RotateCcw,
   Video,
-  CalendarIcon,
+  X,
 } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
+import { z } from "zod";
+
 import { Button } from "@workspace/ui/components/button";
+import { Calendar } from "@workspace/ui/components/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@workspace/ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -21,13 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover";
-import { Calendar } from "@workspace/ui/components/calendar";
-import Image from "next/image";
+import { cn } from "@workspace/ui/lib/utils";
+
 import type { ToolCallPreview } from "./workflow-timeline";
 
 /* ═══════════════════════════════════════════════════════════
@@ -67,21 +67,38 @@ export function parseCalendarHint(text: string): CalendarHint {
   const result: CalendarHint = {};
 
   // ── Meeting detection ──────────────────────────────────
-  if (
-    /\b(meeting|sync|standup|stand.?up|video\s*call|team\s*call|catch.?up)\b/.test(
-      lower,
-    )
-  ) {
+  if (/\b(meeting|sync|standup|stand.?up|video\s*call|team\s*call|catch.?up)\b/.test(lower)) {
     result.isMeeting = true;
   }
 
   // ── Month tables ───────────────────────────────────────
   const MONTH_FULL = [
-    "january","february","march","april","may","june",
-    "july","august","september","october","november","december",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
   ];
   const MONTH_SHORT = [
-    "jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec",
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
   ];
   function monthIdx(name: string) {
     const i = MONTH_FULL.indexOf(name);
@@ -93,9 +110,7 @@ export function parseCalendarHint(text: string): CalendarHint {
   let parsedMonth: number | undefined;
 
   // "24th february" / "24 feb" / "24 of feb"
-  const dm = lower.match(
-    /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)\b/,
-  );
+  const dm = lower.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([a-z]+)\b/);
   if (dm?.[1] && dm?.[2]) {
     const d = parseInt(dm[1]);
     const mi = monthIdx(dm[2]);
@@ -120,9 +135,7 @@ export function parseCalendarHint(text: string): CalendarHint {
 
   // Relative dates
   if (parsedDay === undefined) {
-    const WEEKDAYS = [
-      "sunday","monday","tuesday","wednesday","thursday","friday","saturday",
-    ];
+    const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
     if (/\btomorrow\b/.test(lower)) {
       const t = new Date();
       t.setDate(t.getDate() + 1);
@@ -134,12 +147,12 @@ export function parseCalendarHint(text: string): CalendarHint {
       parsedMonth = t.getMonth();
     } else {
       const nd = lower.match(
-        /\bnext\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
+        /\bnext\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/
       );
       if (nd?.[1]) {
         const target = WEEKDAYS.indexOf(nd[1]);
         const now = new Date();
-        const diff = ((target - now.getDay() + 7) % 7) || 7;
+        const diff = (target - now.getDay() + 7) % 7 || 7;
         const d = new Date(now);
         d.setDate(now.getDate() + diff);
         parsedDay = d.getDate();
@@ -154,15 +167,12 @@ export function parseCalendarHint(text: string): CalendarHint {
     const candidate = new Date(y, parsedMonth, parsedDay);
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
-    result.date =
-      candidate < yesterday
-        ? new Date(y + 1, parsedMonth, parsedDay)
-        : candidate;
+    result.date = candidate < yesterday ? new Date(y + 1, parsedMonth, parsedDay) : candidate;
   }
 
   // ── Time range: "2:30 to 4:30 pm", "2-4pm", "10am-12pm" ──
   const rangeMatch = lower.match(
-    /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-|–)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/,
+    /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-|–)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/
   );
   if (rangeMatch?.[1] && rangeMatch?.[4]) {
     const [, sh, sm, sp, eh, em, ep] = rangeMatch;
@@ -186,9 +196,7 @@ export function parseCalendarHint(text: string): CalendarHint {
 
   // ── Single time: "at 2:30 pm", "around 3pm" ───────────
   if (result.startHour === undefined) {
-    const single = lower.match(
-      /(?:at|around|@)?\s*\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/,
-    );
+    const single = lower.match(/(?:at|around|@)?\s*\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/);
     if (single?.[1] && single?.[3]) {
       let h = parseInt(single[1]);
       const m = parseInt(single[2] ?? "0");
@@ -245,11 +253,7 @@ function parseAttendees(value: unknown): string[] {
 function parseDateTimeArg(dtObj: unknown): Date {
   if (!dtObj) return new Date();
   if (typeof dtObj === "string") return new Date(dtObj);
-  if (
-    typeof dtObj === "object" &&
-    dtObj !== null &&
-    "dateTime" in dtObj
-  ) {
+  if (typeof dtObj === "object" && dtObj !== null && "dateTime" in dtObj) {
     return new Date(String((dtObj as { dateTime: string }).dateTime));
   }
   return new Date();
@@ -330,7 +334,7 @@ const TIME_SLOTS = generateTimeSlots();
  */
 function computeInitialDates(
   args: Record<string, unknown>,
-  userHint?: string,
+  userHint?: string
 ): { start: Date; end: Date } {
   let start = parseDateTimeArg(args.start);
   let end = parseDateTimeArg(args.end);
@@ -367,7 +371,7 @@ function computeInitialDates(
       hint.startHour,
       hint.startMinute ?? 0,
       0,
-      0,
+      0
     );
   }
 
@@ -380,7 +384,7 @@ function computeInitialDates(
       hint.endHour,
       hint.endMinute ?? 0,
       0,
-      0,
+      0
     );
   } else if (hint.startHour !== undefined) {
     // Default: end = start + 1 hour
@@ -400,7 +404,7 @@ interface CalendarEventEditorProps {
   onApprove: (
     stepNumber: number,
     action: "approve" | "edit" | "skip",
-    content?: Record<string, unknown>,
+    content?: Record<string, unknown>
   ) => void;
   completed?: boolean;
   className?: string;
@@ -423,14 +427,10 @@ export function CalendarEventEditor({
   const args = toolCall.arguments;
 
   // ── Initial values (hint-enhanced) ──────────────────────
-  const { start: initStart, end: initEnd } = computeInitialDates(
-    args,
-    userHint,
-  );
+  const { start: initStart, end: initEnd } = computeInitialDates(args, userHint);
 
   const initMeet = (() => {
-    if (args.conferenceData !== undefined && args.conferenceData !== null)
-      return true;
+    if (args.conferenceData !== undefined && args.conferenceData !== null) return true;
     if (userHint) {
       const hint = parseCalendarHint(userHint);
       if (hint.isMeeting) return true;
@@ -439,24 +439,18 @@ export function CalendarEventEditor({
   })();
 
   // ── State ────────────────────────────────────────────────
-  const [title, setTitle] = useState(
-    () => String(args.summary ?? args.title ?? ""),
-  );
-  const [attendees, setAttendees] = useState<string[]>(() =>
-    parseAttendees(args.attendees),
-  );
+  const [title, setTitle] = useState(() => String(args.summary ?? args.title ?? ""));
+  const [attendees, setAttendees] = useState<string[]>(() => parseAttendees(args.attendees));
   const [attendeeInput, setAttendeeInput] = useState("");
   const [startDt, setStartDt] = useState(() => roundTo15(initStart));
   const [endDt, setEndDt] = useState(() => roundTo15(initEnd));
-  const [description, setDescription] = useState(
-    () => String(args.description ?? ""),
-  );
+  const [description, setDescription] = useState(() => String(args.description ?? ""));
   const [createMeet, setCreateMeet] = useState(initMeet);
 
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
-    completed ? "created" : null,
+    completed ? "created" : null
   );
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -594,9 +588,7 @@ export function CalendarEventEditor({
     setAttendees(attendees.filter((_, i) => i !== index));
   };
 
-  const handleAttendeeKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-  ) => {
+  const handleAttendeeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
       e.preventDefault();
       addAttendee(attendeeInput);
@@ -612,26 +604,23 @@ export function CalendarEventEditor({
   return (
     <div
       className={cn(
-        "rounded-2xl bg-[#1a1a1a] border overflow-hidden",
+        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
           : "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]",
-        className,
-      )}
-    >
+        className
+      )}>
       {/* ── Header ── */}
       <div
         className={cn(
-          "px-4 py-3 flex items-center justify-between",
+          "flex items-center justify-between px-4 py-3",
           !isCollapsed && "border-b border-white/5",
-          actionTaken &&
-            "cursor-pointer hover:bg-white/[0.02] transition-colors",
+          actionTaken && "cursor-pointer transition-colors hover:bg-white/[0.02]"
         )}
-        onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}
-      >
+        onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
             <Image
               src="/integrations/google_calendar.svg"
               alt="Google Calendar"
@@ -640,37 +629,32 @@ export function CalendarEventEditor({
               className="object-contain"
             />
           </div>
-          <span className="text-sm font-medium text-white/90">
-            Create Event
-          </span>
+          <span className="text-sm font-medium text-white/90">Create Event</span>
           {actionTaken && (
             <div
               className={cn(
-                "w-5 h-5 rounded-full flex items-center justify-center",
-                actionTaken === "created"
-                  ? "bg-emerald-500/20"
-                  : "bg-white/10",
-              )}
-            >
+                "flex h-5 w-5 items-center justify-center rounded-full",
+                actionTaken === "created" ? "bg-emerald-500/20" : "bg-white/10"
+              )}>
               {actionTaken === "created" ? (
-                <Check className="w-3 h-3 text-emerald-400" />
+                <Check className="h-3 w-3 text-emerald-400" />
               ) : (
-                <X className="w-3 h-3 text-white/40" />
+                <X className="h-3 w-3 text-white/40" />
               )}
             </div>
           )}
         </div>
-        <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">
+        <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
           {actionTaken ? (
             isCollapsed ? (
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="h-3.5 w-3.5" />
             ) : (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="h-3.5 w-3.5" />
             )
           ) : (
             <>
               <span>Permissions</span>
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="h-3.5 w-3.5" />
             </>
           )}
         </button>
@@ -679,15 +663,12 @@ export function CalendarEventEditor({
       {/* ── Collapsible content ── */}
       {!isCollapsed && (
         <>
-          <div className="px-5 py-4 space-y-5 max-h-[540px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-
+          <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[540px] space-y-5 overflow-y-auto px-5 py-4">
             {/* ── Title ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
-                Title
-              </label>
+              <label className="mb-1.5 block text-xs tracking-wide text-white/35">Title</label>
               {readonly ? (
-                <div className="px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/80">
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/80">
                   {title}
                 </div>
               ) : (
@@ -700,34 +681,28 @@ export function CalendarEventEditor({
                   }}
                   placeholder="Event title"
                   className={cn(
-                    "w-full px-3.5 py-2.5 rounded-lg bg-white/[0.04] border text-sm text-white/90 placeholder:text-white/25 outline-none focus:border-white/15 transition-colors",
-                    errors.summary ? "border-red-500/50" : "border-white/[0.06]",
+                    "w-full rounded-lg border bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/90 transition-colors outline-none placeholder:text-white/25 focus:border-white/15",
+                    errors.summary ? "border-red-500/50" : "border-white/[0.06]"
                   )}
                 />
               )}
-              {errors.summary && (
-                <p className="text-xs text-red-400 mt-1">{errors.summary}</p>
-              )}
+              {errors.summary && <p className="mt-1 text-xs text-red-400">{errors.summary}</p>}
             </div>
 
             {/* ── Attendees ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
-                Attendees
-              </label>
-              <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] min-h-[40px]">
+              <label className="mb-1.5 block text-xs tracking-wide text-white/35">Attendees</label>
+              <div className="flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2">
                 {attendees.map((email, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.06] border border-white/[0.08] text-sm text-white/80"
-                  >
+                    className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
                     {email}
                     {!readonly && (
                       <button
                         onClick={() => removeAttendee(i)}
-                        className="text-white/30 hover:text-white/70 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
+                        className="text-white/30 transition-colors hover:text-white/70">
+                        <X className="h-3 w-3" />
                       </button>
                     )}
                   </span>
@@ -742,18 +717,15 @@ export function CalendarEventEditor({
                       onBlur={() => {
                         if (attendeeInput.trim()) addAttendee(attendeeInput);
                       }}
-                      placeholder={
-                        attendees.length === 0 ? "Add attendee email..." : ""
-                      }
-                      className="bg-transparent text-sm text-white/80 placeholder:text-white/25 outline-none min-w-[120px] flex-1 py-0.5"
+                      placeholder={attendees.length === 0 ? "Add attendee email..." : ""}
+                      className="min-w-[120px] flex-1 bg-transparent py-0.5 text-sm text-white/80 outline-none placeholder:text-white/25"
                     />
                     <button
                       onClick={() => {
                         if (attendeeInput.trim()) addAttendee(attendeeInput);
                       }}
-                      className="p-1 rounded-md hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
+                      className="rounded-md p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-white/60">
+                      <Plus className="h-3.5 w-3.5" />
                     </button>
                   </>
                 )}
@@ -762,16 +734,16 @@ export function CalendarEventEditor({
 
             {/* ── Date & Time ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+              <label className="mb-1.5 block text-xs tracking-wide text-white/35">
                 Date & Time
               </label>
 
               {/* Row 1: Start date + Start time */}
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 {/* Start date picker */}
                 {readonly ? (
-                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70 flex items-center gap-1.5">
-                    <CalendarIcon className="w-3.5 h-3.5 text-white/30" />
+                  <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+                    <CalendarIcon className="h-3.5 w-3.5 text-white/30" />
                     {formatDatePill(startDt)}
                   </div>
                 ) : (
@@ -779,19 +751,17 @@ export function CalendarEventEditor({
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
-                          "px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5",
-                          "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
-                          startDateOpen && "border-purple-500/50 bg-white/10",
-                        )}
-                      >
-                        <CalendarIcon className="w-3.5 h-3.5 text-white/40" />
+                          "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                          "cursor-pointer border border-white/[0.08] bg-white/[0.06] text-white/80 hover:bg-white/10",
+                          startDateOpen && "border-purple-500/50 bg-white/10"
+                        )}>
+                        <CalendarIcon className="h-3.5 w-3.5 text-white/40" />
                         {formatDatePill(startDt)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
-                      className="w-auto p-0 border-white/10 bg-[#1e1e1e]"
-                      align="start"
-                    >
+                      className="w-auto border-white/10 bg-[#1e1e1e] p-0"
+                      align="start">
                       <Calendar
                         mode="single"
                         selected={startDt}
@@ -804,7 +774,7 @@ export function CalendarEventEditor({
                             startDt.getHours(),
                             startDt.getMinutes(),
                             0,
-                            0,
+                            0
                           );
                           setStartDt(updated);
                           // Keep end on same day if it was
@@ -815,7 +785,7 @@ export function CalendarEventEditor({
                             endDt.getHours(),
                             endDt.getMinutes(),
                             0,
-                            0,
+                            0
                           );
                           if (newEnd > updated) setEndDt(newEnd);
                           setStartDateOpen(false);
@@ -829,7 +799,7 @@ export function CalendarEventEditor({
 
                 {/* Start time select */}
                 {readonly ? (
-                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
                     {formatTimePill(startDt)}
                   </div>
                 ) : (
@@ -838,20 +808,17 @@ export function CalendarEventEditor({
                     onValueChange={(val) => {
                       const { h, m } = fromTimeValue(val);
                       setStartDt(setTimeOnDate(startDt, h, m));
-                      if (errors.endDt)
-                        setErrors((p) => ({ ...p, endDt: undefined }));
-                    }}
-                  >
-                    <SelectTrigger className="w-fit h-auto px-3 py-2 rounded-lg text-sm bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 shadow-none focus:ring-0 focus:ring-offset-0">
+                      if (errors.endDt) setErrors((p) => ({ ...p, endDt: undefined }));
+                    }}>
+                    <SelectTrigger className="h-auto w-fit rounded-lg border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-sm text-white/80 shadow-none hover:bg-white/10 focus:ring-0 focus:ring-offset-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[220px] bg-[#1e1e1e] border-white/10 text-white/80">
+                    <SelectContent className="max-h-[220px] border-white/10 bg-[#1e1e1e] text-white/80">
                       {TIME_SLOTS.map((s) => (
                         <SelectItem
                           key={s.value}
                           value={s.value}
-                          className="focus:bg-white/10 focus:text-white/90 text-white/70"
-                        >
+                          className="text-white/70 focus:bg-white/10 focus:text-white/90">
                           {s.label}
                         </SelectItem>
                       ))}
@@ -859,11 +826,11 @@ export function CalendarEventEditor({
                   </Select>
                 )}
 
-                <span className="text-white/20 text-sm px-0.5">—</span>
+                <span className="px-0.5 text-sm text-white/20">—</span>
 
                 {/* End time select */}
                 {readonly ? (
-                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
                     {formatTimePill(endDt)}
                   </div>
                 ) : (
@@ -872,20 +839,17 @@ export function CalendarEventEditor({
                     onValueChange={(val) => {
                       const { h, m } = fromTimeValue(val);
                       setEndDt(setTimeOnDate(endDt, h, m));
-                      if (errors.endDt)
-                        setErrors((p) => ({ ...p, endDt: undefined }));
-                    }}
-                  >
-                    <SelectTrigger className="w-fit h-auto px-3 py-2 rounded-lg text-sm bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 shadow-none focus:ring-0 focus:ring-offset-0">
+                      if (errors.endDt) setErrors((p) => ({ ...p, endDt: undefined }));
+                    }}>
+                    <SelectTrigger className="h-auto w-fit rounded-lg border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-sm text-white/80 shadow-none hover:bg-white/10 focus:ring-0 focus:ring-offset-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[220px] bg-[#1e1e1e] border-white/10 text-white/80">
+                    <SelectContent className="max-h-[220px] border-white/10 bg-[#1e1e1e] text-white/80">
                       {TIME_SLOTS.map((s) => (
                         <SelectItem
                           key={s.value}
                           value={s.value}
-                          className="focus:bg-white/10 focus:text-white/90 text-white/70"
-                        >
+                          className="text-white/70 focus:bg-white/10 focus:text-white/90">
                           {s.label}
                         </SelectItem>
                       ))}
@@ -895,8 +859,8 @@ export function CalendarEventEditor({
 
                 {/* End date picker (shown separately for multi-day) */}
                 {readonly ? (
-                  <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70 flex items-center gap-1.5">
-                    <CalendarIcon className="w-3.5 h-3.5 text-white/30" />
+                  <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+                    <CalendarIcon className="h-3.5 w-3.5 text-white/30" />
                     {formatDatePill(endDt)}
                   </div>
                 ) : (
@@ -904,19 +868,17 @@ export function CalendarEventEditor({
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
-                          "px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5",
-                          "bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/10 cursor-pointer",
-                          endDateOpen && "border-purple-500/50 bg-white/10",
-                        )}
-                      >
-                        <CalendarIcon className="w-3.5 h-3.5 text-white/40" />
+                          "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                          "cursor-pointer border border-white/[0.08] bg-white/[0.06] text-white/80 hover:bg-white/10",
+                          endDateOpen && "border-purple-500/50 bg-white/10"
+                        )}>
+                        <CalendarIcon className="h-3.5 w-3.5 text-white/40" />
                         {formatDatePill(endDt)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
-                      className="w-auto p-0 border-white/10 bg-[#1e1e1e]"
-                      align="start"
-                    >
+                      className="w-auto border-white/10 bg-[#1e1e1e] p-0"
+                      align="start">
                       <Calendar
                         mode="single"
                         selected={endDt}
@@ -929,18 +891,13 @@ export function CalendarEventEditor({
                             endDt.getHours(),
                             endDt.getMinutes(),
                             0,
-                            0,
+                            0
                           );
                           setEndDt(updated);
                           setEndDateOpen(false);
                         }}
                         disabled={(d) =>
-                          d <
-                          new Date(
-                            startDt.getFullYear(),
-                            startDt.getMonth(),
-                            startDt.getDate(),
-                          )
+                          d < new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate())
                         }
                         initialFocus
                         className="[&_.rdp]:text-white/80"
@@ -950,18 +907,16 @@ export function CalendarEventEditor({
                 )}
               </div>
 
-              {errors.endDt && (
-                <p className="text-xs text-red-400 mt-1">{errors.endDt}</p>
-              )}
+              {errors.endDt && <p className="mt-1 text-xs text-red-400">{errors.endDt}</p>}
             </div>
 
             {/* ── Description ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+              <label className="mb-1.5 block text-xs tracking-wide text-white/35">
                 Description
               </label>
               {readonly ? (
-                <div className="px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/60 whitespace-pre-wrap min-h-[60px]">
+                <div className="min-h-[60px] rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm whitespace-pre-wrap text-white/60">
                   {description || "No description"}
                 </div>
               ) : (
@@ -971,37 +926,34 @@ export function CalendarEventEditor({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Add a description"
                   rows={2}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/70 placeholder:text-white/25 outline-none resize-none focus:border-white/15 transition-colors"
+                  className="w-full resize-none rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/70 transition-colors outline-none placeholder:text-white/25 focus:border-white/15"
                 />
               )}
             </div>
 
             {/* ── Google Meet toggle ── */}
             <div>
-              <label className="block text-xs text-white/35 mb-1.5 tracking-wide">
+              <label className="mb-1.5 block text-xs tracking-wide text-white/35">
                 Meeting Room
               </label>
-              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+              <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded bg-blue-500/15 flex items-center justify-center">
-                    <Video className="w-3.5 h-3.5 text-blue-400" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500/15">
+                    <Video className="h-3.5 w-3.5 text-blue-400" />
                   </div>
-                  <span className="text-sm text-white/80">
-                    Create Google Meet
-                  </span>
+                  <span className="text-sm text-white/80">Create Google Meet</span>
                 </div>
                 <button
                   onClick={() => !readonly && setCreateMeet(!createMeet)}
                   className={cn(
-                    "relative w-10 h-[22px] rounded-full transition-colors",
+                    "relative h-[22px] w-10 rounded-full transition-colors",
                     readonly ? "cursor-default" : "cursor-pointer",
-                    createMeet ? "bg-purple-600" : "bg-white/10",
-                  )}
-                >
+                    createMeet ? "bg-purple-600" : "bg-white/10"
+                  )}>
                   <div
                     className={cn(
-                      "absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform",
-                      createMeet ? "translate-x-[22px]" : "translate-x-[3px]",
+                      "absolute top-[3px] h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                      createMeet ? "translate-x-[22px]" : "translate-x-[3px]"
                     )}
                   />
                 </button>
@@ -1011,29 +963,26 @@ export function CalendarEventEditor({
 
           {/* ── Footer ── */}
           {!actionTaken && (
-            <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
+            <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-2.5">
               <button
-                className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="rounded-lg p-2 transition-colors hover:bg-white/5"
                 tabIndex={-1}
-                title="Regenerate"
-              >
-                <RotateCcw className="w-4 h-4 text-white/40" />
+                title="Regenerate">
+                <RotateCcw className="h-4 w-4 text-white/40" />
               </button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCancel}
                 disabled={isCreating}
-                className="px-4 h-9 bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200"
-              >
+                className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleCreate}
                 disabled={isCreating}
-                className="px-4 h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2"
-              >
+                className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
                 {isCreating ? (
                   "Creating..."
                 ) : (

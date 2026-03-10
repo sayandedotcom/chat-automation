@@ -26,6 +26,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"prisma/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf .turbo dist",
     "postinstall": "prisma generate"
   },
   "keywords": [

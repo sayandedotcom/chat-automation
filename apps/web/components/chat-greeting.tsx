@@ -67,20 +67,20 @@ export function ChatGreeting({ userName = "Sayan", subtitle }: ChatGreetingProps
 
   if (!mounted) {
     return (
-      <div className="space-y-1 mb-6 w-full">
-        <div className="h-5 w-48 bg-muted/20 rounded animate-pulse" />
-        <div className="h-10 w-80 bg-muted/20 rounded animate-pulse" />
+      <div className="mb-6 w-full space-y-1">
+        <div className="bg-muted/20 h-5 w-48 animate-pulse rounded" />
+        <div className="bg-muted/20 h-10 w-80 animate-pulse rounded" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-1 mb-6 w-full pl-4">
-      <p className="text-base text-[#71717a] tracking-wide">{dateStr}</p>
-      <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-200 via-gray-400 to-gray-500">
+    <div className="mb-6 w-full space-y-1 pl-4">
+      <p className="text-base tracking-wide text-[#71717a]">{dateStr}</p>
+      <h1 className="bg-gradient-to-r from-gray-200 via-gray-400 to-gray-500 bg-clip-text text-3xl font-normal tracking-tight text-transparent md:text-4xl">
         {greeting}, {userName}
       </h1>
-      {subtitle && <p className="text-sm text-[#71717a] mt-2">{subtitle}</p>}
+      {subtitle && <p className="mt-2 text-sm text-[#71717a]">{subtitle}</p>}
     </div>
   );
 }

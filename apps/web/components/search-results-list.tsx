@@ -92,10 +92,7 @@ export function parseSearchResults(text: string): SearchResult[] {
   return results;
 }
 
-export function SearchResultsList({
-  results,
-  className,
-}: SearchResultsListProps) {
+export function SearchResultsList({ results, className }: SearchResultsListProps) {
   if (results.length === 0) return null;
 
   return (
@@ -106,10 +103,9 @@ export function SearchResultsList({
           href={result.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group"
-        >
+          className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-white/5">
           {/* Favicon */}
-          <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+          <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
             {result.favicon ? (
               // Use regular img for external favicons (can't whitelist all domains in next.config.js)
               // eslint-disable-next-line @next/next/no-img-element
@@ -124,30 +120,28 @@ export function SearchResultsList({
                 }}
               />
             ) : (
-              <Globe className="w-4 h-4 text-white/40" />
+              <Globe className="h-4 w-4 text-white/40" />
             )}
           </div>
 
           {/* Title and domain */}
-          <div className="flex-1 min-w-0">
-            <div className="text-sm text-white/90 truncate group-hover:text-white">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm text-white/90 group-hover:text-white">
               {result.title}
             </div>
-            <div className="text-xs text-white/40 truncate">
+            <div className="truncate text-xs text-white/40">
               {result.domain}
               {result.date && ` • ${result.date}`}
             </div>
           </div>
 
           {/* External link icon */}
-          <ExternalLink className="w-4 h-4 text-white/30 group-hover:text-white/60 flex-shrink-0" />
+          <ExternalLink className="h-4 w-4 flex-shrink-0 text-white/30 group-hover:text-white/60" />
         </a>
       ))}
 
       {results.length > 10 && (
-        <div className="text-xs text-white/40 pl-2">
-          +{results.length - 10} more results
-        </div>
+        <div className="pl-2 text-xs text-white/40">+{results.length - 10} more results</div>
       )}
     </div>
   );

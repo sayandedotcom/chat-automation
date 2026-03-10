@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  RotateCcw,
-  Check,
-  X,
-} from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
-import { Button } from "@workspace/ui/components/button";
+import { useCallback, useEffect, useState } from "react";
+
 import Image from "next/image";
+
+import { Check, ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
+
+import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
+
 import { MarkdownEditor } from "./markdown-editor";
 import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
@@ -21,7 +19,7 @@ interface DocumentEditorProps {
   onApprove: (
     stepNumber: number,
     action: "approve" | "edit" | "skip",
-    content?: Record<string, unknown>,
+    content?: Record<string, unknown>
   ) => void;
   completed?: boolean;
   className?: string;
@@ -41,7 +39,7 @@ export function DocumentEditor({
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
-    completed ? "created" : null,
+    completed ? "created" : null
   );
 
   useEffect(() => {
@@ -65,9 +63,7 @@ export function DocumentEditor({
 
     if (isDirty()) {
       onApprove(stepNumber, "edit", {
-        tool_calls: [
-          { id: toolCall.id, arguments: { title, content } },
-        ],
+        tool_calls: [{ id: toolCall.id, arguments: { title, content } }],
       });
     } else {
       onApprove(stepNumber, "approve");
@@ -96,25 +92,23 @@ export function DocumentEditor({
   return (
     <div
       className={cn(
-        "rounded-2xl bg-[#1a1a1a] border overflow-hidden",
+        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
           : "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]",
-        className,
-      )}
-    >
+        className
+      )}>
       {/* ── Header ── */}
       <div
         className={cn(
-          "px-4 py-3 flex items-center justify-between",
+          "flex items-center justify-between px-4 py-3",
           !isCollapsed && "border-b border-white/5",
-          actionTaken && "cursor-pointer hover:bg-white/[0.02] transition-colors",
+          actionTaken && "cursor-pointer transition-colors hover:bg-white/[0.02]"
         )}
-        onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}
-      >
+        onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/15">
             <Image
               src="/integrations/google_docs.svg"
               alt="Google Docs"
@@ -123,36 +117,33 @@ export function DocumentEditor({
               className="object-contain"
             />
           </div>
-          <span className="text-sm font-medium text-white/90">
-            Create Document
-          </span>
+          <span className="text-sm font-medium text-white/90">Create Document</span>
           {actionTaken && (
-            <div className={cn(
-              "w-5 h-5 rounded-full flex items-center justify-center",
-              actionTaken === "created"
-                ? "bg-emerald-500/20"
-                : "bg-white/10",
-            )}>
+            <div
+              className={cn(
+                "flex h-5 w-5 items-center justify-center rounded-full",
+                actionTaken === "created" ? "bg-emerald-500/20" : "bg-white/10"
+              )}>
               {actionTaken === "created" ? (
-                <Check className="w-3 h-3 text-emerald-400" />
+                <Check className="h-3 w-3 text-emerald-400" />
               ) : (
-                <X className="w-3 h-3 text-white/40" />
+                <X className="h-3 w-3 text-white/40" />
               )}
             </div>
           )}
         </div>
         {actionTaken ? (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">
+          <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
             {isCollapsed ? (
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="h-3.5 w-3.5" />
             ) : (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="h-3.5 w-3.5" />
             )}
           </button>
         ) : (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">
+          <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
             <span>Permissions</span>
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
@@ -160,10 +151,10 @@ export function DocumentEditor({
       {/* ── Collapsible content ── */}
       {!isCollapsed && (
         <>
-          <div className="px-5 py-5 max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[420px] overflow-y-auto px-5 py-5">
             {/* Title */}
             {actionTaken ? (
-              <h2 className="text-2xl font-bold text-white mb-4 leading-tight tracking-tight">
+              <h2 className="mb-4 text-2xl leading-tight font-bold tracking-tight text-white">
                 {title}
               </h2>
             ) : (
@@ -173,9 +164,9 @@ export function DocumentEditor({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Document title"
                 className={cn(
-                  "w-full bg-transparent outline-none mb-4",
-                  "text-2xl font-bold text-white leading-tight tracking-tight",
-                  "placeholder:text-white/25",
+                  "mb-4 w-full bg-transparent outline-none",
+                  "text-2xl leading-tight font-bold tracking-tight text-white",
+                  "placeholder:text-white/25"
                 )}
               />
             )}
@@ -195,29 +186,26 @@ export function DocumentEditor({
 
           {/* ── Footer ── */}
           {!actionTaken && (
-            <div className="px-4 py-2.5 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
+            <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-2.5">
               <button
-                className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="rounded-lg p-2 transition-colors hover:bg-white/5"
                 tabIndex={-1}
-                title="Regenerate"
-              >
-                <RotateCcw className="w-4 h-4 text-white/40" />
+                title="Regenerate">
+                <RotateCcw className="h-4 w-4 text-white/40" />
               </button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCancel}
                 disabled={isCreating}
-                className="px-4 h-9 bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200"
-              >
+                className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleCreate}
                 disabled={isCreating}
-                className="px-4 h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2"
-              >
+                className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
                 {isCreating ? (
                   "Creating..."
                 ) : (

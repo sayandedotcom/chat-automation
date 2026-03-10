@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, ChevronDown, RotateCcw } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
+
+import { ChevronDown, FileText, RotateCcw } from "lucide-react";
+
 import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
+
 import { MarkdownRenderer } from "./markdown-renderer";
 
 interface DocumentPreviewCardProps {
@@ -31,30 +34,26 @@ export function DocumentPreviewCard({
   return (
     <div
       className={cn(
-        "rounded-2xl bg-[#1a1a1a] border border-white/10 overflow-hidden",
+        "overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]",
         "animate-in fade-in slide-in-from-top-2 duration-300",
-        className,
-      )}
-    >
+        className
+      )}>
       {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
+      <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">
-            {icon || <FileText className="w-4 h-4 text-blue-400" />}
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/20">
+            {icon || <FileText className="h-4 w-4 text-blue-400" />}
           </div>
-          <span className="text-sm font-medium text-white/90">
-            Create Document
-          </span>
+          <span className="text-sm font-medium text-white/90">Create Document</span>
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/70 transition-colors"
-        >
+          className="flex items-center gap-1.5 text-xs text-white/50 transition-colors hover:text-white/70">
           <span>Permissions</span>
           <ChevronDown
             className={cn(
-              "w-3.5 h-3.5 transition-transform duration-200",
-              isCollapsed && "rotate-180",
+              "h-3.5 w-3.5 transition-transform duration-200",
+              isCollapsed && "rotate-180"
             )}
           />
         </button>
@@ -62,9 +61,9 @@ export function DocumentPreviewCard({
 
       {/* Content preview */}
       {!isCollapsed && (
-        <div className="px-5 py-5 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-80 overflow-y-auto px-5 py-5">
           {/* Document title */}
-          <h2 className="text-2xl font-bold text-white mb-4 leading-tight tracking-tight">
+          <h2 className="mb-4 text-2xl leading-tight font-bold tracking-tight text-white">
             {title}
           </h2>
 
@@ -74,9 +73,9 @@ export function DocumentPreviewCard({
       )}
 
       {/* Footer with actions */}
-      <div className="px-4 py-3 flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515]">
-        <button className="p-2 rounded-lg hover:bg-white/5 transition-colors">
-          <RotateCcw className="w-4 h-4 text-white/50" />
+      <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-3">
+        <button className="rounded-lg p-2 transition-colors hover:bg-white/5">
+          <RotateCcw className="h-4 w-4 text-white/50" />
         </button>
 
         <Button
@@ -84,8 +83,7 @@ export function DocumentPreviewCard({
           size="sm"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-4 h-9 bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 hover:text-red-200"
-        >
+          className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
           Cancel
         </Button>
 
@@ -93,8 +91,7 @@ export function DocumentPreviewCard({
           size="sm"
           onClick={onApprove}
           disabled={isLoading}
-          className="px-4 h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2"
-        >
+          className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
           {isLoading ? (
             "Creating..."
           ) : (

@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
+  type SessionData,
+  type User,
   authClient,
+  clearSessionCache,
   signIn,
   useSession,
-  clearSessionCache,
-  type User,
-  type SessionData,
 } from "./auth-client";
 
 const mockFetch = vi.fn();

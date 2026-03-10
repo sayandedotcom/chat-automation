@@ -1,12 +1,14 @@
 "use client";
 
-import { FileIcon, Mic } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Button } from "@workspace/ui/components/button";
+
+import Image from "next/image";
+
+import { FileIcon, Mic } from "lucide-react";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { Badge } from "@workspace/ui/components/badge";
-import { Toggle } from "@workspace/ui/components/toggle";
-import { highlightCode } from "@workspace/ui/lib/highlight-code";
+import { Button } from "@workspace/ui/components/button";
 import {
   ChatInput,
   ChatInputEditor,
@@ -17,8 +19,9 @@ import {
   createMentionConfig,
   useChatInput,
 } from "@workspace/ui/components/chat-input";
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import { Toggle } from "@workspace/ui/components/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
+import { highlightCode } from "@workspace/ui/lib/highlight-code";
 
 type MemberItem = {
   id: string;
@@ -48,7 +51,7 @@ const files: FileItem[] = [
 // Reusable icon component pointing to the public/integrations SVGs
 function IntegrationIcon({ src, alt }: { src: string; alt: string }) {
   return (
-    <div className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-white shadow-sm overflow-hidden p-0.5 opacity-90 hover:opacity-100 transition-opacity">
+    <div className="flex h-[22px] w-[22px] items-center justify-center overflow-hidden rounded-md bg-white p-0.5 opacity-90 shadow-sm transition-opacity hover:opacity-100">
       <Image src={src} alt={alt} width={16} height={16} className="object-contain" />
     </div>
   );
@@ -92,7 +95,7 @@ export function ChatInputWithMentions({
 
   return (
     <div className="w-full pb-8">
-      <div className="w-full relative rounded-[24px] p-[1px] bg-gradient-to-b from-white/20 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+      <div className="relative w-full rounded-[24px] bg-gradient-to-b from-white/20 to-transparent p-[1px] shadow-[0_0_15px_rgba(255,255,255,0.05)]">
         <style>{`
           .tiptap p.is-editor-empty:first-child::before,
           .tiptap p.is-empty:first-child::before {
@@ -107,23 +110,21 @@ export function ChatInputWithMentions({
           onSubmit={handleSubmit}
           value={value}
           onChange={onChange}
-          className="!bg-[#070707] border-0 rounded-[23px] shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ring-1 ring-transparent focus-within:ring-white/5"
-        >
+          className="flex flex-col overflow-hidden rounded-[23px] border-0 !bg-[#070707] shadow-2xl ring-1 ring-transparent transition-all duration-300 focus-within:ring-white/5">
           <ChatInputMention
             type={mentionConfigs.member.type}
             trigger={mentionConfigs.member.trigger}
-            items={mentionConfigs.member.items}
-          >
+            items={mentionConfigs.member.items}>
             {(item) => (
               <>
                 <Avatar className="h-5 w-5">
                   <AvatarImage src={item.image ?? "/placeholder.jpg"} alt={item.name} />
                   <AvatarFallback>{item.name[0]?.toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="text-xs font-medium truncate max-w-[100px]" title={item.name}>
+                <span className="max-w-[100px] truncate text-xs font-medium" title={item.name}>
                   {item.name}
                 </span>
-                <Badge variant="outline" className="ml-auto text-xs px-1 h-5">
+                <Badge variant="outline" className="ml-auto h-5 px-1 text-xs">
                   {item.type}
                 </Badge>
               </>
@@ -132,12 +133,11 @@ export function ChatInputWithMentions({
           <ChatInputMention
             type={mentionConfigs.file.type}
             trigger={mentionConfigs.file.trigger}
-            items={mentionConfigs.file.items}
-          >
+            items={mentionConfigs.file.items}>
             {(item) => (
               <>
-                <FileIcon className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs font-medium truncate max-w-[150px]" title={item.name}>
+                <FileIcon className="text-muted-foreground h-3 w-3" />
+                <span className="max-w-[150px] truncate text-xs font-medium" title={item.name}>
                   {item.name}
                 </span>
               </>
@@ -147,16 +147,16 @@ export function ChatInputWithMentions({
           {/* Top: Text input */}
           <ChatInputEditor
             placeholder="Type and press enter to start chatting..."
-            className="text-[#c8ccd8] placeholder:text-[#555555] min-h-[32px] text-[15px] pt-4 px-5 pb-1 bg-transparent border-none focus-visible:ring-0 font-sans tracking-tight"
+            className="min-h-[32px] border-none bg-transparent px-5 pt-4 pb-1 font-sans text-[15px] tracking-tight text-[#c8ccd8] placeholder:text-[#555555] focus-visible:ring-0"
           />
 
           {/* Bottom: Actions bar */}
-          <ChatInputGroupAddon align="block-end" className="flex flex-col w-full">
-            <div className="flex items-center justify-between px-4 pb-3 pt-1 w-full">
+          <ChatInputGroupAddon align="block-end" className="flex w-full flex-col">
+            <div className="flex w-full items-center justify-between px-4 pt-1 pb-3">
               <div className="flex items-center gap-2">
                 <ChatInputMentionButton
                   variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 rounded-full h-8 w-8 p-0 [&>svg]:h-[26px] [&>svg]:w-[26px] [&>svg]:stroke-[2.5]"
+                  className="h-8 w-8 rounded-full p-0 text-white hover:bg-white/10 hover:text-white [&>svg]:h-[26px] [&>svg]:w-[26px] [&>svg]:stroke-[2.5]"
                 />
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -165,7 +165,7 @@ export function ChatInputWithMentions({
                       size="sm"
                       pressed={isAutoMode}
                       onPressedChange={setIsAutoMode}
-                      className="h-8 px-3.5 gap-2 rounded-xl border border-white/[0.08] text-[#9a9a9a] hover:text-[#c0c0c0] data-[state=on]:text-[#c0bcc8] cursor-pointer select-none"
+                      className="h-8 cursor-pointer gap-2 rounded-xl border border-white/[0.08] px-3.5 text-[#9a9a9a] select-none hover:text-[#c0c0c0] data-[state=on]:text-[#c0bcc8]"
                       style={{
                         background: isAutoMode
                           ? "linear-gradient(to bottom, #2d2440, #1e1b30)"
@@ -178,24 +178,21 @@ export function ChatInputWithMentions({
                         borderColor: isAutoMode
                           ? "rgba(255,255,255,0.08)"
                           : "rgba(255,255,255,0.08)",
-                      }}
-                    >
+                      }}>
                       <span className="text-[13px] font-medium">Auto</span>
                       <div
-                        className={`w-[16px] h-[16px] rounded-full flex items-center justify-center transition-all duration-200 ${
+                        className={`flex h-[16px] w-[16px] items-center justify-center rounded-full transition-all duration-200 ${
                           isAutoMode
                             ? "bg-white/20 text-white/90"
-                            : "bg-[#2a2a2a] border border-[#3a3a3a]"
-                        }`}
-                      >
+                            : "border border-[#3a3a3a] bg-[#2a2a2a]"
+                        }`}>
                         {isAutoMode && (
                           <svg
                             width="9"
                             height="9"
                             viewBox="0 0 16 16"
                             fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
+                            xmlns="http://www.w3.org/2000/svg">
                             <path
                               d="M3.5 8.5L6.5 11.5L12.5 4.5"
                               stroke="currentColor"
@@ -218,12 +215,11 @@ export function ChatInputWithMentions({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[#999999] hover:text-white hover:bg-white/10 rounded-full h-8 w-8 ml-1"
-                >
+                  className="ml-1 h-8 w-8 rounded-full text-[#999999] hover:bg-white/10 hover:text-white">
                   <Mic className="h-5 w-5 stroke-[2.5]" />
                 </Button>
                 <ChatInputSubmitButton
-                  className={`rounded-full h-[34px] w-[34px] transition-all flex items-center justify-center shrink-0 [&>svg]:w-[24px] [&>svg]:h-[24px] [&>svg]:stroke-[3] drop-shadow-sm ${hasText ? "bg-gradient-to-b from-white to-[#c0c0c8] text-black shadow hover:brightness-110" : "bg-gradient-to-b from-[#6a6a6a] to-[#454545] text-[#16161a] hover:brightness-110 border border-[#404040]"}`}
+                  className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full drop-shadow-sm transition-all [&>svg]:h-[24px] [&>svg]:w-[24px] [&>svg]:stroke-[3] ${hasText ? "bg-gradient-to-b from-white to-[#c0c0c8] text-black shadow hover:brightness-110" : "border border-[#404040] bg-gradient-to-b from-[#6a6a6a] to-[#454545] text-[#16161a] hover:brightness-110"}`}
                 />
               </div>
             </div>

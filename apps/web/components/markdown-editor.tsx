@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+
 import { cn } from "@workspace/ui/lib/utils";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -23,10 +24,7 @@ export function MarkdownEditor({
   className,
 }: MarkdownEditorProps) {
   return (
-    <div
-      className={cn("markdown-editor-wrapper", className)}
-      data-color-mode="dark"
-    >
+    <div className={cn("markdown-editor-wrapper", className)} data-color-mode="dark">
       <MDEditor
         value={value}
         onChange={(val) => onChange(val ?? "")}

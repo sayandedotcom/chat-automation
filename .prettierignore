@@ -3,3 +3,9 @@ dist
 .next
 .turbo
 pnpm-lock.yaml
+.sst
+.opencode
+.claude
+.agent
+coverage
+*.min.js
