@@ -6,7 +6,6 @@ enabling token-efficient LLM calls by binding only needed tools.
 """
 
 import logging
-import re
 from pathlib import Path
 from typing import Optional
 
@@ -29,7 +28,6 @@ class IntegrationConfig:
         self.icon = config.get("icon", "default")
         self.requires_auth = config.get("requires_auth", False)
         self.mcp_server = config.get("mcp_server")
-        self.request_patterns = config.get("request_patterns", [])
         self.planner_hints = config.get("planner_hints", "")
         self.executor_hints = config.get("executor_hints", "")
 
@@ -68,7 +66,7 @@ class IntegrationRegistry:
 
         for name, integration_config in integrations_config.items():
             self._integrations[name] = IntegrationConfig(name, integration_config)
-            # Build reverse lookup from config tool_names
+            # Build reverse lookup from explicit tool_names
             for tool_name in integration_config.get("tool_names", []):
                 self._tool_name_to_integration[tool_name] = name
 
@@ -82,7 +80,7 @@ class IntegrationRegistry:
 
     async def load_all(self, tokens: dict):
         """
-        Load all MCP integrations and index by explicit tool names from config.
+        Load all MCP integrations and index tools by explicit tool_names from config.
 
         Args:
             tokens: Dict containing auth tokens (gmail_token, notion_token, etc.)
@@ -91,18 +89,13 @@ class IntegrationRegistry:
 
         self._load_config()
 
-        # Create MCP client and load all tools
         client = create_mcp_client(**tokens)
         self._all_tools = await load_mcp_tools(client)
 
-        # Index tools by integration using explicit tool names from config
         for tool in self._all_tools:
             integration_name = self._tool_name_to_integration.get(tool.name)
-
             if integration_name:
-                if integration_name not in self._tools_by_integration:
-                    self._tools_by_integration[integration_name] = []
-                self._tools_by_integration[integration_name].append(tool)
+                self._tools_by_integration.setdefault(integration_name, []).append(tool)
                 self._tool_to_integration[tool.name] = integration_name
             else:
                 logger.warning(
@@ -169,7 +162,6 @@ class IntegrationRegistry:
         # Deduplicate: skip tools already in the registry
         existing_tool_names = {t.name for t in self._all_tools}
 
-        # Index the new tools into the existing registry
         for tool in new_tools:
             if tool.name in existing_tool_names:
                 continue  # already loaded
@@ -265,13 +257,11 @@ async def classify_integrations(
     request: str, registry: IntegrationRegistry
 ) -> list[str]:
     """
-    Classify which integrations are needed using two-phase approach.
+    Classify which integrations are needed using LLM-based classification.
 
-    Phase 1: Enhanced NLP — stemmed keywords + fuzzy phrase matching (instant)
-    Phase 2: LLM fallback — Gemini Flash classification (if Phase 1 is ambiguous)
-
-    Falls back to legacy regex-only classification if the classifier is not
-    initialised (e.g. during tests or when config loading failed).
+    Uses Gemini Flash to determine which integrations match the user request.
+    Falls back to ["web_search"] if the classifier is not initialised or
+    classification fails.
 
     Args:
         request: User's request text
@@ -285,10 +275,8 @@ async def classify_integrations(
     classifier = get_classifier()
 
     if not classifier.is_initialized:
-        logger.warning(
-            "Classifier not initialised, falling back to legacy regex matching"
-        )
-        return _legacy_classify(request, registry)
+        logger.warning("Classifier not initialised, defaulting to web_search")
+        return ["web_search"]
 
     result = await classifier.classify_with_fallback(request)
 
@@ -303,51 +291,6 @@ async def classify_integrations(
     )
 
     return result.integrations
-
-
-def _legacy_classify(request: str, registry: IntegrationRegistry) -> list[str]:
-    """
-    Original regex-only classification (kept as safety-net fallback).
-    """
-    request_lower = request.lower()
-    needed = set()
-
-    # Check each integration's request patterns
-    for name, config in registry._integrations.items():
-        for pattern in config.request_patterns:
-            if re.search(pattern, request_lower):
-                needed.add(name)
-                break
-
-    # Smart defaults based on common intents
-    if not needed:
-        # Question format -> likely web search
-        if re.match(r"^(what|who|when|where|why|how)\b", request_lower):
-            needed.add("web_search")
-        # Action format -> likely workspace
-        elif re.match(r"^(create|make|draft|send|schedule)\b", request_lower):
-            # Check for specific workspace tools
-            if "email" in request_lower or "mail" in request_lower:
-                needed.add("gmail")
-            elif "doc" in request_lower:
-                needed.add("google_docs")
-            elif "calendar" in request_lower or "meeting" in request_lower:
-                needed.add("google_calendar")
-            else:
-                needed.add("web_search")  # Fallback
-        else:
-            # Ultimate fallback
-            needed.add("web_search")
-
-    logger.info(
-        "Legacy classification",
-        extra={
-            "request": request[:100],
-            "classified_integrations": list(needed),
-        },
-    )
-
-    return list(needed)
 
 
 async def get_registry(tokens: dict) -> IntegrationRegistry:

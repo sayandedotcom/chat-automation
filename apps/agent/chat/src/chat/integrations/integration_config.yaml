@@ -8,51 +8,9 @@ integrations:
       - "tavily_research"
     display_name: "Web Search"
     icon: "web_search"
+    mcp_server: "tavily"
     description: "Web search and research: finding information, answering questions, comparing options, discovering latest content online."
     identity_keywords: []
-    keywords:
-      - search
-      - find
-      - research
-      - lookup
-      - discover
-      - explore
-      - latest
-      - current
-      - recent
-      - trending
-      - compare
-      - comparison
-      - analysis
-      - overview
-      - best
-      - top
-      - wikipedia
-      - article
-      - news
-      - information
-      - explain
-      - define
-      - meaning
-    phrases:
-      - "search the web"
-      - "find information about"
-      - "look up"
-      - "what is"
-      - "who is"
-      - "tell me about"
-      - "latest news on"
-      - "compare options for"
-      - "how does"
-      - "search for"
-      - "find out"
-    request_patterns:
-      - '\b(search|find|research|look\s+up|discover|explore)\b'
-      - '\b(what|who|when|where|why|how)\s+(is|are|was|were)\b'
-      - '\b(best|top|latest|current|recent)\b.*\b(for|in|about)\b'
-      - '\b(compare|comparison|analysis|overview)\b'
-    planner_hints: ""
-    executor_hints: ""
 
   gmail:
     tool_names:
@@ -71,7 +29,6 @@ integrations:
       - "list_gmail_filters"
       - "create_gmail_filter"
       - "delete_gmail_filter"
-      - "start_google_auth"
     display_name: "Gmail"
     icon: "gmail"
     requires_auth: true
@@ -81,58 +38,6 @@ integrations:
       - "gmail"
       - "email"
       - "mail"
-    keywords:
-      - email
-      - emails
-      - mail
-      - mails
-      - gmail
-      - send
-      - sent
-      - draft
-      - drafts
-      - reply
-      - forward
-      - inbox
-      - outbox
-      - recipient
-      - recipients
-      - subject
-      - label
-      - labels
-      - archive
-      - compose
-      - letter
-      - correspondence
-      - unread
-      - attachment
-      - attachments
-      - thread
-      - threads
-      - cc
-      - bcc
-      - message
-      - messages
-      - spam
-      - trash
-      - filter
-      - filters
-    phrases:
-      - "send an email"
-      - "write an email"
-      - "check my inbox"
-      - "draft a reply"
-      - "forward this"
-      - "email someone"
-      - "reach out to"
-      - "get in touch"
-      - "notify via email"
-      - "send a message to"
-      - "compose an email"
-      - "read my emails"
-    request_patterns:
-      - '\b(email|mail|gmail|send|draft|reply|forward|inbox)\b'
-      - '\b(message|recipient|subject|label|archive|delete)\b'
     planner_hints: |
       GMAIL: When user says "mail/send/email this", check AVAILABLE ARTIFACTS for the
       most recent document or content. Embed its URL and title into the step description.
@@ -175,55 +80,6 @@ integrations:
       - "google docs"
       - "gdoc"
       - "gdocs"
-    keywords:
-      - doc
-      - docs
-      - document
-      - documents
-      - memo
-      - writeup
-      - write
-      - writing
-      - paragraph
-      - text
-      - heading
-      - comment
-      - comments
-      - review
-      - template
-      - page
-      - content
-      - pdf
-      - export
-      - table
-      - style
-      - header
-      - footer
-      - report
-      - proposal
-      - brief
-      - summary
-      - paper
-      - essay
-      - note
-      - notes
-      - outline
-    phrases:
-      - "create a document"
-      - "write a report"
-      - "draft a memo"
-      - "edit the document"
-      - "add content to"
-      - "write a summary"
-      - "create a writeup"
-      - "prepare a brief"
-      - "type up"
-      - "put together a document"
-      - "open the doc"
-      - "write up"
-    request_patterns:
-      - '\b(doc|document|google\s*doc|write)\b'
-      - '\b(create|edit|comment|review)\b.*\b(doc|document)\b'
     planner_hints: |
       GOOGLE DOCS: When creating a document, include the desired title in the step
       description. If content comes from a previous step, reference the step number.
@@ -259,45 +115,6 @@ integrations:
       - "google sheet"
       - "google sheets"
       - "spreadsheet"
-    keywords:
-      - sheet
-      - sheets
-      - spreadsheet
-      - spreadsheets
-      - cell
-      - cells
-      - row
-      - rows
-      - column
-      - columns
-      - data
-      - table
-      - formula
-      - range
-      - values
-      - csv
-      - excel
-      - workbook
-      - grid
-      - calculate
-      - numbers
-      - figures
-      - stats
-      - statistics
-      - pivot
-    phrases:
-      - "create a spreadsheet"
-      - "update the sheet"
-      - "read cell values"
-      - "modify the data"
-      - "enter data into"
-      - "build a spreadsheet"
-      - "add a row"
-      - "fill in the sheet"
-    request_patterns:
-      - '\b(sheet|spreadsheet|google\s*sheets)\b'
-      - '\b(read|write|update|modify)\b.*\b(cell|range|row|column|data)\b'
-      - '\b(create)\b.*\b(spreadsheet|sheet)\b'
     planner_hints: |
       GOOGLE SHEETS: When the task involves creating a spreadsheet AND populating it
       with data, always combine ALL actions (create, write data, format headers) into
@@ -336,31 +153,6 @@ integrations:
     identity_keywords:
       - "google slides"
       - "presentation"
-    keywords:
-      - slide
-      - slides
-      - presentation
-      - presentations
-      - deck
-      - ppt
-      - powerpoint
-      - slideshow
-      - talk
-      - pitch
-      - keynote
-      - layout
-      - visual
-    phrases:
-      - "create a presentation"
-      - "make a slide deck"
-      - "add a slide"
-      - "build a pitch deck"
-      - "prepare slides for"
-      - "put together a presentation"
-    request_patterns:
-      - '\b(slide|slides|presentation|deck|ppt)\b'
-      - '\b(create|add|update|edit)\b.*\b(slide|presentation)\b'
-    planner_hints: ""
     executor_hints: |
       GOOGLE SLIDES: Always report the presentation URL and ID in your response after
       creating a presentation.
@@ -381,54 +173,6 @@ integrations:
     identity_keywords:
       - "google calendar"
       - "calendar"
-    keywords:
-      - calendar
-      - calendars
-      - schedule
-      - scheduling
-      - meeting
-      - meetings
-      - event
-      - events
-      - appointment
-      - appointments
-      - book
-      - booking
-      - availability
-      - free
-      - busy
-      - invite
-      - reminder
-      - agenda
-      - tomorrow
-      - today
-      - monday
-      - tuesday
-      - wednesday
-      - thursday
-      - friday
-      - saturday
-      - sunday
-      - week
-      - month
-      - morning
-      - afternoon
-      - evening
-      - noon
-    phrases:
-      - "schedule a meeting"
-      - "book an appointment"
-      - "check my calendar"
-      - "when am I free"
-      - "create an event"
-      - "set up a meeting"
-      - "find a time"
-      - "check availability"
-      - "block off time"
-      - "what's on my calendar"
-    request_patterns:
-      - '\b(calendar|schedule|meeting|event|appointment|book)\b'
-      - '\b(next\s+(week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b'
     planner_hints: |
       GOOGLE CALENDAR: When the user wants to create an event, plan a single create_event
       step. Do NOT add clarification steps for missing details like title or time — the
@@ -474,42 +218,6 @@ integrations:
     identity_keywords:
       - "google drive"
       - "gdrive"
-    keywords:
-      - drive
-      - file
-      - files
-      - upload
-      - download
-      - folder
-      - folders
-      - share
-      - sharing
-      - permission
-      - permissions
-      - storage
-      - move
-      - copy
-      - rename
-      - delete
-      - link
-      - access
-      - transfer
-      - ownership
-      - organize
-    phrases:
-      - "upload a file"
-      - "download the file"
-      - "share the document"
-      - "find files in drive"
-      - "create a folder"
-      - "move the file to"
-      - "get a shareable link"
-      - "give access to"
-      - "organize my files"
-      - "search my drive"
-    request_patterns:
-      - '\b(drive|file|upload|download|folder)\b'
-      - '\b(create|read|search)\b.*\b(file|document)\b'
     planner_hints: |
       GOOGLE DRIVE: When user says "share this", check AVAILABLE ARTIFACTS for the
       resource to share and include its URL or ID in the step description.
@@ -548,65 +256,6 @@ integrations:
     description: "Workspace and knowledge management via Notion: creating pages, managing databases, searching content, commenting, and organizing workspace."
     identity_keywords:
       - "notion"
-    keywords:
-      - notion
-      - page
-      - pages
-      - note
-      - notes
-      - database
-      - databases
-      - workspace
-      - wiki
-      - knowledge
-      - kanban
-      - board
-      - task
-      - tasks
-      - project
-      - projects
-      - team
-      - teams
-      - template
-      - property
-      - properties
-      - relation
-      - rollup
-      - filter
-      - view
-      - comment
-      - comments
-    phrases:
-      - "create a Notion page"
-      - "update the database"
-      - "search in Notion"
-      - "add a comment"
-      - "find in my workspace"
-      - "organize in Notion"
-      - "check my Notion"
-      - "create a database"
-      - "duplicate the page"
-    request_patterns:
-      # Search & discovery
-      - '\b(search|find|look\s*up|check)\b.*\b(notion|docs?|pages?|notes?)\b'
-      - '\b(search|check|look)\b.*\b(slack|drive|jira)\b'
-
-      # Page & content operations
-      - '\b(create|add|make)\b.*\b(page|note|doc|database)\b'
-      - '\b(update|edit|change|replace)\b.*\b(page|content|section|status)\b'
-      - '\b(move|reorganize|relocate)\b.*\b(page|document)\b'
-      - '\b(duplicate|copy|clone)\b.*\b(page|template)\b'
-
-      # Database & structured queries
-      - '\b(database|table|data\s*source)\b'
-      - '\b(query|filter|group|summarize|rollup)\b'
-
-      # Comments & collaboration
-      - '\b(comment|feedback|note)\b.*\b(page|doc|proposal|review)\b'
-
-      # Workspace & identity
-      - '\b(team|teamspace|users?|workspace|profile|who\s+am\s+i)\b'
-    planner_hints: ""
     executor_hints: |
       NOTION: To create a page at the workspace top level, use API-post-page with
       parent: {"type": "workspace", "workspace": true}. To create under an existing
@@ -618,31 +267,19 @@ integrations:
 
   vercel:
     tool_names:
-      # Documentation
       - "search_documentation"
-
-      # Project & team management
       - "list_teams"
       - "list_projects"
       - "get_project"
-
-      # Deployments
       - "list_deployments"
       - "get_deployment"
       - "get_deployment_build_logs"
-
-      # Domains (HIGH RISK – requires confirmation)
       - "check_domain_availability_and_price"
       - "buy_domain"
-
-      # Access & fetch
       - "get_access_to_vercel_url"
       - "web_fetch_vercel_url"
-
-      # CLI & deploy (HIGH RISK – requires confirmation)
       - "use_vercel_cli"
       - "deploy_to_vercel"
-
     display_name: "Vercel"
     icon: "vercel"
     requires_auth: true
@@ -650,61 +287,3 @@ integrations:
     description: "Deployment and hosting via Vercel: deploying apps, managing domains, viewing build logs, and managing projects."
     identity_keywords:
       - "vercel"
-    keywords:
-      - vercel
-      - deploy
-      - deployment
-      - deployments
-      - build
-      - builds
-      - domain
-      - domains
-      - dns
-      - hosting
-      - preview
-      - production
-      - staging
-      - project
-      - projects
-      - cli
-      - logs
-      - errors
-      - nextjs
-      - frontend
-      - website
-      - site
-      - serverless
-    phrases:
-      - "deploy to vercel"
-      - "check deployment status"
-      - "buy a domain"
-      - "view build logs"
-      - "deploy my app"
-      - "check deployment errors"
-      - "set up custom domain"
-      - "deploy the website"
-    request_patterns:
-      # Documentation & how-to
-      - '\b(vercel)\b.*\b(how|configure|setup|docs?|documentation)\b'
-      - '\b(custom\s+domain|routing|data[-\s]?fetching)\b'
-
-      # Teams & projects
-      - '\b(team|teams|organization|org)\b.*\b(vercel)\b'
-      - '\b(project|projects)\b.*\b(vercel)\b'
-
-      # Deployments & logs
-      - '\b(deploy|deployment|build)\b'
-      - '\b(logs?|errors?|failed|failure|status)\b.*\b(deploy|deployment|build)\b'
-
-      # Domains (⚠️ sensitive)
-      - '\b(domain|dns|hostname)\b'
-      - '\b(buy|purchase|register)\b.*\b(domain)\b'
-
-      # Access & previews
-      - '\b(share|access|preview|protected)\b.*\b(vercel|deployment|url)\b'
-
-      # CLI usage
-      - '\b(vercel\s+cli|cli)\b'
-      - '\b(deploy)\b.*\b(using\s+cli)\b'
-    planner_hints: ""
-    executor_hints: ""
