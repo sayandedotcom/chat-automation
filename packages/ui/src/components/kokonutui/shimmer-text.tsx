@@ -26,12 +26,7 @@ export default function ShimmerText({
 }: Text_01Props) {
   return (
     <div className={cn("flex items-center justify-center p-8", wrapperClassName)}>
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden px-4 py-2"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div className="relative overflow-hidden px-4 py-2">
         <motion.h1
           animate={{
             backgroundPosition: ["200% center", "-200% center"],
