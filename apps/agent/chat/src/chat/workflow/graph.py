@@ -96,7 +96,7 @@ class DynamicWorkflow:
                   │
           ┌───────┴───────┐
           │               │
-      route_executor     end
+      executor           end
           │               │
           ▼               ▼
         (loop)         ┌─────┐
@@ -203,8 +203,7 @@ class DynamicWorkflow:
                 },
             )
 
-        # After step complete, either continue to next step or end
-        # We use route_to_executor again for proper HITL routing on next step
+        # After step complete: continue to next step or end
         workflow.add_conditional_edges(
             "step_complete",
             should_execute_next_step,

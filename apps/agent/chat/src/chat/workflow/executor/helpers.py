@@ -108,23 +108,29 @@ def get_previous_results(
     """Build a summary of completed steps and their artifacts."""
     parts = []
     for step in plan.steps[:current_index]:
+        has_content = False
         if step.result:
             parts.append(f"Step {step.step_number}: {step.result}")
-            if artifacts:
-                step_artifacts = [
-                    a for a in artifacts if a.get("step_number") == step.step_number
-                ]
-                if step_artifacts:
-                    parts.append(
-                        "  ↳ EXACT RESOURCE IDs (authoritative — use these, not IDs from text above):"
+            has_content = True
+
+        # Include artifact data only for steps that have results
+        if has_content and artifacts:
+            step_artifacts = [
+                a for a in artifacts if a.get("step_number") == step.step_number
+            ]
+            if step_artifacts:
+                parts.append(
+                    "  ↳ EXACT RESOURCE IDs (authoritative — use these, not IDs from text above):"
+                )
+                for a in step_artifacts:
+                    line = (
+                        f"    [{a.get('type', 'resource')}] {a.get('name', 'Untitled')}"
                     )
-                    for a in step_artifacts:
-                        line = f"    [{a.get('type', 'resource')}] {a.get('name', 'Untitled')}"
-                        if a.get("id"):
-                            line += f" — ID: {a['id']}"
-                        if a.get("url"):
-                            line += f" — URL: {a['url']}"
-                        parts.append(line)
+                    if a.get("id"):
+                        line += f" — ID: {a['id']}"
+                    if a.get("url"):
+                        line += f" — URL: {a['url']}"
+                    parts.append(line)
     return "\n".join(parts) if parts else "None yet - this is the first step."
 
 
@@ -201,9 +207,7 @@ async def try_incremental_load(
     logger.warning(
         "Incremental loading triggered",
         extra={
-            "request": state["messages"][-1].content[:100]
-            if state["messages"]
-            else "",
+            "request": state["messages"][-1].content[:100] if state["messages"] else "",
             "initially_classified": initial_integrations,
             "missing_integration": missing_integration,
             "missing_tool": missing_tool,

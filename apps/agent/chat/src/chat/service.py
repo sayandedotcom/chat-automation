@@ -280,14 +280,15 @@ class ChatService:
                                 else:
                                     continue
 
-                                # Emit token event if we have text and know which step
-                                if text and current_executing_step is not None:
-                                    yield {
-                                        "type": "token",
-                                        "thread_id": thread_id,
-                                        "step_number": current_executing_step,
-                                        "content": text,
-                                    }
+                                if text:
+                                    if current_executing_step is not None:
+                                        # Stream executor tokens attributed to step
+                                        yield {
+                                            "type": "token",
+                                            "thread_id": thread_id,
+                                            "step_number": current_executing_step,
+                                            "content": text,
+                                        }
                     continue  # Skip to next chunk
 
                 # If it's an updates chunk, unwrap it
@@ -311,7 +312,9 @@ class ChatService:
                     for tm in tool_messages:
                         if hasattr(tm, "content"):
                             content_preview = str(tm.content)[:200]
-                            logger.info(f"🔧 Tool result ({getattr(tm, 'name', '?')}): {content_preview}")
+                            logger.info(
+                                f"🔧 Tool result ({getattr(tm, 'name', '?')}): {content_preview}"
+                            )
 
                 # Handle smart_router output - check auth first, then emit integrations_ready
                 if node_name == "smart_router":
@@ -370,7 +373,6 @@ class ChatService:
                     step = plan.steps[current_step_index]
                     if step.status == "in_progress":
                         current_executing_step = step.step_number
-
                 # Check for STATE-BASED HITL approval request
                 if output.get("awaiting_approval") and output.get("approval_step_info"):
                     approval_info = output["approval_step_info"]

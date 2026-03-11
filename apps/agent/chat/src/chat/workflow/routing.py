@@ -87,7 +87,13 @@ def should_execute_next_step(
     plan = state.get("plan")
     current_index = state.get("current_step_index", 0)
 
-    if not plan or plan.is_complete or current_index >= len(plan.steps):
+    if not plan:
+        return "end"
+
+    if plan.is_complete:
+        return "end"
+
+    if current_index >= len(plan.steps):
         return "end"
 
     if plan.steps[current_index].requires_human_approval:

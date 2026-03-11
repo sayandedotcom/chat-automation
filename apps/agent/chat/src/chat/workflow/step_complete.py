@@ -41,8 +41,8 @@ async def run_step_complete(state: WorkflowState) -> dict:
             break
 
     current_step = plan.steps[current_index]
-    current_step.status = "completed"
     current_step.result = last_message or "Step completed"
+    current_step.status = "completed"
 
     if "search" in current_step.description.lower():
         search_results = extract_search_results_from_messages(messages)
@@ -72,19 +72,11 @@ async def run_step_complete(state: WorkflowState) -> dict:
 
     if next_index >= len(plan.steps):
         plan.is_complete = True
-        summary = f"✅ **Workflow Complete!**\n\nCompleted all {len(plan.steps)} steps for: {plan.original_request}\n\n**Results:**\n"
-        for step in plan.steps:
-            icon = (
-                "✓"
-                if step.status == "completed"
-                else "⏭️"
-                if step.status == "skipped"
-                else "?"
-            )
-            summary += f"{step.step_number}. {icon} {step.description}\n   → {(step.result or 'N/A')[:100]}...\n\n"
-        plan.final_summary = summary
+        plan.final_summary = last_message or "Workflow complete"
         return {
-            "messages": [AIMessage(content=summary)],
+            "messages": [
+                AIMessage(content=f"All {len(plan.steps)} steps completed.\n")
+            ],
             "plan": plan,
             "current_step_index": next_index,
             "artifacts": new_artifacts,
