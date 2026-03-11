@@ -3,10 +3,32 @@ import Link from "next/link";
 import { Github, Linkedin, Twitter } from "lucide-react";
 
 const footerLinks = {
-  Product: ["Features", "Integrations", "Pricing", "Changelog", "Roadmap"],
-  Company: ["About", "Careers", "Blog", "Press", "Contact"],
-  Resources: ["Documentation", "API Reference", "Status", "Support"],
-  Legal: ["Privacy", "Terms", "Security", "Cookies"],
+  Product: [
+    { label: "Features", href: "#features" },
+    { label: "Integrations", href: "/integrations" },
+    { label: "Pricing", href: "#pricing" },
+    { label: "Changelog", href: "#" },
+    { label: "Roadmap", href: "#" },
+  ],
+  Company: [
+    { label: "About", href: "#about" },
+    { label: "Careers", href: "#" },
+    { label: "Blog", href: "#" },
+    { label: "Press", href: "#" },
+    { label: "Contact", href: "#" },
+  ],
+  Resources: [
+    { label: "Documentation", href: "#" },
+    { label: "API Reference", href: "#" },
+    { label: "Status", href: "#" },
+    { label: "Support", href: "#" },
+  ],
+  Legal: [
+    { label: "Privacy", href: "/privacy" },
+    { label: "Terms", href: "/terms" },
+    { label: "Security", href: "#" },
+    { label: "Cookies", href: "#" },
+  ],
 };
 
 export function SiteFooter() {
@@ -45,9 +67,9 @@ export function SiteFooter() {
               <h4 className="mb-4 font-semibold text-white">{category}</h4>
               <ul className="space-y-3">
                 {links.map((link) => (
-                  <li key={link}>
-                    <Link href="#" className="transition-colors hover:text-white">
-                      {link}
+                  <li key={link.label}>
+                    <Link href={link.href} className="transition-colors hover:text-white">
+                      {link.label}
                     </Link>
                   </li>
                 ))}
