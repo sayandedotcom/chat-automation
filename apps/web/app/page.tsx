@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { CTASection } from "@/components/landing/cta-section";
+import { DataUsageSection } from "@/components/landing/data-usage-section";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { HeroSection } from "@/components/landing/hero-section";
 import { SiteFooter } from "@/components/landing/site-footer";
@@ -47,6 +48,7 @@ export default function Page() {
       <HeroSection />
       <SocialProofSection />
       <FeaturesSection />
+      <DataUsageSection />
       <CTASection />
       <SiteFooter />
     </main>
