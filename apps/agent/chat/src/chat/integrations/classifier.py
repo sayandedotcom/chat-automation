@@ -4,7 +4,6 @@ Integration Classifier — LLM-based routing for user requests.
 Uses Gemini Flash to classify which integrations are needed for a given request.
 """
 
-import json
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -84,7 +83,7 @@ class IntegrationClassifier:
         )
 
     async def _llm_classify(self, request: str) -> Optional[ClassificationResult]:
-        """Gemini Flash classification."""
+        """Gemini Flash classification with structured output."""
         try:
             if self._llm is None:
                 from chat.workflow.llm import get_classifier_llm
@@ -99,37 +98,23 @@ class IntegrationClassifier:
                 "Classify which integrations are needed for this user request.\n\n"
                 f"Available integrations:\n{integration_list}\n\n"
                 f'User request: "{request}"\n\n'
-                "Respond with ONLY a JSON array of integration names. "
-                'Example: ["gmail", "google_docs"]\n'
                 'If the request is a general question, use ["web_search"].\n'
                 "Select the minimum set needed."
             )
 
             from langchain_core.messages import HumanMessage
 
-            response = await self._llm.ainvoke([HumanMessage(content=prompt)])
+            result = await self._llm.ainvoke([HumanMessage(content=prompt)])
 
-            content = response.content.strip()
-            # Strip markdown code fences if present
-            if "```" in content:
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-                content = content.strip()
-
-            integrations = json.loads(content)
-
-            if isinstance(integrations, list) and all(
-                isinstance(i, str) for i in integrations
-            ):
-                valid = [i for i in integrations if i in self._indexes]
-                if valid:
-                    return ClassificationResult(
-                        integrations=valid,
-                        scores={i: 1.0 for i in valid},
-                        method="llm",
-                        confidence=0.9,
-                    )
+            # result is a ClassifierOutput Pydantic model (structured output)
+            valid = [i for i in result.integrations if i in self._indexes]
+            if valid:
+                return ClassificationResult(
+                    integrations=valid,
+                    scores={i: 1.0 for i in valid},
+                    method="llm",
+                    confidence=0.9,
+                )
         except Exception as e:
             logger.warning(f"LLM classification failed: {e}")
 
