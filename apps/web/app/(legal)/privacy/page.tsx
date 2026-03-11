@@ -121,8 +121,8 @@ export default function PrivacyPolicyPage() {
           If you have questions about this Privacy Policy, please contact us at:
         </p>
         <ul className="text-neutral-300">
-          <li>Email: privacy@chatautomations.com</li>
-          <li>Address: [Your Business Address]</li>
+          <li>Email: sayandeten@gmail.com</li>
+          <li>Address: Kolkata, India</li>
         </ul>
       </section>
     </article>

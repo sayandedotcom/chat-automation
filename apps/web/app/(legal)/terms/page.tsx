@@ -132,8 +132,8 @@ export default function TermsOfServicePage() {
       <section className="mb-8">
         <h2 className="text-2xl font-semibold text-white">12. Governing Law</h2>
         <p className="text-neutral-300">
-          These Terms shall be governed by and construed in accordance with the laws of [Your
-          Jurisdiction], without regard to its conflict of law provisions.
+          These Terms shall be governed by and construed in accordance with the laws of India,
+          without regard to its conflict of law provisions.
         </p>
       </section>
 
@@ -152,8 +152,8 @@ export default function TermsOfServicePage() {
           For questions about these Terms of Service, please contact us at:
         </p>
         <ul className="text-neutral-300">
-          <li>Email: legal@chatautomations.com</li>
-          <li>Address: [Your Business Address]</li>
+          <li>Email: sayandeten@gmail.com</li>
+          <li>Address: Kolkata, India</li>
         </ul>
       </section>
     </article>
