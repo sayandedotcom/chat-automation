@@ -8,7 +8,7 @@ Initialised lazily to avoid importing heavy dependencies at module load time.
 import logging
 from langchain_google_genai import ChatGoogleGenerativeAI
 from chat.config import GOOGLE_API_KEY
-from chat.schemas import WorkflowPlanOutput
+from chat.schemas import ClassifierOutput, WorkflowPlanOutput
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +43,17 @@ def get_executor_llm():
 
 
 def get_classifier_llm():
-    """Get shared classifier LLM instance."""
+    """Get shared classifier LLM with structured output.
+
+    Returns a ClassifierOutput schema directly — no manual JSON parsing needed.
+    """
     global _classifier_llm
     if _classifier_llm is None:
-        _classifier_llm = ChatGoogleGenerativeAI(
+        base = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             google_api_key=GOOGLE_API_KEY,
             temperature=0.0,
         )
-        logger.info("Initialized shared classifier LLM")
+        _classifier_llm = base.with_structured_output(ClassifierOutput)
+        logger.info("Initialized shared classifier LLM (structured output)")
     return _classifier_llm

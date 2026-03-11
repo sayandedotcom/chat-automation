@@ -29,6 +29,16 @@ class SearchResultItem(BaseModel):
     date: Optional[str] = Field(default=None, description="Published date if available")
 
 
+class ClassifierOutput(BaseModel):
+    """Structured output from the integration classifier LLM."""
+
+    integrations: list[str] = Field(
+        ...,
+        description="List of integration names needed for the user's request. "
+        "Use exact names from the available integrations list.",
+    )
+
+
 class IntegrationInfo(BaseModel):
     """Information about a loaded integration for UI display."""
 

@@ -5,14 +5,15 @@ Tests cover:
 - Index building and metadata storage
 - classify_with_fallback delegates to LLM
 - Fallback to web_search when LLM fails
-- Response parsing (JSON, markdown fences)
 - Invalid integration names filtered out
+- Prompt construction
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from chat.integrations.classifier import IntegrationClassifier
+from chat.schemas import ClassifierOutput
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -68,11 +69,10 @@ class TestClassifyWithFallback:
     @pytest.mark.asyncio
     async def test_returns_llm_result(self, classifier):
         """Successful LLM classification returns integrations with method='llm'."""
-        mock_response = MagicMock()
-        mock_response.content = '["gmail"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["gmail"])
+        )
 
         result = await classifier.classify_with_fallback("send an email to John")
         assert result.method == "llm"
@@ -82,11 +82,10 @@ class TestClassifyWithFallback:
     @pytest.mark.asyncio
     async def test_multi_integration_result(self, classifier):
         """LLM can return multiple integrations."""
-        mock_response = MagicMock()
-        mock_response.content = '["web_search", "google_docs"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["web_search", "google_docs"])
+        )
 
         result = await classifier.classify_with_fallback(
             "research Python and create a doc"
@@ -108,12 +107,11 @@ class TestClassifyWithFallback:
 
     @pytest.mark.asyncio
     async def test_fallback_default_on_empty_response(self, classifier):
-        """When LLM returns empty array, falls back to web_search."""
-        mock_response = MagicMock()
-        mock_response.content = "[]"
-
+        """When LLM returns empty integrations list, falls back to web_search."""
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=[])
+        )
 
         result = await classifier.classify_with_fallback("hello world")
         assert result.method == "fallback_default"
@@ -122,11 +120,10 @@ class TestClassifyWithFallback:
     @pytest.mark.asyncio
     async def test_filters_invalid_integration_names(self, classifier):
         """Integration names not in the index are filtered out."""
-        mock_response = MagicMock()
-        mock_response.content = '["gmail", "nonexistent_service"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["gmail", "nonexistent_service"])
+        )
 
         result = await classifier.classify_with_fallback("send an email")
         assert result.integrations == ["gmail"]
@@ -135,11 +132,10 @@ class TestClassifyWithFallback:
     @pytest.mark.asyncio
     async def test_all_invalid_names_triggers_fallback(self, classifier):
         """If all LLM-returned names are invalid, falls back to default."""
-        mock_response = MagicMock()
-        mock_response.content = '["fake_service"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["fake_service"])
+        )
 
         result = await classifier.classify_with_fallback("do something")
         assert result.method == "fallback_default"
@@ -147,106 +143,13 @@ class TestClassifyWithFallback:
     @pytest.mark.asyncio
     async def test_scores_are_uniform(self, classifier):
         """All LLM-classified integrations get a score of 1.0."""
-        mock_response = MagicMock()
-        mock_response.content = '["gmail", "google_docs"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["gmail", "google_docs"])
+        )
 
         result = await classifier.classify_with_fallback("email a doc")
         assert result.scores == {"gmail": 1.0, "google_docs": 1.0}
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# Response Parsing Tests
-# ────────────────────────────────────────────────────────────────────────────
-class TestResponseParsing:
-    """Test that _llm_classify handles various LLM response formats."""
-
-    @pytest.mark.asyncio
-    async def test_parses_plain_json(self, classifier):
-        """Plain JSON array response."""
-        mock_response = MagicMock()
-        mock_response.content = '["gmail"]'
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("send email")
-        assert result.integrations == ["gmail"]
-
-    @pytest.mark.asyncio
-    async def test_parses_markdown_fenced_json(self, classifier):
-        """JSON wrapped in markdown code fences."""
-        mock_response = MagicMock()
-        mock_response.content = '```json\n["gmail", "google_docs"]\n```'
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("email a doc")
-        assert "gmail" in result.integrations
-        assert "google_docs" in result.integrations
-
-    @pytest.mark.asyncio
-    async def test_parses_markdown_fenced_no_lang(self, classifier):
-        """JSON wrapped in code fences without language tag."""
-        mock_response = MagicMock()
-        mock_response.content = '```\n["notion"]\n```'
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("create a notion page")
-        assert result.integrations == ["notion"]
-
-    @pytest.mark.asyncio
-    async def test_handles_whitespace(self, classifier):
-        """Response with extra whitespace."""
-        mock_response = MagicMock()
-        mock_response.content = '  \n  ["gmail"]  \n  '
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("send email")
-        assert result.integrations == ["gmail"]
-
-    @pytest.mark.asyncio
-    async def test_handles_invalid_json(self, classifier):
-        """Invalid JSON returns None."""
-        mock_response = MagicMock()
-        mock_response.content = "not valid json"
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("send email")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_handles_non_array_json(self, classifier):
-        """Non-array JSON returns None."""
-        mock_response = MagicMock()
-        mock_response.content = '{"integration": "gmail"}'
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("send email")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_handles_non_string_array(self, classifier):
-        """Array of non-strings returns None."""
-        mock_response = MagicMock()
-        mock_response.content = "[1, 2, 3]"
-
-        classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
-
-        result = await classifier._llm_classify("send email")
-        assert result is None
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -258,11 +161,10 @@ class TestPromptConstruction:
     @pytest.mark.asyncio
     async def test_prompt_includes_all_integrations(self, classifier):
         """The LLM prompt should list all available integrations."""
-        mock_response = MagicMock()
-        mock_response.content = '["web_search"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["web_search"])
+        )
 
         await classifier.classify_with_fallback("test request")
 
@@ -275,11 +177,10 @@ class TestPromptConstruction:
     @pytest.mark.asyncio
     async def test_prompt_includes_user_request(self, classifier):
         """The LLM prompt should include the user's request."""
-        mock_response = MagicMock()
-        mock_response.content = '["gmail"]'
-
         classifier._llm = AsyncMock()
-        classifier._llm.ainvoke = AsyncMock(return_value=mock_response)
+        classifier._llm.ainvoke = AsyncMock(
+            return_value=ClassifierOutput(integrations=["gmail"])
+        )
 
         await classifier.classify_with_fallback("send an email to Alice")
 
