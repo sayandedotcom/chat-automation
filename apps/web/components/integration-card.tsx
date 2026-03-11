@@ -62,8 +62,15 @@ export function IntegrationCard({
             size="sm"
             onClick={onDisconnect}
             disabled={isLoading}
-            className="flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-2xl bg-zinc-800/80 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
-            {isLoading ? <DotLoader /> : "Connected"}
+            className="group/btn flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-2xl bg-zinc-800/80 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-red-500/15 hover:text-red-400">
+            {isLoading ? (
+              <DotLoader />
+            ) : (
+              <>
+                <span className="group-hover/btn:hidden">Connected</span>
+                <span className="hidden group-hover/btn:inline">Disconnect</span>
+              </>
+            )}
           </Button>
         ) : (
           <Button
