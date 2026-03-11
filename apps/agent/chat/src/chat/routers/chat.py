@@ -16,6 +16,11 @@ from pydantic import BaseModel, Field
 
 from chat.config import TAVILY_API_KEY
 from chat.service import ChatService
+from chat.validation import (
+    validate_request,
+    validate_thread_id,
+    validate_connected_integrations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +108,28 @@ class WorkflowRetrySchema(BaseModel):
     connected_integrations: Optional[list[str]] = Field(default=None)
 
 
+def _sanitize_resume_content(content: dict) -> dict:
+    """Sanitize user-edited content from the approval flow.
+
+    When users edit tool call arguments (e.g., email body, doc title),
+    the edited values flow back as tool arguments that the LLM doesn't re-examine.
+    This sanitizes string values to remove control characters while preserving
+    the dict structure (tool_calls, arguments, etc.).
+    """
+    from chat.validation import _sanitize_text
+
+    def _sanitize_value(value):
+        if isinstance(value, str):
+            return _sanitize_text(value)
+        if isinstance(value, dict):
+            return {k: _sanitize_value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_sanitize_value(item) for item in value]
+        return value
+
+    return _sanitize_value(content)
+
+
 async def get_or_create_service(
     gmail_token: Optional[str] = None,
     notion_token: Optional[str] = None,
@@ -141,6 +168,13 @@ async def execute_workflow(data: WorkflowRequestSchema):
     2. Execute each step sequentially
     3. Return the final result with all step outputs
     """
+    # Validate and sanitize input
+    validation = validate_request(data.request)
+    if not validation.is_valid:
+        raise HTTPException(status_code=400, detail=validation.error)
+    thread_id = validate_thread_id(data.thread_id)
+    connected = validate_connected_integrations(data.connected_integrations)
+
     try:
         service = await get_or_create_service(
             gmail_token=data.gmail_token,
@@ -150,9 +184,9 @@ async def execute_workflow(data: WorkflowRequestSchema):
         )
 
         result = await service.execute(
-            request=data.request,
-            thread_id=data.thread_id,
-            connected_integrations=data.connected_integrations,
+            request=validation.sanitized_text,
+            thread_id=thread_id,
+            connected_integrations=connected,
         )
 
         return result
@@ -171,10 +205,16 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
     Execute a workflow with streaming progress updates.
     Returns Server-Sent Events (SSE) with real-time step progress.
     """
+    # Validate and sanitize input before starting the stream
+    validation = validate_request(data.request)
+    if not validation.is_valid:
+        raise HTTPException(status_code=400, detail=validation.error)
+    validated_thread_id = validate_thread_id(data.thread_id)
+    validated_connected = validate_connected_integrations(data.connected_integrations)
 
     async def generate():
         waiting_for_approval = False
-        captured_thread_id = data.thread_id  # May be None initially
+        captured_thread_id = validated_thread_id  # May be None initially
         service = None
 
         try:
@@ -186,9 +226,9 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
             )
 
             async for event in service.execute_stream(
-                request=data.request,
-                thread_id=data.thread_id,
-                connected_integrations=data.connected_integrations,
+                request=validation.sanitized_text,
+                thread_id=validated_thread_id,
+                connected_integrations=validated_connected,
             ):
                 # Capture thread_id from events
                 if event.get("thread_id"):
@@ -265,7 +305,11 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
                                             print(
                                                 f"🔐 Found pending interrupt from exception handler: {value}"
                                             )
-                                            yield {"type": "approval_required", "thread_id": captured_thread_id, "interrupt": value}
+                                            yield {
+                                                "type": "approval_required",
+                                                "thread_id": captured_thread_id,
+                                                "interrupt": value,
+                                            }
                                             waiting_for_approval = True
                         else:
                             print("   No tasks found in state snapshot")
@@ -320,6 +364,14 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
     Resets the specified step and all subsequent steps to 'pending',
     then resumes execution from that step.
     """
+    # Validate inputs
+    thread_id = validate_thread_id(data.thread_id)
+    if not thread_id:
+        raise HTTPException(status_code=400, detail="Invalid thread ID.")
+    if not isinstance(data.step_number, int) or data.step_number < 1:
+        raise HTTPException(status_code=400, detail="Invalid step number.")
+    connected = validate_connected_integrations(data.connected_integrations)
+
     try:
         service = await get_or_create_service(
             gmail_token=data.gmail_token,
@@ -329,9 +381,9 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
         )
 
         result = await service.retry_step(
-            thread_id=data.thread_id,
+            thread_id=thread_id,
             step_number=data.step_number,
-            connected_integrations=data.connected_integrations,
+            connected_integrations=connected,
         )
 
         if "error" in result:
@@ -356,6 +408,19 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
 
     Used for Human-in-the-Loop approval workflow.
     """
+    # Validate inputs
+    thread_id = validate_thread_id(data.thread_id)
+    if not thread_id:
+        raise HTTPException(status_code=400, detail="Invalid thread ID.")
+    if data.action not in ("approve", "edit", "skip"):
+        raise HTTPException(
+            status_code=400, detail="Action must be 'approve', 'edit', or 'skip'."
+        )
+    connected = validate_connected_integrations(data.connected_integrations)
+
+    # Sanitize edited content — tool arguments from user edits can contain injection
+    sanitized_content = _sanitize_resume_content(data.content) if data.content else None
+
     try:
         service = await get_or_create_service(
             gmail_token=data.gmail_token,
@@ -368,13 +433,13 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
         decision = {
             "action": data.action,
         }
-        if data.content:
-            decision["content"] = data.content
+        if sanitized_content:
+            decision["content"] = sanitized_content
 
         result = await service.resume_workflow(
-            thread_id=data.thread_id,
+            thread_id=thread_id,
             decision=decision,
-            connected_integrations=data.connected_integrations,
+            connected_integrations=connected,
         )
 
         if "error" in result:
