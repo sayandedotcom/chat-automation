@@ -7,10 +7,10 @@ import Image from "next/image";
 import { AtSign, Check, ChevronDown, ChevronUp, RotateCcw, Users, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
+import { MarkdownEditor } from "@workspace/ui/components/tiptap-markdown-editor";
+import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { MarkdownEditor } from "./markdown-editor";
-import { MarkdownRenderer } from "./markdown-renderer";
 import type { ToolCallPreview } from "./workflow-timeline";
 
 interface EmailComposerProps {

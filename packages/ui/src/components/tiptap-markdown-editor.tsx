@@ -1,0 +1,137 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
+
+import { EditorContent, useEditor } from "@tiptap/react";
+
+import { cn } from "@workspace/ui/lib/utils";
+
+import { createMarkdownExtensions } from "./tiptap-extensions";
+
+interface TipTapMarkdownEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  readOnly?: boolean;
+  maxHeight?: number;
+  className?: string;
+}
+
+export function TipTapMarkdownEditor({
+  value,
+  onChange,
+  placeholder = "Write content...",
+  readOnly = false,
+  maxHeight = 320,
+  className,
+}: TipTapMarkdownEditorProps) {
+  const extensions = useMemo(() => createMarkdownExtensions({ editable: !readOnly }), [readOnly]);
+  const lastEmittedValue = useRef<string>(value);
+
+  const editor = useEditor(
+    {
+      extensions,
+      content: value,
+      editable: !readOnly,
+      immediatelyRender: false,
+      onUpdate: ({ editor }) => {
+        const markdown = editor.storage.markdown?.getMarkdown?.() ?? "";
+        lastEmittedValue.current = markdown;
+        onChange(markdown);
+      },
+    },
+    [extensions]
+  );
+
+  // Sync external value changes (but not echo-backs from our own onChange)
+  useEffect(() => {
+    if (!editor) return;
+    const current = editor.storage.markdown?.getMarkdown?.() ?? "";
+    if (value !== current && value !== lastEmittedValue.current) {
+      editor.commands.setContent(value);
+    }
+  }, [editor, value]);
+
+  // Sync editable state
+  useEffect(() => {
+    if (editor && editor.isEditable === readOnly) {
+      editor.setEditable(!readOnly);
+    }
+  }, [editor, readOnly]);
+
+  return (
+    <>
+      <style>{`
+        .tiptap-editor .tiptap {
+          outline: none;
+          font-size: 14px;
+          line-height: 1.7;
+          color: rgba(255,255,255,0.7);
+          font-family: inherit;
+          min-height: 80px;
+        }
+        .tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+          color: rgba(255,255,255,0.25);
+          content: attr(data-placeholder);
+          float: left;
+          height: 0;
+          pointer-events: none;
+        }
+        .tiptap-editor .tiptap pre {
+          position: relative;
+          overflow: hidden;
+          margin: 1rem 0;
+          border-radius: 0.5rem;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: #1e1e1e;
+        }
+        .tiptap-editor .tiptap pre code {
+          display: block;
+          overflow-x: auto;
+          padding: 1rem;
+          font-size: 0.875rem;
+          background: transparent;
+          color: inherit;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .tiptap-editor .tiptap code:not(pre code) {
+          border-radius: 4px;
+          background: rgba(255,255,255,0.1);
+          padding: 2px 6px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          color: rgba(255,255,255,0.8);
+        }
+        .tiptap-editor .tiptap h1, .tiptap-editor .tiptap h2,
+        .tiptap-editor .tiptap h3, .tiptap-editor .tiptap h4 {
+          color: rgba(255,255,255,0.9);
+          font-weight: 600;
+        }
+        .tiptap-editor .tiptap strong { color: rgba(255,255,255,0.85); }
+        .tiptap-editor .tiptap a {
+          color: rgba(255,255,255,0.5);
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .tiptap-editor .tiptap ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+        .tiptap-editor .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
+        .tiptap-editor .tiptap ul[data-type="taskList"] li input[type="checkbox"] { margin-top: 0.25rem; accent-color: #a855f7; }
+        .tiptap-editor .tiptap table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+        .tiptap-editor .tiptap table th,
+        .tiptap-editor .tiptap table td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 0.75rem; text-align: left; }
+        .tiptap-editor .tiptap table th { background: rgba(255,255,255,0.05); font-weight: 600; }
+        .tiptap-editor .tiptap blockquote {
+          border-left: 3px solid rgba(255,255,255,0.2);
+          padding-left: 1rem;
+          color: rgba(255,255,255,0.5);
+        }
+        .tiptap-editor .tiptap hr { border-color: rgba(255,255,255,0.1); }
+      `}</style>
+      <div className={cn("tiptap-editor overflow-y-auto", className)} style={{ maxHeight }}>
+        <EditorContent editor={editor} data-placeholder={placeholder} />
+      </div>
+    </>
+  );
+}
+
+// Drop-in alias for easy migration
+export { TipTapMarkdownEditor as MarkdownEditor };

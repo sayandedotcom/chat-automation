@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
+import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
 import { cn } from "@workspace/ui/lib/utils";
 
 import {
@@ -31,7 +32,6 @@ import {
 import { CalendarEventEditor } from "./calendar-event-editor";
 import { DocumentEditor } from "./document-editor";
 import { EmailComposer } from "./email-composer";
-import { MarkdownRenderer } from "./markdown-renderer";
 import { NotionPageEditor } from "./notion-page-editor";
 import { SearchResultsList, parseSearchResults } from "./search-results-list";
 import { SheetsEditor } from "./sheets-editor";

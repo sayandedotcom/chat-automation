@@ -8,10 +8,10 @@ import { useMutation } from "@tanstack/react-query";
 import { StickToBottom } from "use-stick-to-bottom";
 
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
+import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
 
 import { ChatGreeting } from "@/components/chat-greeting";
 import { ChatInputWithMentions } from "@/components/chat-input";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { WorkflowStep, WorkflowTimeline } from "@/components/workflow-timeline";
 
 import { useSession } from "@/lib/auth-client";
@@ -816,7 +816,7 @@ export default function ChatPage() {
                     <div key={turn.id} className="space-y-4">
                       {/* Previous turn: user message bubble */}
                       <div className="flex justify-end">
-                        <div className="max-w-xl rounded-2xl rounded-tr-sm bg-[#1f1f1f] px-4 py-3">
+                        <div className="max-w-xl rounded-[24px] border border-white/[0.06] bg-[#1a1a1a] px-5 py-2 text-[13px] font-medium shadow-sm [&>p]:m-0">
                           <MarkdownRenderer content={turn.userMessage} />
                         </div>
                       </div>
@@ -835,7 +835,7 @@ export default function ChatPage() {
 
                   {/* Current turn: user message bubble */}
                   <div className="flex justify-end">
-                    <div className="max-w-xl rounded-2xl rounded-tr-sm bg-[#1f1f1f] px-4 py-3">
+                    <div className="max-w-xl rounded-[24px] border border-white/[0.06] bg-[#1a1a1a] px-5 py-2 text-[13px] font-medium shadow-sm [&>p]:m-0">
                       <MarkdownRenderer content={originalRequest} />
                     </div>
                   </div>

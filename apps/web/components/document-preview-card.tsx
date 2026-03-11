@@ -5,9 +5,8 @@ import { useState } from "react";
 import { ChevronDown, FileText, RotateCcw } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
+import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
 import { cn } from "@workspace/ui/lib/utils";
-
-import { MarkdownRenderer } from "./markdown-renderer";
 
 interface DocumentPreviewCardProps {
   title: string;
