@@ -217,34 +217,36 @@ export function EmailComposer({
             />
           </div>
           <span className="text-sm font-medium text-white/90">Write E-Mail</span>
+        </div>
+        <div className="flex items-center gap-3">
           {actionTaken && (
             <div
               className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full",
-                actionTaken === "sent" ? "bg-emerald-500/20" : "bg-white/10"
+                "bubble flex h-5 w-5 items-center justify-center rounded-full"
+                // actionTaken === "sent" ? "bg-emerald-500/20" : "bg-white/10"
               )}>
               {actionTaken === "sent" ? (
-                <Check className="h-3 w-3 text-emerald-400" />
+                <Check className="h-3 w-3" />
               ) : (
                 <X className="h-3 w-3 text-white/40" />
               )}
             </div>
           )}
-        </div>
-        {actionTaken ? (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
-            {isCollapsed ? (
+          {actionTaken ? (
+            <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
+              {isCollapsed ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronUp className="h-3.5 w-3.5" />
+              )}
+            </button>
+          ) : (
+            <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
+              <span>Permissions</span>
               <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronUp className="h-3.5 w-3.5" />
-            )}
-          </button>
-        ) : (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
-            <span>Permissions</span>
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-        )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Collapsible content ── */}

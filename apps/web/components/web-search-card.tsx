@@ -115,41 +115,44 @@ export function WebSearchCard({
           </div>
           <span className="text-sm font-medium text-white/90">Web Search</span>
           {label && <span className="max-w-[200px] truncate text-xs text-white/40">{label}</span>}
-          {actionTaken && (
-            <div
-              className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full",
-                actionTaken === "approved" ? "bg-emerald-500/20" : "bg-white/10"
-              )}>
-              {actionTaken === "approved" ? (
-                <Check className="h-3 w-3 text-emerald-400" />
-              ) : (
-                <X className="h-3 w-3 text-white/40" />
-              )}
-            </div>
-          )}
           {completed && results.length > 0 && (
             <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-white/40">
               {results.length} result{results.length !== 1 ? "s" : ""}
             </span>
           )}
         </div>
-        {actionTaken ? (
-          <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
-            {isCollapsed ? (
-              <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronUp className="h-3.5 w-3.5" />
-            )}
-          </button>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-            <span className="text-xs text-orange-400/80">Awaiting approval</span>
-          </div>
-        )}
-      </div>
 
+        {/* Right controls */}
+        <div className="flex items-center gap-3">
+          {actionTaken && (
+            <div
+              className={cn(
+                "bubble flex h-5 w-5 items-center justify-center rounded-full"
+                // actionTaken === "approved" ? "bg-emerald-500/20" : "bg-white/10"
+              )}>
+              {actionTaken === "approved" ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <X className="h-3 w-3 text-white/40" />
+              )}
+            </div>
+          )}
+          {actionTaken ? (
+            <button className="flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/60">
+              {isCollapsed ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronUp className="h-3.5 w-3.5" />
+              )}
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+              <span className="text-xs text-orange-400/80">Awaiting approval</span>
+            </div>
+          )}
+        </div>
+      </div>
       {/* Body */}
       <AnimatePresence initial={false}>
         {!isCollapsed && (
