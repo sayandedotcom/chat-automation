@@ -38,8 +38,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/adapter-pg": "^7.4.1",
-    "@prisma/client": "^6.8.0",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
     "pg": "^8.18.0"
   },
   "devDependencies": {
@@ -52,7 +52,7 @@
     "zod": "^3.25.76",
     "@types/pg": "^8.16.0",
     "@workspace/typescript-config": "workspace:*",
-    "prisma": "^6.8.0",
+    "prisma": "^7.4.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
