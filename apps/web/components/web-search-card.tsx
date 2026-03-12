@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, ChevronUp, Globe, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
@@ -94,7 +95,7 @@ export function WebSearchCard({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
+        "bubble overflow-hidden rounded-[2rem] border bg-[#1a1a1a] p-2",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
@@ -109,8 +110,8 @@ export function WebSearchCard({
         )}
         onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
-            <Globe className="h-4 w-4 text-blue-400/80" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white">
+            <Globe className="h-4 w-4 text-black" />
           </div>
           <span className="text-sm font-medium text-white/90">Web Search</span>
           {label && <span className="max-w-[200px] truncate text-xs text-white/40">{label}</span>}
@@ -150,35 +151,42 @@ export function WebSearchCard({
       </div>
 
       {/* Body */}
-      {!isCollapsed && (
-        <div className="px-4 py-3">
-          {!completed ? (
-            // Awaiting approval view
-            <div className="space-y-3">
-              <p className="text-sm text-white/60">{preview}</p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleApprove}
-                  className="h-8 bg-white/[0.08] px-4 text-xs text-white/80 hover:bg-white/[0.12]">
-                  <Check className="mr-1.5 h-3.5 w-3.5" />
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSkip}
-                  className="h-8 px-4 text-xs text-white/40 hover:bg-white/[0.06] hover:text-white/60">
-                  Skip
-                </Button>
-              </div>
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            key="collapsible"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden">
+            <div className="px-4 py-3">
+              {!completed ? (
+                // Awaiting approval view
+                <div className="space-y-3">
+                  <p className="text-sm text-white/60">{preview}</p>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={handleApprove}
+                      className="bubble flex items-center gap-1.5 rounded-full bg-violet-500/80 px-4 py-1.5 text-xs font-bold text-violet-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-violet-500/50 focus:outline-none">
+                      <Check className="h-3 w-3" />
+                      Approve
+                    </button>
+                    <button
+                      onClick={handleSkip}
+                      className="bubble rounded-full bg-red-500/80 px-4 py-1.5 text-xs font-bold text-red-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-red-500/50 focus:outline-none">
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              ) : results.length > 0 ? (
+                // Completed with results
+                <SearchResultsList results={results} />
+              ) : null}
             </div>
-          ) : results.length > 0 ? (
-            // Completed with results
-            <SearchResultsList results={results} />
-          ) : null}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

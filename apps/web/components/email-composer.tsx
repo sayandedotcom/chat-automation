@@ -4,7 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 
 import Image from "next/image";
 
-import { AtSign, Check, ChevronDown, ChevronUp, RotateCcw, Users, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  AtSign,
+  Bold,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  CornerDownLeft,
+  Italic,
+  List,
+  ListOrdered,
+  Network,
+  Paperclip,
+  RotateCcw,
+  RotateCw,
+  Strikethrough,
+  Users,
+  X,
+} from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
 import { MarkdownEditor } from "@workspace/ui/components/tiptap-markdown-editor";
@@ -173,7 +191,7 @@ export function EmailComposer({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
+        "bubble overflow-hidden rounded-[2rem] border bg-[#1a1a1a] p-2",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
@@ -189,7 +207,7 @@ export function EmailComposer({
         )}
         onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white">
             <Image
               src="/integrations/gmail.svg"
               alt="Gmail"
@@ -230,198 +248,243 @@ export function EmailComposer({
       </div>
 
       {/* ── Collapsible content ── */}
-      {!isCollapsed && (
-        <>
-          {/* ── Recipients ── */}
-          <div className="border-b border-white/5">
-            {/* To */}
-            <div className="flex items-start gap-3 px-4 py-2.5">
-              <Users className="mt-1.5 h-4 w-4 shrink-0 text-white/30" />
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                {toList.map((email, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
-                    {email}
-                    {!actionTaken && (
-                      <button
-                        onClick={() => removeChip(i, toList, setToList)}
-                        className="text-white/30 transition-colors hover:text-white/70">
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {!actionTaken && (
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            key="collapsible"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden">
+            {/* ── Recipients ── */}
+            <div className="border-b border-white/5">
+              {/* To */}
+              <div className="flex items-start gap-3 px-4 py-2.5">
+                <Users className="mt-1.5 h-4 w-4 shrink-0 text-white/30" />
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                  {toList.map((email, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-800/40 px-3 py-1 text-sm text-zinc-200 shadow-sm">
+                      {email}
+                      {!actionTaken && (
+                        <button
+                          onClick={() => removeChip(i, toList, setToList)}
+                          className="bubble rounded-full p-0.5 text-white transition-colors hover:text-white/70">
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {!actionTaken && (
+                    <input
+                      type="text"
+                      value={toInput}
+                      onChange={(e) => setToInput(e.target.value)}
+                      onKeyDown={(e) =>
+                        handleChipKeyDown(e, toInput, toList, setToList, setToInput)
+                      }
+                      onBlur={() => {
+                        if (toInput.trim()) addChip(toInput, toList, setToList, setToInput);
+                      }}
+                      placeholder={toList.length === 0 ? "Add recipient..." : ""}
+                      className="min-w-[120px] flex-1 bg-transparent py-1 text-sm font-medium text-white/80 outline-none placeholder:text-white/25"
+                    />
+                  )}
+                  {!actionTaken && !showCcBcc && (
+                    <button
+                      onClick={() => setShowCcBcc(true)}
+                      className="ml-auto shrink-0 text-[11px] tracking-wide text-white/30 uppercase transition-colors hover:text-white/50">
+                      CC / BCC
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* CC / BCC */}
+              {showCcBcc && (
+                <>
+                  <div className="flex items-start gap-3 border-t border-white/[0.03] px-4 py-2">
+                    <span className="mt-1.5 w-4 shrink-0 text-center text-[11px] tracking-wider text-white/25 uppercase">
+                      CC
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                      {ccList.map((email, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
+                          {email}
+                          {!actionTaken && (
+                            <button
+                              onClick={() => removeChip(i, ccList, setCcList)}
+                              className="text-white/30 transition-colors hover:text-white/70">
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {!actionTaken && (
+                        <input
+                          type="text"
+                          value={ccInput}
+                          onChange={(e) => setCcInput(e.target.value)}
+                          onKeyDown={(e) =>
+                            handleChipKeyDown(e, ccInput, ccList, setCcList, setCcInput)
+                          }
+                          onBlur={() => {
+                            if (ccInput.trim()) addChip(ccInput, ccList, setCcList, setCcInput);
+                          }}
+                          placeholder="Add CC..."
+                          className="min-w-[100px] flex-1 bg-transparent py-1 text-sm text-white/80 outline-none placeholder:text-white/25"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 border-t border-white/[0.03] px-4 py-2">
+                    <span className="mt-1.5 w-4 shrink-0 text-center text-[11px] tracking-wider text-white/25 uppercase">
+                      BCC
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                      {bccList.map((email, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
+                          {email}
+                          {!actionTaken && (
+                            <button
+                              onClick={() => removeChip(i, bccList, setBccList)}
+                              className="text-white/30 transition-colors hover:text-white/70">
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {!actionTaken && (
+                        <input
+                          type="text"
+                          value={bccInput}
+                          onChange={(e) => setBccInput(e.target.value)}
+                          onKeyDown={(e) =>
+                            handleChipKeyDown(e, bccInput, bccList, setBccList, setBccInput)
+                          }
+                          onBlur={() => {
+                            if (bccInput.trim())
+                              addChip(bccInput, bccList, setBccList, setBccInput);
+                          }}
+                          placeholder="Add BCC..."
+                          className="min-w-[100px] flex-1 bg-transparent py-1 text-sm text-white/80 outline-none placeholder:text-white/25"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Subject */}
+              <div className="flex items-center gap-3 border-t border-white/[0.03] px-4 py-2.5">
+                <AtSign className="h-4 w-4 shrink-0 text-white/30" />
+                {actionTaken ? (
+                  <span className="text-sm text-white/70">{subject}</span>
+                ) : (
                   <input
                     type="text"
-                    value={toInput}
-                    onChange={(e) => setToInput(e.target.value)}
-                    onKeyDown={(e) => handleChipKeyDown(e, toInput, toList, setToList, setToInput)}
-                    onBlur={() => {
-                      if (toInput.trim()) addChip(toInput, toList, setToList, setToInput);
-                    }}
-                    placeholder={toList.length === 0 ? "Add recipient..." : ""}
-                    className="min-w-[120px] flex-1 bg-transparent py-1 text-sm text-white/80 outline-none placeholder:text-white/25"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Subject"
+                    className="flex-1 bg-transparent py-0.5 text-sm font-medium text-zinc-200 placeholder-zinc-500 outline-none focus:outline-none"
                   />
-                )}
-                {!actionTaken && !showCcBcc && (
-                  <button
-                    onClick={() => setShowCcBcc(true)}
-                    className="ml-auto shrink-0 text-[11px] tracking-wide text-white/30 uppercase transition-colors hover:text-white/50">
-                    CC / BCC
-                  </button>
                 )}
               </div>
             </div>
 
-            {/* CC / BCC */}
-            {showCcBcc && (
-              <>
-                <div className="flex items-start gap-3 border-t border-white/[0.03] px-4 py-2">
-                  <span className="mt-1.5 w-4 shrink-0 text-center text-[11px] tracking-wider text-white/25 uppercase">
-                    CC
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                    {ccList.map((email, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
-                        {email}
-                        {!actionTaken && (
-                          <button
-                            onClick={() => removeChip(i, ccList, setCcList)}
-                            className="text-white/30 transition-colors hover:text-white/70">
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                    {!actionTaken && (
-                      <input
-                        type="text"
-                        value={ccInput}
-                        onChange={(e) => setCcInput(e.target.value)}
-                        onKeyDown={(e) =>
-                          handleChipKeyDown(e, ccInput, ccList, setCcList, setCcInput)
-                        }
-                        onBlur={() => {
-                          if (ccInput.trim()) addChip(ccInput, ccList, setCcList, setCcInput);
-                        }}
-                        placeholder="Add CC..."
-                        className="min-w-[100px] flex-1 bg-transparent py-1 text-sm text-white/80 outline-none placeholder:text-white/25"
-                      />
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 border-t border-white/[0.03] px-4 py-2">
-                  <span className="mt-1.5 w-4 shrink-0 text-center text-[11px] tracking-wider text-white/25 uppercase">
-                    BCC
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                    {bccList.map((email, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
-                        {email}
-                        {!actionTaken && (
-                          <button
-                            onClick={() => removeChip(i, bccList, setBccList)}
-                            className="text-white/30 transition-colors hover:text-white/70">
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                    {!actionTaken && (
-                      <input
-                        type="text"
-                        value={bccInput}
-                        onChange={(e) => setBccInput(e.target.value)}
-                        onKeyDown={(e) =>
-                          handleChipKeyDown(e, bccInput, bccList, setBccList, setBccInput)
-                        }
-                        onBlur={() => {
-                          if (bccInput.trim()) addChip(bccInput, bccList, setBccList, setBccInput);
-                        }}
-                        placeholder="Add BCC..."
-                        className="min-w-[100px] flex-1 bg-transparent py-1 text-sm text-white/80 outline-none placeholder:text-white/25"
-                      />
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Subject */}
-            <div className="flex items-center gap-3 border-t border-white/[0.03] px-4 py-2.5">
-              <AtSign className="h-4 w-4 shrink-0 text-white/30" />
+            {/* ── Body ── */}
+            <div className="px-5 py-4 text-zinc-300">
               {actionTaken ? (
-                <span className="text-sm text-white/70">{subject}</span>
+                <div className="scrollbar-thin scrollbar-thumb-[#2a2a2a] scrollbar-track-transparent scrollbar-thumb-rounded-full max-h-[360px] overflow-y-auto">
+                  <MarkdownRenderer content={body} />
+                </div>
               ) : (
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Subject"
-                  className="flex-1 bg-transparent py-0.5 text-sm text-white/80 outline-none placeholder:text-white/25"
+                <MarkdownEditor
+                  value={body}
+                  onChange={setBody}
+                  placeholder="Write your email..."
+                  maxHeight={280}
+                  className="scrollbar-thin scrollbar-thumb-[#2a2a2a] scrollbar-track-transparent scrollbar-thumb-rounded-full"
                 />
               )}
             </div>
-          </div>
 
-          {/* ── Body ── */}
-          <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[360px] overflow-y-auto px-5 py-4">
-            {actionTaken ? (
-              <MarkdownRenderer content={body} />
-            ) : (
-              <MarkdownEditor
-                value={body}
-                onChange={setBody}
-                placeholder="Write your email..."
-                maxHeight={280}
-              />
+            {/* ── Footer ── */}
+            {!actionTaken && (
+              <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
+                {/* Formatting Toolbar */}
+                <div className="flex items-center gap-2 px-1">
+                  <button className="bubble flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110 hover:brightness-110">
+                    <Paperclip className="h-4 w-4 drop-shadow-md" />
+                  </button>
+
+                  <button className="bubble flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110 hover:brightness-110">
+                    <Bold className="h-4 w-4 drop-shadow-md" />
+                  </button>
+
+                  <button className="bubble flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110 hover:brightness-110">
+                    <Italic className="h-4 w-4 drop-shadow-md" />
+                  </button>
+
+                  <button className="bubble flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110 hover:brightness-110">
+                    <Strikethrough className="h-4 w-4 drop-shadow-md" />
+                  </button>
+
+                  <button className="bubble flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110 hover:brightness-110">
+                    <ListOrdered className="h-4 w-4 drop-shadow-md" />
+                  </button>
+
+                  <button className="bubble flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110 hover:brightness-110">
+                    <List className="h-4 w-4 drop-shadow-md" />
+                  </button>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    className="bubble mr-1 flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110"
+                    tabIndex={-1}
+                    title="Regenerate">
+                    <RotateCcw className="h-4 w-4 drop-shadow-md" />
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={isSending}
+                    className="bubble rounded-full bg-red-500/80 px-6 py-2.5 text-sm font-bold text-red-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-red-500/50 focus:outline-none disabled:opacity-50">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    disabled={isSending}
+                    className="bubble flex items-center gap-2.5 rounded-full bg-violet-500/80 py-2.5 pr-3 pl-6 text-sm font-bold text-violet-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-violet-500/50 focus:outline-none disabled:opacity-50">
+                    {isSending ? (
+                      "Sending..."
+                    ) : (
+                      <>
+                        Send Email
+                        <div className="flex items-center gap-0.5 opacity-90">
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px]">
+                            ⌘
+                          </span>
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px]">
+                            ↵
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
-
-          {/* ── Footer ── */}
-          {!actionTaken && (
-            <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-2.5">
-              <button
-                className="rounded-lg p-2 transition-colors hover:bg-white/5"
-                tabIndex={-1}
-                title="Regenerate">
-                <RotateCcw className="h-4 w-4 text-white/40" />
-              </button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancel}
-                disabled={isSending}
-                className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSend}
-                disabled={isSending}
-                className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
-                {isSending ? (
-                  "Sending..."
-                ) : (
-                  <>
-                    Send Email
-                    <span className="flex items-center gap-0.5 text-xs text-white/60">
-                      <span className="text-[10px]">⌘</span>
-                      <span>↵</span>
-                    </span>
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

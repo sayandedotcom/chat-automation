@@ -119,6 +119,12 @@ export function TipTapMarkdownEditor({
         .tiptap-editor .tiptap table th,
         .tiptap-editor .tiptap table td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 0.75rem; text-align: left; }
         .tiptap-editor .tiptap table th { background: rgba(255,255,255,0.05); font-weight: 600; }
+        .tiptap-editor .tiptap ul,
+        .tiptap-editor .tiptap ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        .tiptap-editor .tiptap ul { list-style-type: disc; }
+        .tiptap-editor .tiptap ol { list-style-type: decimal; }
+        .tiptap-editor .tiptap li { margin: 0.125rem 0; color: rgba(255,255,255,0.7); }
+        .tiptap-editor .tiptap li p { margin: 0; }
         .tiptap-editor .tiptap blockquote {
           border-left: 3px solid rgba(255,255,255,0.2);
           padding-left: 1rem;
@@ -126,7 +132,12 @@ export function TipTapMarkdownEditor({
         }
         .tiptap-editor .tiptap hr { border-color: rgba(255,255,255,0.1); }
       `}</style>
-      <div className={cn("tiptap-editor overflow-y-auto", className)} style={{ maxHeight }}>
+      <div
+        className={cn(
+          "tiptap-editor prose prose-sm prose-invert prose-ul:my-2 prose-li:my-0 prose-li:text-zinc-300 prose-p:leading-relaxed prose-p:text-zinc-300 prose-headings:text-zinc-200 prose-headings:font-semibold prose-strong:text-zinc-200 max-w-none overflow-y-auto",
+          className
+        )}
+        style={{ maxHeight }}>
         <EditorContent editor={editor} data-placeholder={placeholder} />
       </div>
     </>

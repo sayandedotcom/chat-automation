@@ -62,7 +62,7 @@ export function IntegrationCard({
             size="sm"
             onClick={onDisconnect}
             disabled={isLoading}
-            className="group/btn flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-2xl bg-zinc-800/80 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-red-500/15 hover:text-red-400">
+            className="bubble group/btn flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-3xl bg-zinc-800/80 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-red-500/15 hover:text-red-400">
             {isLoading ? (
               <DotLoader />
             ) : (
@@ -78,7 +78,7 @@ export function IntegrationCard({
             size="sm"
             onClick={onConnect}
             disabled={isLoading}
-            className="flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-2xl bg-zinc-800 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
+            className="bubble flex h-9 w-[100px] flex-shrink-0 cursor-pointer justify-center rounded-3xl bg-zinc-800 text-[14px] font-light text-zinc-300 transition-all duration-200 hover:bg-zinc-700 hover:text-white">
             {isLoading ? <DotLoader /> : "Connect"}
           </Button>
         )
@@ -87,7 +87,7 @@ export function IntegrationCard({
           variant="ghost"
           size="sm"
           disabled
-          className="hidden h-9 flex-shrink-0 cursor-not-allowed items-center justify-center rounded-2xl bg-zinc-800/50 px-4 text-[13px] font-medium text-zinc-500 min-[400px]:flex">
+          className="bubble hidden h-9 flex-shrink-0 cursor-not-allowed items-center justify-center rounded-3xl bg-zinc-800/50 px-4 text-[13px] font-medium text-zinc-500 min-[400px]:flex">
           Coming Soon
         </Button>
       )}

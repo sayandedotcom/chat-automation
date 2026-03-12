@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Image from "next/image";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
@@ -196,7 +197,7 @@ export function SheetsEditor({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
+        "bubble overflow-hidden rounded-[2rem] border bg-[#1a1a1a] p-2",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
@@ -212,7 +213,7 @@ export function SheetsEditor({
         )}
         onClick={actionTaken ? () => setIsCollapsed((v) => !v) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white">
             <Image
               src="/integrations/google_sheets.svg"
               alt="Google Sheets"
@@ -266,93 +267,102 @@ export function SheetsEditor({
       </div>
 
       {/* ── Body ── */}
-      {!isCollapsed && (
-        <>
-          <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[420px] space-y-5 overflow-y-auto px-5 pt-5 pb-3">
-            {/* Spreadsheet title + counts */}
-            <div>
-              <h3 className="text-lg leading-snug font-semibold text-white">{rawTitle}</h3>
-              <p className="mt-0.5 text-sm text-white/40">
-                {sheets.length === 1 ? "1 sheet" : `${sheets.length} sheets`}
-                {totalColumns > 0 && (
-                  <>
-                    {" · "}
-                    {totalColumns} {totalColumns === 1 ? "column" : "columns"}
-                  </>
-                )}
-              </p>
-            </div>
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            key="collapsible"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden">
+            <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[420px] space-y-5 overflow-y-auto px-5 pt-5 pb-3">
+              {/* Spreadsheet title + counts */}
+              <div>
+                <h3 className="text-lg leading-snug font-semibold text-white">{rawTitle}</h3>
+                <p className="mt-0.5 text-sm text-white/40">
+                  {sheets.length === 1 ? "1 sheet" : `${sheets.length} sheets`}
+                  {totalColumns > 0 && (
+                    <>
+                      {" · "}
+                      {totalColumns} {totalColumns === 1 ? "column" : "columns"}
+                    </>
+                  )}
+                </p>
+              </div>
 
-            {/* Sheet list */}
-            <div className="space-y-4">
-              {sheets.map((sheet, idx) => (
-                <div key={idx}>
-                  {/* Sheet header */}
-                  <div className="mb-2.5 flex items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/80 text-[11px] font-semibold text-white">
-                      {idx + 1}
-                    </span>
-                    <span className="text-sm font-medium text-white/90">{sheet.name}</span>
+              {/* Sheet list */}
+              <div className="space-y-4">
+                {sheets.map((sheet, idx) => (
+                  <div key={idx}>
+                    {/* Sheet header */}
+                    <div className="mb-2.5 flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/80 text-[11px] font-semibold text-white">
+                        {idx + 1}
+                      </span>
+                      <span className="text-sm font-medium text-white/90">{sheet.name}</span>
+                    </div>
+
+                    {/* Column pills */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {sheet.columns.length > 0 ? (
+                        sheet.columns.map((col, cIdx) => (
+                          <div
+                            key={cIdx}
+                            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800/40 px-3 py-1 text-sm text-zinc-200 shadow-sm">
+                            <span className="text-xs font-medium text-white/85">{col.name}</span>
+                            <span className="text-[11px] text-white/35">({col.type})</span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-xs text-white/30 italic">No columns defined</span>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Column pills */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {sheet.columns.length > 0 ? (
-                      sheet.columns.map((col, cIdx) => (
-                        <div
-                          key={cIdx}
-                          className="flex items-baseline gap-1 rounded-lg border border-white/[0.07] bg-white/[0.06] px-2.5 py-1">
-                          <span className="text-xs font-medium text-white/85">{col.name}</span>
-                          <span className="text-[11px] text-white/35">({col.type})</span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-xs text-white/30 italic">No columns defined</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* ── Footer ── */}
-          {!actionTaken && (
-            <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-2.5">
-              <button
-                className="rounded-lg p-2 transition-colors hover:bg-white/5"
-                tabIndex={-1}
-                title="Regenerate">
-                <RotateCcw className="h-4 w-4 text-white/40" />
-              </button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancel}
-                disabled={isCreating}
-                className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleApprove}
-                disabled={isCreating}
-                className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
-                {isCreating ? (
-                  "Creating..."
-                ) : (
-                  <>
-                    Approve &amp; Generate
-                    <span className="flex items-center gap-0.5 text-xs text-white/60">
-                      <span className="text-[10px]">⌘</span>
-                      <span>↵</span>
-                    </span>
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
+            {/* ── Footer ── */}
+            {!actionTaken && (
+              <div className="flex items-center justify-end gap-3 border-t border-white/10 px-4 py-3">
+                <button
+                  className="bubble mr-1 flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110"
+                  tabIndex={-1}
+                  title="Regenerate">
+                  <RotateCcw className="h-4 w-4 drop-shadow-md" />
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={isCreating}
+                  className="bubble rounded-full bg-red-500/80 px-6 py-2.5 text-sm font-bold text-red-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-red-500/50 focus:outline-none disabled:opacity-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApprove}
+                  disabled={isCreating}
+                  className="bubble flex items-center gap-2.5 rounded-full bg-violet-500/80 py-2.5 pr-3 pl-6 text-sm font-bold text-violet-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-violet-500/50 focus:outline-none disabled:opacity-50">
+                  {isCreating ? (
+                    "Creating..."
+                  ) : (
+                    <>
+                      Approve &amp; Generate
+                      <div className="flex items-center gap-0.5 opacity-90">
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px]">
+                          ⌘
+                        </span>
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px]">
+                          ↵
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

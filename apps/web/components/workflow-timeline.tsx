@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
+import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
 import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -659,11 +660,45 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // All integrations have tool-specific UI — no generic fallback needed
-                        console.warn(
-                          `⚠️ [GENERIC-APPROVAL] Step ${step.step_number}: No matching generic editor for desc="${step.description.slice(0, 80)}" — rendering NULL`
+                        // Generic fallback approval card — Approve / Skip with step description
+                        return (
+                          <div
+                            className={cn(
+                              "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
+                              "animate-in fade-in slide-in-from-top-2 duration-300",
+                              "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]"
+                            )}>
+                            <div className="px-4 py-3">
+                              <div className="mb-3 flex items-center gap-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+                                  <span className="text-xs text-orange-400/80">
+                                    Awaiting approval
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="mb-3 text-sm text-white/60">{step.description}</p>
+                              {onApprove && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => onApprove(step.step_number, "approve")}
+                                    className="h-8 bg-white/[0.08] px-4 text-xs text-white/80 hover:bg-white/[0.12]">
+                                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => onApprove(step.step_number, "skip")}
+                                    className="h-8 px-4 text-xs text-white/40 hover:bg-white/[0.06] hover:text-white/60">
+                                    Skip
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         );
-                        return null;
                       })()
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
@@ -783,7 +818,15 @@ export function WorkflowTimeline({
                               step.status === "completed" && "text-white/50",
                               step.status === "skipped" && "text-white/40"
                             )}>
-                            <span>{step.description}</span>
+                            {step.status === "in_progress" ? (
+                              <ShimmerText
+                                text={step.description}
+                                className="!text-sm !font-normal"
+                                wrapperClassName="p-0 justify-start"
+                              />
+                            ) : (
+                              <span>{step.description}</span>
+                            )}
                             {step.status === "completed" && step.result && !isRichCard && (
                               <div className="mt-2 text-gray-400">
                                 <MarkdownRenderer content={step.result} />

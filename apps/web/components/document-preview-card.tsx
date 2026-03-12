@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, FileText, RotateCcw } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
@@ -40,8 +41,8 @@ export function DocumentPreviewCard({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/20">
-            {icon || <FileText className="h-4 w-4 text-blue-400" />}
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white">
+            {icon || <FileText className="h-4 w-4 text-black" />}
           </div>
           <span className="text-sm font-medium text-white/90">Create Document</span>
         </div>
@@ -59,17 +60,27 @@ export function DocumentPreviewCard({
       </div>
 
       {/* Content preview */}
-      {!isCollapsed && (
-        <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-80 overflow-y-auto px-5 py-5">
-          {/* Document title */}
-          <h2 className="mb-4 text-2xl leading-tight font-bold tracking-tight text-white">
-            {title}
-          </h2>
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            key="collapsible"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden">
+            <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-80 overflow-y-auto px-5 py-5">
+              {/* Document title */}
+              <h2 className="mb-4 text-2xl leading-tight font-bold tracking-tight text-white">
+                {title}
+              </h2>
 
-          {/* Document content - rendered as markdown */}
-          <MarkdownRenderer content={content} />
-        </div>
-      )}
+              {/* Document content - rendered as markdown */}
+              <MarkdownRenderer content={content} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Footer with actions */}
       <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-3">

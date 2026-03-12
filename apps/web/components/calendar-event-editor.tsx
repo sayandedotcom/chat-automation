@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import Image from "next/image";
 
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarIcon,
   Check,
@@ -604,7 +605,7 @@ export function CalendarEventEditor({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
+        "bubble overflow-hidden rounded-[2rem] border bg-[#1a1a1a] p-2",
         "animate-in fade-in slide-in-from-top-2 duration-300",
         actionTaken
           ? "border-white/[0.06]"
@@ -620,7 +621,7 @@ export function CalendarEventEditor({
         )}
         onClick={actionTaken ? () => setIsCollapsed(!isCollapsed) : undefined}>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white">
             <Image
               src="/integrations/google_calendar.svg"
               alt="Google Calendar"
@@ -661,344 +662,361 @@ export function CalendarEventEditor({
       </div>
 
       {/* ── Collapsible content ── */}
-      {!isCollapsed && (
-        <>
-          <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[540px] space-y-5 overflow-y-auto px-5 py-4">
-            {/* ── Title ── */}
-            <div>
-              <label className="mb-1.5 block text-xs tracking-wide text-white/35">Title</label>
-              {readonly ? (
-                <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/80">
-                  {title}
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                    if (errors.summary) setErrors((p) => ({ ...p, summary: undefined }));
-                  }}
-                  placeholder="Event title"
-                  className={cn(
-                    "w-full rounded-lg border bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/90 transition-colors outline-none placeholder:text-white/25 focus:border-white/15",
-                    errors.summary ? "border-red-500/50" : "border-white/[0.06]"
-                  )}
-                />
-              )}
-              {errors.summary && <p className="mt-1 text-xs text-red-400">{errors.summary}</p>}
-            </div>
-
-            {/* ── Attendees ── */}
-            <div>
-              <label className="mb-1.5 block text-xs tracking-wide text-white/35">Attendees</label>
-              <div className="flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2">
-                {attendees.map((email, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-sm text-white/80">
-                    {email}
-                    {!readonly && (
-                      <button
-                        onClick={() => removeAttendee(i)}
-                        className="text-white/30 transition-colors hover:text-white/70">
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {!readonly && (
-                  <>
-                    <input
-                      type="text"
-                      value={attendeeInput}
-                      onChange={(e) => setAttendeeInput(e.target.value)}
-                      onKeyDown={handleAttendeeKeyDown}
-                      onBlur={() => {
-                        if (attendeeInput.trim()) addAttendee(attendeeInput);
-                      }}
-                      placeholder={attendees.length === 0 ? "Add attendee email..." : ""}
-                      className="min-w-[120px] flex-1 bg-transparent py-0.5 text-sm text-white/80 outline-none placeholder:text-white/25"
-                    />
-                    <button
-                      onClick={() => {
-                        if (attendeeInput.trim()) addAttendee(attendeeInput);
-                      }}
-                      className="rounded-md p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-white/60">
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* ── Date & Time ── */}
-            <div>
-              <label className="mb-1.5 block text-xs tracking-wide text-white/35">
-                Date & Time
-              </label>
-
-              {/* Row 1: Start date + Start time */}
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                {/* Start date picker */}
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            key="collapsible"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden">
+            <div className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[540px] space-y-5 overflow-y-auto px-5 py-4">
+              {/* ── Title ── */}
+              <div>
+                <label className="mb-1.5 block text-xs tracking-wide text-white/35">Title</label>
                 {readonly ? (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
-                    <CalendarIcon className="h-3.5 w-3.5 text-white/30" />
-                    {formatDatePill(startDt)}
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/80">
+                    {title}
                   </div>
                 ) : (
-                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
-                          "cursor-pointer border border-white/[0.08] bg-white/[0.06] text-white/80 hover:bg-white/10",
-                          startDateOpen && "border-purple-500/50 bg-white/10"
-                        )}>
-                        <CalendarIcon className="h-3.5 w-3.5 text-white/40" />
-                        {formatDatePill(startDt)}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-auto border-white/10 bg-[#1e1e1e] p-0"
-                      align="start">
-                      <Calendar
-                        mode="single"
-                        selected={startDt}
-                        onSelect={(d) => {
-                          if (!d) return;
-                          const updated = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate(),
-                            startDt.getHours(),
-                            startDt.getMinutes(),
-                            0,
-                            0
-                          );
-                          setStartDt(updated);
-                          // Keep end on same day if it was
-                          const newEnd = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate(),
-                            endDt.getHours(),
-                            endDt.getMinutes(),
-                            0,
-                            0
-                          );
-                          if (newEnd > updated) setEndDt(newEnd);
-                          setStartDateOpen(false);
-                        }}
-                        initialFocus
-                        className="[&_.rdp]:text-white/80"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-
-                {/* Start time select */}
-                {readonly ? (
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
-                    {formatTimePill(startDt)}
-                  </div>
-                ) : (
-                  <Select
-                    value={toTimeValue(startDt)}
-                    onValueChange={(val) => {
-                      const { h, m } = fromTimeValue(val);
-                      setStartDt(setTimeOnDate(startDt, h, m));
-                      if (errors.endDt) setErrors((p) => ({ ...p, endDt: undefined }));
-                    }}>
-                    <SelectTrigger className="h-auto w-fit rounded-lg border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-sm text-white/80 shadow-none hover:bg-white/10 focus:ring-0 focus:ring-offset-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[220px] border-white/10 bg-[#1e1e1e] text-white/80">
-                      {TIME_SLOTS.map((s) => (
-                        <SelectItem
-                          key={s.value}
-                          value={s.value}
-                          className="text-white/70 focus:bg-white/10 focus:text-white/90">
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                <span className="px-0.5 text-sm text-white/20">—</span>
-
-                {/* End time select */}
-                {readonly ? (
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
-                    {formatTimePill(endDt)}
-                  </div>
-                ) : (
-                  <Select
-                    value={toTimeValue(endDt)}
-                    onValueChange={(val) => {
-                      const { h, m } = fromTimeValue(val);
-                      setEndDt(setTimeOnDate(endDt, h, m));
-                      if (errors.endDt) setErrors((p) => ({ ...p, endDt: undefined }));
-                    }}>
-                    <SelectTrigger className="h-auto w-fit rounded-lg border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-sm text-white/80 shadow-none hover:bg-white/10 focus:ring-0 focus:ring-offset-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[220px] border-white/10 bg-[#1e1e1e] text-white/80">
-                      {TIME_SLOTS.map((s) => (
-                        <SelectItem
-                          key={s.value}
-                          value={s.value}
-                          className="text-white/70 focus:bg-white/10 focus:text-white/90">
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {/* End date picker (shown separately for multi-day) */}
-                {readonly ? (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
-                    <CalendarIcon className="h-3.5 w-3.5 text-white/30" />
-                    {formatDatePill(endDt)}
-                  </div>
-                ) : (
-                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
-                          "cursor-pointer border border-white/[0.08] bg-white/[0.06] text-white/80 hover:bg-white/10",
-                          endDateOpen && "border-purple-500/50 bg-white/10"
-                        )}>
-                        <CalendarIcon className="h-3.5 w-3.5 text-white/40" />
-                        {formatDatePill(endDt)}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-auto border-white/10 bg-[#1e1e1e] p-0"
-                      align="start">
-                      <Calendar
-                        mode="single"
-                        selected={endDt}
-                        onSelect={(d) => {
-                          if (!d) return;
-                          const updated = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate(),
-                            endDt.getHours(),
-                            endDt.getMinutes(),
-                            0,
-                            0
-                          );
-                          setEndDt(updated);
-                          setEndDateOpen(false);
-                        }}
-                        disabled={(d) =>
-                          d < new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate())
-                        }
-                        initialFocus
-                        className="[&_.rdp]:text-white/80"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              </div>
-
-              {errors.endDt && <p className="mt-1 text-xs text-red-400">{errors.endDt}</p>}
-            </div>
-
-            {/* ── Description ── */}
-            <div>
-              <label className="mb-1.5 block text-xs tracking-wide text-white/35">
-                Description
-              </label>
-              {readonly ? (
-                <div className="min-h-[60px] rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm whitespace-pre-wrap text-white/60">
-                  {description || "No description"}
-                </div>
-              ) : (
-                <textarea
-                  ref={descRef}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description"
-                  rows={2}
-                  className="w-full resize-none rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/70 transition-colors outline-none placeholder:text-white/25 focus:border-white/15"
-                />
-              )}
-            </div>
-
-            {/* ── Google Meet toggle ── */}
-            <div>
-              <label className="mb-1.5 block text-xs tracking-wide text-white/35">
-                Meeting Room
-              </label>
-              <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500/15">
-                    <Video className="h-3.5 w-3.5 text-blue-400" />
-                  </div>
-                  <span className="text-sm text-white/80">Create Google Meet</span>
-                </div>
-                <button
-                  onClick={() => !readonly && setCreateMeet(!createMeet)}
-                  className={cn(
-                    "relative h-[22px] w-10 rounded-full transition-colors",
-                    readonly ? "cursor-default" : "cursor-pointer",
-                    createMeet ? "bg-purple-600" : "bg-white/10"
-                  )}>
-                  <div
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      if (errors.summary) setErrors((p) => ({ ...p, summary: undefined }));
+                    }}
+                    placeholder="Event title"
                     className={cn(
-                      "absolute top-[3px] h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                      createMeet ? "translate-x-[22px]" : "translate-x-[3px]"
+                      "w-full rounded-lg border bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/90 transition-colors outline-none placeholder:text-white/25 focus:border-white/15",
+                      errors.summary ? "border-red-500/50" : "border-white/[0.06]"
                     )}
                   />
-                </button>
+                )}
+                {errors.summary && <p className="mt-1 text-xs text-red-400">{errors.summary}</p>}
+              </div>
+
+              {/* ── Attendees ── */}
+              <div>
+                <label className="mb-1.5 block text-xs tracking-wide text-white/35">
+                  Attendees
+                </label>
+                <div className="flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2">
+                  {attendees.map((email, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center gap-1.5 rounded-4xl border border-white/10 bg-zinc-800/40 px-3 py-1 text-sm text-zinc-200 shadow-sm">
+                      {email}
+                      {!readonly && (
+                        <button
+                          onClick={() => removeAttendee(i)}
+                          className="bubble ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 focus:outline-none">
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {!readonly && (
+                    <>
+                      <input
+                        type="text"
+                        value={attendeeInput}
+                        onChange={(e) => setAttendeeInput(e.target.value)}
+                        onKeyDown={handleAttendeeKeyDown}
+                        onBlur={() => {
+                          if (attendeeInput.trim()) addAttendee(attendeeInput);
+                        }}
+                        placeholder={attendees.length === 0 ? "Add attendee email..." : ""}
+                        className="min-w-[120px] flex-1 bg-transparent py-0.5 text-sm text-white/80 outline-none placeholder:text-white/25"
+                      />
+                      <button
+                        onClick={() => {
+                          if (attendeeInput.trim()) addAttendee(attendeeInput);
+                        }}
+                        className="rounded-md p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-white/60">
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Date & Time ── */}
+              <div>
+                <label className="mb-1.5 block text-xs tracking-wide text-white/35">
+                  Date & Time
+                </label>
+
+                {/* Row 1: Start date + Start time */}
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  {/* Start date picker */}
+                  {readonly ? (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+                      <CalendarIcon className="h-3.5 w-3.5 text-white/30" />
+                      {formatDatePill(startDt)}
+                    </div>
+                  ) : (
+                    <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                            "cursor-pointer border border-white/[0.08] bg-white/[0.06] text-white/80 hover:bg-white/10",
+                            startDateOpen && "border-purple-500/50 bg-white/10"
+                          )}>
+                          <CalendarIcon className="h-3.5 w-3.5 text-white/40" />
+                          {formatDatePill(startDt)}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto border-white/10 bg-[#1e1e1e] p-0"
+                        align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDt}
+                          onSelect={(d) => {
+                            if (!d) return;
+                            const updated = new Date(
+                              d.getFullYear(),
+                              d.getMonth(),
+                              d.getDate(),
+                              startDt.getHours(),
+                              startDt.getMinutes(),
+                              0,
+                              0
+                            );
+                            setStartDt(updated);
+                            // Keep end on same day if it was
+                            const newEnd = new Date(
+                              d.getFullYear(),
+                              d.getMonth(),
+                              d.getDate(),
+                              endDt.getHours(),
+                              endDt.getMinutes(),
+                              0,
+                              0
+                            );
+                            if (newEnd > updated) setEndDt(newEnd);
+                            setStartDateOpen(false);
+                          }}
+                          initialFocus
+                          className="[&_.rdp]:text-white/80"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+
+                  {/* Start time select */}
+                  {readonly ? (
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+                      {formatTimePill(startDt)}
+                    </div>
+                  ) : (
+                    <Select
+                      value={toTimeValue(startDt)}
+                      onValueChange={(val) => {
+                        const { h, m } = fromTimeValue(val);
+                        setStartDt(setTimeOnDate(startDt, h, m));
+                        if (errors.endDt) setErrors((p) => ({ ...p, endDt: undefined }));
+                      }}>
+                      <SelectTrigger className="h-auto w-fit rounded-lg border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-sm text-white/80 shadow-none hover:bg-white/10 focus:ring-0 focus:ring-offset-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[220px] border-white/10 bg-[#1e1e1e] text-white/80">
+                        {TIME_SLOTS.map((s) => (
+                          <SelectItem
+                            key={s.value}
+                            value={s.value}
+                            className="text-white/70 focus:bg-white/10 focus:text-white/90">
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <span className="px-0.5 text-sm text-white/20">—</span>
+
+                  {/* End time select */}
+                  {readonly ? (
+                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+                      {formatTimePill(endDt)}
+                    </div>
+                  ) : (
+                    <Select
+                      value={toTimeValue(endDt)}
+                      onValueChange={(val) => {
+                        const { h, m } = fromTimeValue(val);
+                        setEndDt(setTimeOnDate(endDt, h, m));
+                        if (errors.endDt) setErrors((p) => ({ ...p, endDt: undefined }));
+                      }}>
+                      <SelectTrigger className="h-auto w-fit rounded-lg border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-sm text-white/80 shadow-none hover:bg-white/10 focus:ring-0 focus:ring-offset-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[220px] border-white/10 bg-[#1e1e1e] text-white/80">
+                        {TIME_SLOTS.map((s) => (
+                          <SelectItem
+                            key={s.value}
+                            value={s.value}
+                            className="text-white/70 focus:bg-white/10 focus:text-white/90">
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* End date picker (shown separately for multi-day) */}
+                  {readonly ? (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-sm text-white/70">
+                      <CalendarIcon className="h-3.5 w-3.5 text-white/30" />
+                      {formatDatePill(endDt)}
+                    </div>
+                  ) : (
+                    <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                            "cursor-pointer border border-white/[0.08] bg-white/[0.06] text-white/80 hover:bg-white/10",
+                            endDateOpen && "border-purple-500/50 bg-white/10"
+                          )}>
+                          <CalendarIcon className="h-3.5 w-3.5 text-white/40" />
+                          {formatDatePill(endDt)}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto border-white/10 bg-[#1e1e1e] p-0"
+                        align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDt}
+                          onSelect={(d) => {
+                            if (!d) return;
+                            const updated = new Date(
+                              d.getFullYear(),
+                              d.getMonth(),
+                              d.getDate(),
+                              endDt.getHours(),
+                              endDt.getMinutes(),
+                              0,
+                              0
+                            );
+                            setEndDt(updated);
+                            setEndDateOpen(false);
+                          }}
+                          disabled={(d) =>
+                            d <
+                            new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate())
+                          }
+                          initialFocus
+                          className="[&_.rdp]:text-white/80"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+
+                {errors.endDt && <p className="mt-1 text-xs text-red-400">{errors.endDt}</p>}
+              </div>
+
+              {/* ── Description ── */}
+              <div>
+                <label className="mb-1.5 block text-xs tracking-wide text-white/35">
+                  Description
+                </label>
+                {readonly ? (
+                  <div className="min-h-[60px] rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm whitespace-pre-wrap text-white/60">
+                    {description || "No description"}
+                  </div>
+                ) : (
+                  <textarea
+                    ref={descRef}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Add a description"
+                    rows={2}
+                    className="w-full resize-none rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white/70 transition-colors outline-none placeholder:text-white/25 focus:border-white/15"
+                  />
+                )}
+              </div>
+
+              {/* ── Google Meet toggle ── */}
+              <div>
+                <label className="mb-1.5 block text-xs tracking-wide text-white/35">
+                  Meeting Room
+                </label>
+                <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <Image
+                      src="/integrations/google-meet.svg"
+                      alt="Google Meet"
+                      width={26}
+                      height={26}
+                      className="object-contain"
+                    />
+
+                    <span className="text-sm text-white/80">Create Google Meet</span>
+                  </div>
+                  <button
+                    onClick={() => !readonly && setCreateMeet(!createMeet)}
+                    className={cn(
+                      "relative h-[22px] w-10 rounded-full transition-colors",
+                      readonly ? "cursor-default" : "cursor-pointer",
+                      createMeet ? "bg-[#7646d7]" : "bg-white/10"
+                    )}>
+                    <div
+                      className={cn(
+                        "absolute top-[3px] h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                        createMeet ? "translate-x-[22px]" : "translate-x-[3px]"
+                      )}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* ── Footer ── */}
-          {!actionTaken && (
-            <div className="flex items-center justify-center gap-2 border-t border-white/5 bg-[#151515] px-4 py-2.5">
-              <button
-                className="rounded-lg p-2 transition-colors hover:bg-white/5"
-                tabIndex={-1}
-                title="Regenerate">
-                <RotateCcw className="h-4 w-4 text-white/40" />
-              </button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancel}
-                disabled={isCreating}
-                className="h-9 border-red-500/30 bg-red-500/20 px-4 text-red-300 hover:bg-red-500/30 hover:text-red-200">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleCreate}
-                disabled={isCreating}
-                className="h-9 gap-2 bg-purple-600 px-4 text-white hover:bg-purple-700">
-                {isCreating ? (
-                  "Creating..."
-                ) : (
-                  <>
-                    Create Event
-                    <span className="flex items-center gap-0.5 text-xs text-white/60">
-                      <span className="text-[10px]">⌘</span>
-                      <span>↵</span>
-                    </span>
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
+            {/* ── Footer ── */}
+            {!actionTaken && (
+              <div className="flex items-center justify-end gap-3 border-t border-white/10 px-4 py-3">
+                <button
+                  className="bubble mr-1 flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-zinc-100 backdrop-blur-md transition-all hover:scale-110"
+                  tabIndex={-1}
+                  title="Regenerate">
+                  <RotateCcw className="h-4 w-4 drop-shadow-md" />
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={isCreating}
+                  className="bubble rounded-full bg-red-500/80 px-6 py-2.5 text-sm font-bold text-red-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-red-500/50 focus:outline-none disabled:opacity-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={isCreating}
+                  className="bubble flex items-center gap-2.5 rounded-full bg-violet-500/80 py-2.5 pr-3 pl-6 text-sm font-bold text-violet-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-violet-500/50 focus:outline-none disabled:opacity-50">
+                  {isCreating ? (
+                    "Creating..."
+                  ) : (
+                    <>
+                      Create Event
+                      <div className="flex items-center gap-0.5 opacity-90">
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px]">
+                          ⌘
+                        </span>
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px]">
+                          ↵
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

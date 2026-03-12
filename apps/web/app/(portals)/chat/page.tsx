@@ -855,7 +855,7 @@ export default function ChatPage() {
 
                   {/* Shimmer loading indicator while planning */}
                   {workflowStatus === "planning" && steps.length === 0 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       <Image
                         src="/logo.png"
                         alt="Logo"
