@@ -174,14 +174,68 @@ def _build_artifact_from_match(
 # ---------------------------------------------------------------------------
 
 
+def _domain_from_url(url: str) -> str:
+    try:
+        from urllib.parse import urlparse
+
+        return urlparse(url).netloc.replace("www.", "")
+    except Exception:
+        parts = url.split("/")
+        return parts[2] if len(parts) > 2 else ""
+
+
+def _search_result_from_dict(item: dict) -> SearchResultItem:
+    url = item.get("url", "")
+    domain = _domain_from_url(url)
+    favicon = item.get("favicon") or (
+        f"https://www.google.com/s2/favicons?domain={domain}&sz=32" if domain else None
+    )
+    return SearchResultItem(
+        title=item.get("title", domain),
+        url=url,
+        domain=domain,
+        favicon=favicon,
+        date=item.get("published_date") or item.get("date"),
+    )
+
+
+def _parse_tavily_text(text: str) -> list[SearchResultItem]:
+    """
+    Parse Tavily MCP formatResults() output:
+      Title: <title>
+      URL: <url>
+      Content: <snippet>
+      Favicon: <url>   (optional)
+    """
+    results: list[SearchResultItem] = []
+    current: dict = {}
+
+    for line in text.splitlines():
+        if line.startswith("Title: "):
+            if current.get("url"):
+                results.append(_search_result_from_dict(current))
+            current = {"title": line[7:].strip()}
+        elif line.startswith("URL: ") and current.get("title"):
+            current["url"] = line[5:].strip()
+        elif line.startswith("Favicon: ") and current.get("title"):
+            current["favicon"] = line[9:].strip()
+
+    if current.get("url"):
+        results.append(_search_result_from_dict(current))
+
+    return results
+
+
 def extract_search_results_from_messages(
     messages: list[BaseMessage],
 ) -> Optional[list[SearchResultItem]]:
     """
     Extract structured search results from tool messages.
-    Tavily MCP returns JSON with a 'results' array containing title, url, content, etc.
+
+    Handles both JSON format (raw Tavily API) and Tavily MCP text format
+    (formatResults() output wrapped in a list content block).
     """
-    search_results = []
+    search_results: list[SearchResultItem] = []
 
     for msg in reversed(messages):
         if not isinstance(msg, ToolMessage) or not msg.content:
@@ -189,50 +243,60 @@ def extract_search_results_from_messages(
 
         try:
             content = msg.content
+
+            # MCP returns [{type: "text", text: "..."}] — unwrap to plain string
+            if isinstance(content, list):
+                text_parts = [
+                    block.get("text", "")
+                    if isinstance(block, dict) and block.get("type") == "text"
+                    else str(block)
+                    if isinstance(block, str)
+                    else ""
+                    for block in content
+                ]
+                content = "\n".join(p for p in text_parts if p)
+
             if isinstance(content, str):
-                if "```json" in content:
-                    content = content.split("```json")[1].split("```")[0]
-                elif not (
-                    content.strip().startswith("{") or content.strip().startswith("[")
-                ):
-                    continue
-                data = json.loads(content.strip())
-            elif isinstance(content, dict):
-                data = content
-            else:
-                continue
+                raw_text = content
+                # Strip markdown code fences if present
+                stripped = raw_text.strip()
+                if "```json" in stripped:
+                    stripped = stripped.split("```json")[1].split("```")[0].strip()
 
-            results = (
-                data.get("results")
-                if isinstance(data, dict)
-                else (data if isinstance(data, list) else None)
-            )
-
-            if results and isinstance(results, list):
-                for item in results[:10]:
-                    if isinstance(item, dict) and "url" in item:
-                        url = item.get("url", "")
-                        try:
-                            from urllib.parse import urlparse
-
-                            domain = urlparse(url).netloc.replace("www.", "")
-                        except Exception:
-                            domain = (
-                                url.split("/")[2] if len(url.split("/")) > 2 else ""
-                            )
-
-                        search_results.append(
-                            SearchResultItem(
-                                title=item.get("title", domain),
-                                url=url,
-                                domain=domain,
-                                favicon=f"https://www.google.com/s2/favicons?domain={domain}&sz=32",
-                                date=item.get("published_date") or item.get("date"),
-                            )
+                # Attempt JSON parse first
+                if stripped.startswith("{") or stripped.startswith("["):
+                    try:
+                        data = json.loads(stripped)
+                        results_list = (
+                            data.get("results")
+                            if isinstance(data, dict)
+                            else (data if isinstance(data, list) else None)
                         )
+                        if results_list and isinstance(results_list, list):
+                            for item in results_list[:10]:
+                                if isinstance(item, dict) and "url" in item:
+                                    search_results.append(
+                                        _search_result_from_dict(item)
+                                    )
+                            if search_results:
+                                return search_results
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass
 
-                if search_results:
-                    return search_results
+                # Fall back to Tavily MCP text format
+                if "Title: " in raw_text and "URL: " in raw_text:
+                    parsed = _parse_tavily_text(raw_text)
+                    if parsed:
+                        return parsed
+
+            elif isinstance(content, dict):
+                results_list = content.get("results")
+                if results_list and isinstance(results_list, list):
+                    for item in results_list[:10]:
+                        if isinstance(item, dict) and "url" in item:
+                            search_results.append(_search_result_from_dict(item))
+                    if search_results:
+                        return search_results
 
         except (json.JSONDecodeError, KeyError, TypeError):
             continue

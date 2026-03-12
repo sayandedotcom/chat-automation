@@ -288,6 +288,7 @@ export default function ChatPage() {
         approval_reason?: string;
         thinking?: string; // Per-step thinking
         thinking_duration_ms?: number;
+        search_results?: WorkflowStep["search_results"];
       }>;
       is_complete?: boolean;
     };
@@ -468,6 +469,8 @@ export default function ChatPage() {
                 thinking_duration_ms: s.thinking_duration_ms || existingStep?.thinking_duration_ms,
                 // Preserve tool_calls so collapsed cards persist
                 tool_calls: existingStep?.tool_calls,
+                // Structured search results from backend
+                search_results: s.search_results || existingStep?.search_results,
               };
             });
 
@@ -594,6 +597,7 @@ export default function ChatPage() {
                 description: string;
                 status: string;
                 result?: string;
+                search_results?: WorkflowStep["search_results"];
               }) => {
                 const existing = prevByNumber.get(s.step_number);
                 return {
@@ -602,6 +606,7 @@ export default function ChatPage() {
                   status: s.status as WorkflowStep["status"],
                   result: s.result,
                   tool_calls: existing?.tool_calls,
+                  search_results: s.search_results || existing?.search_results,
                 };
               }
             );
@@ -686,6 +691,9 @@ export default function ChatPage() {
                 tools_used?: string[];
                 requires_human_approval?: boolean;
                 approval_reason?: string;
+                thinking?: string;
+                thinking_duration_ms?: number;
+                search_results?: WorkflowStep["search_results"];
               }) => {
                 const existing = prevByNumber.get(s.step_number);
                 // If this step is the new approval step, apply tool_calls from approval_step_info
@@ -698,11 +706,16 @@ export default function ChatPage() {
                   tools_used: s.tools_used,
                   requires_human_approval: s.requires_human_approval,
                   approval_reason: s.approval_reason,
+                  // Per-step thinking
+                  thinking: s.thinking || existing?.thinking,
+                  thinking_duration_ms: s.thinking_duration_ms || existing?.thinking_duration_ms,
                   // New approval step gets tool_calls from approval_step_info;
                   // existing steps preserve their tool_calls
                   tool_calls: isNewApprovalStep
                     ? newApproval.tool_calls || []
                     : existing?.tool_calls,
+                  // Structured search results
+                  search_results: s.search_results || existing?.search_results,
                 };
               }
             );

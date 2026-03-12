@@ -36,6 +36,7 @@ import { NotionPageEditor } from "./notion-page-editor";
 import { SearchResultsList, parseSearchResults } from "./search-results-list";
 import { SheetsEditor } from "./sheets-editor";
 import { ThinkingIndicator } from "./thinking-indicator";
+import { WebSearchCard } from "./web-search-card";
 
 // Thinking event from the backend
 export interface ThinkingEvent {
@@ -123,6 +124,9 @@ const toolNameMap: Record<string, string> = {
 // Tools that should show rich result cards (not simple status lines)
 const richResultTools = new Set([
   "web-search",
+  "tavily_search",
+  "tavily_extract",
+  "tavily_crawl",
   "notion",
   "slack",
   "github",
@@ -167,6 +171,14 @@ function getStatusIcon(tool: string, description: string) {
 // Check if a step should show a rich result card (with expandable content)
 function shouldShowRichCard(step: WorkflowStep): boolean {
   const primaryTool = step.tools_used?.[0] || "general";
+
+  // Structured search results → always show rich card (tools_used may be empty)
+  if (step.search_results && step.search_results.length > 0) {
+    console.log(
+      `🃏 [RICH-CARD] Step ${step.step_number}: YES (search_results present, count=${step.search_results.length})`
+    );
+    return true;
+  }
 
   // Always show card for web-search with results
   if (primaryTool === "web-search" && (step.search_results?.length || step.result)) {
@@ -562,6 +574,30 @@ export function WorkflowTimeline({
                           );
                         }
 
+                        // Web Search → WebSearchCard
+                        if (
+                          integration === "web_search" &&
+                          primaryToolCall &&
+                          (onApprove || isCompleted)
+                        ) {
+                          return (
+                            <div className="space-y-2">
+                              <WebSearchCard
+                                toolCall={primaryToolCall}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={isCompleted}
+                                searchResults={step.search_results}
+                              />
+                              {isCompleted && step.result && (
+                                <div className="mt-1 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
                         // All integrations have tool-specific UI above — no fallback needed
                         console.warn(
                           `⚠️ [TOOL-CARD] Step ${step.step_number}: No matching editor for integration="${integration}", tool="${primaryToolCall?.tool_name}" — rendering NULL`
@@ -654,69 +690,78 @@ export function WorkflowTimeline({
                     ) : isRichCard && step.status === "completed" ? (
                       /* RICH RESULT CARD (Web Search, etc.) */
                       <div className="space-y-2">
-                        <div
-                          className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]"
-                          onClick={() => toggleStep(step.step_number)}>
-                          {/* Card header with tool info */}
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              {toolIcon && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                                  <Image
-                                    src={toolIcon}
-                                    alt={primaryTool}
-                                    width={14}
-                                    height={14}
-                                    className="object-contain opacity-80 grayscale"
-                                  />
-                                </div>
-                              )}
-                              <span className="text-sm font-medium text-white/90">
-                                {toolNameMap[primaryTool] || primaryTool}
-                              </span>
-                            </div>
-                            <button className="rounded-lg bg-white/5 p-1.5 transition-colors hover:bg-white/15">
-                              {isExpanded ? (
-                                <ChevronUp className="h-4 w-4 text-white/70" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4 text-white/70" />
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Expanded content */}
-                          {isExpanded && (
-                            <div className="border-t border-white/5 px-4 pb-4">
-                              <div className="pt-3">
-                                {step.error && (
-                                  <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
-                                    <strong>Error:</strong> {step.error}
-                                  </div>
-                                )}
-                                {step.result && (
-                                  <div className="space-y-2">
-                                    {primaryTool === "web-search" ? (
-                                      step.search_results && step.search_results.length > 0 ? (
-                                        <SearchResultsList results={step.search_results} />
-                                      ) : (
-                                        (() => {
-                                          const parsed = parseSearchResults(step.result || "");
-                                          return parsed.length > 0 ? (
-                                            <SearchResultsList results={parsed} />
-                                          ) : (
-                                            <MarkdownRenderer content={step.result} />
-                                          );
-                                        })()
-                                      )
-                                    ) : (
-                                      <MarkdownRenderer content={step.result} />
-                                    )}
-                                  </div>
-                                )}
+                        {step.search_results && step.search_results.length > 0 ? (
+                          /* Web Search — use WebSearchCard + result summary */
+                          <>
+                            <WebSearchCard
+                              toolCall={{
+                                id: `search_${step.step_number}`,
+                                tool_name: "tavily_search",
+                                integration: "web_search",
+                                arguments: { query: step.description },
+                              }}
+                              stepNumber={step.step_number}
+                              onApprove={onApprove || (() => {})}
+                              completed={true}
+                              searchResults={step.search_results}
+                            />
+                            {step.result && (
+                              <div className="mt-1 text-sm text-gray-300">
+                                <MarkdownRenderer content={step.result} />
                               </div>
+                            )}
+                          </>
+                        ) : (
+                          /* Generic rich card for other tools */
+                          <div
+                            className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]"
+                            onClick={() => toggleStep(step.step_number)}>
+                            {/* Card header with tool info */}
+                            <div className="flex items-center justify-between px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                {toolIcon && (
+                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+                                    <Image
+                                      src={toolIcon}
+                                      alt={primaryTool}
+                                      width={14}
+                                      height={14}
+                                      className="object-contain opacity-80 grayscale"
+                                    />
+                                  </div>
+                                )}
+                                <span className="text-sm font-medium text-white/90">
+                                  {toolNameMap[primaryTool] || primaryTool}
+                                </span>
+                              </div>
+                              <button className="rounded-lg bg-white/5 p-1.5 transition-colors hover:bg-white/15">
+                                {isExpanded ? (
+                                  <ChevronUp className="h-4 w-4 text-white/70" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-white/70" />
+                                )}
+                              </button>
                             </div>
-                          )}
-                        </div>
+
+                            {/* Expanded content */}
+                            {isExpanded && (
+                              <div className="border-t border-white/5 px-4 pb-4">
+                                <div className="pt-3">
+                                  {step.error && (
+                                    <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
+                                      <strong>Error:</strong> {step.error}
+                                    </div>
+                                  )}
+                                  {step.result && (
+                                    <div className="space-y-2">
+                                      <MarkdownRenderer content={step.result} />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {/* Per-step thinking for rich cards */}
                         {step.thinking && (
                           <ThinkingIndicator

@@ -169,6 +169,20 @@ class ChatService:
                         "tools_used": step.tools_used,
                         "requires_human_approval": step.requires_human_approval,
                         "approval_reason": step.approval_reason,
+                        "thinking": step.thinking,
+                        "thinking_duration_ms": step.thinking_duration_ms,
+                        "search_results": [
+                            {
+                                "title": r.title,
+                                "url": r.url,
+                                "domain": r.domain,
+                                "favicon": r.favicon,
+                                "date": r.date,
+                            }
+                            for r in step.search_results
+                        ]
+                        if step.search_results
+                        else None,
                     }
                     for step in plan.steps
                 ],

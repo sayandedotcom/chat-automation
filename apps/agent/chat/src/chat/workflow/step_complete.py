@@ -6,7 +6,7 @@ Marks the current step done, extracts artifacts, and advances to the next step.
 
 import logging
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from chat.schemas import WorkflowState
 from chat.workflow.artifacts import (
@@ -44,10 +44,26 @@ async def run_step_complete(state: WorkflowState) -> dict:
     current_step.result = last_message or "Step completed"
     current_step.status = "completed"
 
-    if "search" in current_step.description.lower():
-        search_results = extract_search_results_from_messages(messages)
-        if search_results:
-            current_step.search_results = search_results
+    # Populate tools_used from ToolMessage names in this step's messages
+    tool_names = []
+    for msg in messages:
+        if isinstance(msg, ToolMessage) and getattr(msg, "name", None):
+            if msg.name not in tool_names:
+                tool_names.append(msg.name)
+    if tool_names:
+        current_step.tools_used = tool_names
+
+    # Always try to extract search results (not just when "search" is in the description)
+    search_results = extract_search_results_from_messages(messages)
+    if search_results:
+        current_step.search_results = search_results
+        logger.info(
+            f"[SEARCH_RESULTS] step={current_step.step_number}: extracted {len(search_results)} results"
+        )
+    else:
+        logger.info(
+            f"[SEARCH_RESULTS] step={current_step.step_number}: no results extracted"
+        )
 
     turn_number = sum(1 for m in messages if isinstance(m, HumanMessage))
     msg_types = [
