@@ -24,9 +24,11 @@ function SettingsPage() {
     <ContentWrapper>
       <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 py-20 lg:px-12">
         <h1 className="mb-8 text-2xl font-bold">Settings</h1>
-        <Button onClick={handleSignOut} variant="destructive">
+        <button
+          onClick={handleSignOut}
+          className="bubble rounded-full bg-red-500/80 px-6 py-2.5 text-sm font-bold text-red-100 backdrop-blur-md transition-all hover:scale-105 focus:ring-2 focus:ring-red-500/50 focus:outline-none disabled:opacity-50">
           Sign out
-        </Button>
+        </button>
       </div>
     </ContentWrapper>
   );
