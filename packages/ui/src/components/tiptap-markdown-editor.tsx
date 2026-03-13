@@ -35,7 +35,10 @@ export function TipTapMarkdownEditor({
       editable: !readOnly,
       immediatelyRender: false,
       onUpdate: ({ editor }) => {
-        const markdown = editor.storage.markdown?.getMarkdown?.() ?? "";
+        const markdown =
+          (
+            editor.storage as { markdown?: { getMarkdown?: () => string } }
+          ).markdown?.getMarkdown?.() ?? "";
         lastEmittedValue.current = markdown;
         onChange(markdown);
       },
@@ -46,7 +49,9 @@ export function TipTapMarkdownEditor({
   // Sync external value changes (but not echo-backs from our own onChange)
   useEffect(() => {
     if (!editor) return;
-    const current = editor.storage.markdown?.getMarkdown?.() ?? "";
+    const current =
+      (editor.storage as { markdown?: { getMarkdown?: () => string } }).markdown?.getMarkdown?.() ??
+      "";
     if (value !== current && value !== lastEmittedValue.current) {
       editor.commands.setContent(value);
     }

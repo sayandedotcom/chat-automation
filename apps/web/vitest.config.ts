@@ -29,9 +29,4 @@ export default defineConfig({
       "@workspace/ui": path.resolve(__dirname, "../../packages/ui/src"),
     },
   },
-  server: {
-    deps: {
-      inline: [/^@tiptap\//, /^tiptap-markdown/, /^lowlight/, /^highlight\.js/],
-    },
-  },
 });

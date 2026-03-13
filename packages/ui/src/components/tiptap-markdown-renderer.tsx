@@ -25,7 +25,10 @@ export function TipTapMarkdownRenderer({ content, className }: TipTapMarkdownRen
 
   useEffect(() => {
     if (editor && content !== undefined) {
-      const current = editor.storage.markdown?.getMarkdown?.() ?? "";
+      const current =
+        (
+          editor.storage as { markdown?: { getMarkdown?: () => string } }
+        ).markdown?.getMarkdown?.() ?? "";
       if (current !== content) {
         editor.commands.setContent(content);
       }
