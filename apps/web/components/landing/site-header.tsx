@@ -48,7 +48,7 @@ export function SiteHeader() {
 
           <div className="flex items-center gap-3">
             <a href={`${API_URL}/auth/google`}>
-              <Button className="gap-2 rounded-full bg-[#533ccf] px-5 text-white hover:bg-[#533ccf]">
+              <button className="bubble flex items-center gap-2 rounded-full bg-[#533ccf] px-4 py-2 text-base text-white hover:bg-[#533ccf]">
                 <svg className="h-4 w-4" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                   <path
                     fill="#FFC107"
@@ -68,7 +68,7 @@ export function SiteHeader() {
                   />
                 </svg>
                 Get Started
-              </Button>
+              </button>
             </a>
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 md:hidden">
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
