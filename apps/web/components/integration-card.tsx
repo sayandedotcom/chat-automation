@@ -32,7 +32,7 @@ export function IntegrationCard({
   return (
     <div className="group flex cursor-pointer items-center gap-4 rounded-xl px-4 py-3.5 transition-colors duration-200 hover:bg-white/[0.03]">
       {/* Icon Container */}
-      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-neutral-300/30 bg-white/90 shadow-[inset_0_1px_3px_rgba(255,255,255,0.2)]">
+      <div className="bubble flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-neutral-300/30 bg-white/90 shadow-[inset_0_1px_3px_rgba(255,255,255,0.2)]">
         <Image
           src={integration.icon}
           alt={integration.name}
