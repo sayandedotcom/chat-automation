@@ -30,6 +30,7 @@ class IntegrationConfig:
         self.mcp_server = config.get("mcp_server")
         self.planner_hints = config.get("planner_hints", "")
         self.executor_hints = config.get("executor_hints", "")
+        self.ui_components = config.get("ui_components", {})
 
 
 class IntegrationRegistry:
@@ -51,6 +52,7 @@ class IntegrationRegistry:
         self._all_tools: list[BaseTool] = []
         self._tool_to_integration: dict[str, str] = {}  # Reverse lookup
         self._tool_name_to_integration: dict[str, str] = {}  # Config-based lookup
+        self._tool_name_to_ui_component: dict[str, str | None] = {}
         self._initialized = False
 
     def _load_config(self):
@@ -66,9 +68,15 @@ class IntegrationRegistry:
 
         for name, integration_config in integrations_config.items():
             self._integrations[name] = IntegrationConfig(name, integration_config)
+            ui_components = integration_config.get("ui_components", {})
+            wildcard_component = ui_components.get("*")
             # Build reverse lookup from explicit tool_names
             for tool_name in integration_config.get("tool_names", []):
                 self._tool_name_to_integration[tool_name] = name
+                # Resolve ui_component: specific name > wildcard > None
+                self._tool_name_to_ui_component[tool_name] = (
+                    ui_components.get(tool_name) or wildcard_component
+                )
 
         logger.info(f"Loaded {len(self._integrations)} integration configs")
 
@@ -210,6 +218,10 @@ class IntegrationRegistry:
             Integration name or None if not found
         """
         return self._tool_to_integration.get(tool_name)
+
+    def get_ui_component_for_tool(self, tool_name: str) -> Optional[str]:
+        """Look up the UI component ID for a tool name (or None for generic card)."""
+        return self._tool_name_to_ui_component.get(tool_name)
 
     def get_integration_config(self, name: str) -> Optional[IntegrationConfig]:
         """Get configuration for an integration by name."""

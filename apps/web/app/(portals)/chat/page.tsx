@@ -338,6 +338,7 @@ export default function ChatPage() {
         id: string;
         tool_name: string;
         integration: string;
+        ui_component?: string | null;
         arguments: Record<string, unknown>;
       }>;
     };
@@ -706,6 +707,7 @@ export default function ChatPage() {
                 id: string;
                 tool_name: string;
                 integration: string;
+                ui_component?: string | null;
                 arguments: Record<string, unknown>;
               }>;
               reason?: string;

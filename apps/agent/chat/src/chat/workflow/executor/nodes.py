@@ -39,9 +39,7 @@ async def run_executor(
 
     current_step = plan.steps[current_index]
 
-    if state.get("_executor_chat") and isinstance(
-        state["messages"][-1], ToolMessage
-    ):
+    if state.get("_executor_chat") and isinstance(state["messages"][-1], ToolMessage):
         return await continue_after_tools_fn(state)
 
     current_step.status = "in_progress"
@@ -109,9 +107,7 @@ async def run_executor_with_approval(
 
     current_step = plan.steps[current_index]
 
-    if state.get("_executor_chat") and isinstance(
-        state["messages"][-1], ToolMessage
-    ):
+    if state.get("_executor_chat") and isinstance(state["messages"][-1], ToolMessage):
         return await continue_after_tools_fn(state)
 
     approval_decision = state.get("approval_decision")
@@ -281,6 +277,7 @@ async def request_approval(
     *,
     get_previous_results_fn,
     resolve_tool_integration_fn,
+    resolve_ui_component_fn=None,
     generate_spreadsheet_structure_fn,
     start_step_execution_fn,
 ) -> dict:
@@ -309,14 +306,18 @@ async def request_approval(
         if hasattr(response, "tool_calls") and response.tool_calls:
             for tc in response.tool_calls:
                 tool_name = tc.get("name", "")
-                tool_calls_preview.append(
-                    {
-                        "id": tc.get("id", ""),
-                        "tool_name": tool_name,
-                        "integration": resolve_tool_integration_fn(tool_name),
-                        "arguments": tc.get("args", {}),
-                    }
-                )
+                preview_entry = {
+                    "id": tc.get("id", ""),
+                    "tool_name": tool_name,
+                    "integration": resolve_tool_integration_fn(tool_name),
+                    "ui_component": (
+                        resolve_ui_component_fn(tool_name)
+                        if resolve_ui_component_fn
+                        else None
+                    ),
+                    "arguments": tc.get("args", {}),
+                }
+                tool_calls_preview.append(preview_entry)
 
             from langchain_core.messages import message_to_dict
 
@@ -327,9 +328,7 @@ async def request_approval(
                 if tc_preview["tool_name"] == "create_spreadsheet":
                     args = tc_preview.get("arguments", {})
                     if not (
-                        args.get("sheets")
-                        or args.get("headers")
-                        or args.get("columns")
+                        args.get("sheets") or args.get("headers") or args.get("columns")
                     ):
                         try:
                             structure = await generate_spreadsheet_structure_fn(
@@ -351,6 +350,14 @@ async def request_approval(
         logger.warning(
             f"Failed to generate preview for step {current_step.step_number}: {e}"
         )
+
+    # Fallback: synthesize calendar preview when LLM produced no tool calls
+    if not tool_calls_preview:
+        from chat.workflow.executor.helpers import synthesize_calendar_preview
+
+        synthetic = synthesize_calendar_preview(current_step)
+        if synthetic:
+            tool_calls_preview = synthetic
 
     return {
         "plan": plan,

@@ -1,5 +1,7 @@
 integrations:
   web_search:
+    ui_components:
+      "*": "web_search_card"
     tool_names:
       - "tavily_search"
       - "tavily_extract"
@@ -13,6 +15,9 @@ integrations:
     identity_keywords: []
 
   gmail:
+    ui_components:
+      send_gmail_message: "email_composer"
+      draft_gmail_message: "email_composer"
     tool_names:
       - "search_gmail_messages"
       - "get_gmail_message_content"
@@ -50,6 +55,8 @@ integrations:
       If any Gmail tool fails with an auth error, tell the user to reconnect Gmail.
 
   google_docs:
+    ui_components:
+      create_doc: "document_editor"
     tool_names:
       - "search_docs"
       - "get_doc_content"
@@ -94,6 +101,8 @@ integrations:
       The authenticated user is implicit — NEVER ask for the user's email address to create or edit documents.
 
   google_sheets:
+    ui_components:
+      create_spreadsheet: "sheets_editor"
     tool_names:
       - "get_spreadsheet_info"
       - "read_sheet_values"
@@ -158,6 +167,8 @@ integrations:
       creating a presentation.
 
   google_calendar:
+    ui_components:
+      create_event: "calendar_event_editor"
     tool_names:
       - "list_calendars"
       - "get_events"
@@ -226,6 +237,8 @@ integrations:
       uploading or creating a file.
 
   notion:
+    ui_components:
+      API-post-page: "notion_page_editor"
     tool_names:
       - "API-post-search"
       - "API-get-block-children"

@@ -167,6 +167,44 @@ async def generate_spreadsheet_structure(
         }
 
 
+def synthesize_calendar_preview(step: WorkflowStep) -> list[dict] | None:
+    """Synthesize a calendar tool-call preview when the LLM produces no tool calls.
+
+    Returns a single-element list suitable for ``tool_calls_preview``, or
+    ``None`` if the step description doesn't look like a calendar-create action.
+    """
+    desc = step.description.lower()
+    is_calendar_create = "calendar" in desc and any(
+        kw in desc for kw in ("create", "add", "schedule", "new event", "invite")
+    )
+    if not is_calendar_create:
+        return None
+
+    import re
+    from datetime import datetime, timedelta
+
+    email_matches = re.findall(r"[\w.+%-]+@[\w-]+\.[\w.]+", step.description)
+    now = datetime.now()
+    default_start = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
+    default_end = default_start + timedelta(hours=1)
+
+    return [
+        {
+            "id": f"synthetic_calendar_{step.step_number}",
+            "tool_name": "create_event",
+            "integration": "google_calendar",
+            "ui_component": "calendar_event_editor",
+            "arguments": {
+                "summary": "New Event",
+                "calendarId": "primary",
+                "start": {"dateTime": default_start.isoformat()},
+                "end": {"dateTime": default_end.isoformat()},
+                "attendees": [{"email": e} for e in email_matches],
+            },
+        }
+    ]
+
+
 async def try_incremental_load(
     exc,
     state,

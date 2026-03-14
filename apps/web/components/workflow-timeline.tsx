@@ -39,6 +39,68 @@ import { SheetsEditor } from "./sheets-editor";
 import { ThinkingIndicator } from "./thinking-indicator";
 import { WebSearchCard } from "./web-search-card";
 
+// Context passed to each renderer in UI_COMPONENT_RENDERERS
+interface EditorRenderContext {
+  primaryToolCall: ToolCallPreview;
+  step: WorkflowStep;
+  isCompleted: boolean;
+  onApprove: NonNullable<WorkflowTimelineProps["onApprove"]>;
+}
+
+// Backend-driven renderer map: ui_component string → render function
+const UI_COMPONENT_RENDERERS: Record<string, (ctx: EditorRenderContext) => React.ReactNode> = {
+  email_composer: (ctx) => (
+    <EmailComposer
+      toolCall={ctx.primaryToolCall}
+      stepNumber={ctx.step.step_number}
+      onApprove={ctx.onApprove}
+      completed={ctx.isCompleted}
+    />
+  ),
+  document_editor: (ctx) => (
+    <DocumentEditor
+      toolCall={ctx.primaryToolCall}
+      stepNumber={ctx.step.step_number}
+      onApprove={ctx.onApprove}
+      completed={ctx.isCompleted}
+    />
+  ),
+  notion_page_editor: (ctx) => (
+    <NotionPageEditor
+      toolCall={ctx.primaryToolCall}
+      stepNumber={ctx.step.step_number}
+      onApprove={ctx.onApprove}
+      completed={ctx.isCompleted}
+    />
+  ),
+  calendar_event_editor: (ctx) => (
+    <CalendarEventEditor
+      toolCall={ctx.primaryToolCall}
+      stepNumber={ctx.step.step_number}
+      onApprove={ctx.onApprove}
+      completed={ctx.isCompleted}
+      userHint={ctx.step.description}
+    />
+  ),
+  sheets_editor: (ctx) => (
+    <SheetsEditor
+      toolCalls={ctx.step.tool_calls!}
+      stepNumber={ctx.step.step_number}
+      onApprove={ctx.onApprove}
+      completed={ctx.isCompleted}
+    />
+  ),
+  web_search_card: (ctx) => (
+    <WebSearchCard
+      toolCall={ctx.primaryToolCall}
+      stepNumber={ctx.step.step_number}
+      onApprove={ctx.onApprove}
+      completed={ctx.isCompleted}
+      searchResults={ctx.step.search_results}
+    />
+  ),
+};
+
 // Thinking event from the backend
 export interface ThinkingEvent {
   content: string;
@@ -60,6 +122,7 @@ export interface ToolCallPreview {
   id: string;
   tool_name: string;
   integration: string;
+  ui_component?: string | null;
   arguments: Record<string, unknown>;
 }
 
@@ -452,26 +515,31 @@ export function WorkflowTimeline({
                       step.status === "skipped") ? (
                       (() => {
                         const primaryToolCall = step.tool_calls![0];
-                        const integration = primaryToolCall?.integration;
                         const isCompleted = step.status !== "awaiting_approval";
+
+                        // Find ui_component from primary tool call, or first that has one
+                        const uiComponent =
+                          primaryToolCall?.ui_component ||
+                          step.tool_calls!.find((tc) => tc.ui_component)?.ui_component;
+
+                        const renderer = uiComponent
+                          ? UI_COMPONENT_RENDERERS[uiComponent]
+                          : undefined;
+
                         console.log(
-                          `🎨 [TOOL-CARD] Step ${step.step_number}: integration="${integration}", tool="${primaryToolCall?.tool_name}", isCompleted=${isCompleted}, hasOnApprove=${!!onApprove}`
+                          `🎨 [TOOL-CARD] Step ${step.step_number}: ui_component="${uiComponent}", tool="${primaryToolCall?.tool_name}", isCompleted=${isCompleted}, hasRenderer=${!!renderer}`
                         );
 
-                        // Gmail → EmailComposer
-                        if (
-                          integration === "gmail" &&
-                          primaryToolCall &&
-                          (onApprove || isCompleted)
-                        ) {
+                        if (renderer && primaryToolCall && (onApprove || isCompleted)) {
+                          const ctx: EditorRenderContext = {
+                            primaryToolCall,
+                            step,
+                            isCompleted,
+                            onApprove: onApprove || (() => {}),
+                          };
                           return (
                             <div className="space-y-2">
-                              <EmailComposer
-                                toolCall={primaryToolCall}
-                                stepNumber={step.step_number}
-                                onApprove={onApprove || (() => {})}
-                                completed={isCompleted}
-                              />
+                              {renderer(ctx)}
                               {isCompleted && step.result && (
                                 <div className="mt-2 text-sm text-gray-300">
                                   <MarkdownRenderer content={step.result} />
@@ -481,225 +549,48 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // Google Docs → DocumentEditor
-                        if (
-                          integration === "google_docs" &&
-                          primaryToolCall &&
-                          (onApprove || isCompleted)
-                        ) {
-                          return (
-                            <div className="space-y-2">
-                              <DocumentEditor
-                                toolCall={primaryToolCall}
-                                stepNumber={step.step_number}
-                                onApprove={onApprove || (() => {})}
-                                completed={isCompleted}
-                              />
-                              {isCompleted && step.result && (
-                                <div className="mt-2 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // Notion → NotionPageEditor
-                        if (
-                          integration === "notion" &&
-                          primaryToolCall &&
-                          (onApprove || isCompleted)
-                        ) {
-                          return (
-                            <div className="space-y-2">
-                              <NotionPageEditor
-                                toolCall={primaryToolCall}
-                                stepNumber={step.step_number}
-                                onApprove={onApprove || (() => {})}
-                                completed={isCompleted}
-                              />
-                              {isCompleted && step.result && (
-                                <div className="mt-2 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // Google Calendar → CalendarEventEditor
-                        if (
-                          integration === "google_calendar" &&
-                          primaryToolCall &&
-                          (onApprove || isCompleted)
-                        ) {
-                          return (
-                            <div className="space-y-2">
-                              <CalendarEventEditor
-                                toolCall={primaryToolCall}
-                                stepNumber={step.step_number}
-                                onApprove={onApprove || (() => {})}
-                                completed={isCompleted}
-                                userHint={step.description}
-                              />
-                              {isCompleted && step.result && (
-                                <div className="mt-2 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // Google Sheets → SheetsEditor (only for create_spreadsheet)
-                        if (
-                          integration === "google_sheets" &&
-                          primaryToolCall &&
-                          step.tool_calls!.some((tc) => tc.tool_name === "create_spreadsheet") &&
-                          (onApprove || isCompleted)
-                        ) {
-                          return (
-                            <div className="space-y-2">
-                              <SheetsEditor
-                                toolCalls={step.tool_calls!}
-                                stepNumber={step.step_number}
-                                onApprove={onApprove || (() => {})}
-                                completed={isCompleted}
-                              />
-                              {isCompleted && step.result && (
-                                <div className="mt-2 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // Web Search → WebSearchCard
-                        if (
-                          integration === "web_search" &&
-                          primaryToolCall &&
-                          (onApprove || isCompleted)
-                        ) {
-                          return (
-                            <div className="space-y-2">
-                              <WebSearchCard
-                                toolCall={primaryToolCall}
-                                stepNumber={step.step_number}
-                                onApprove={onApprove || (() => {})}
-                                completed={isCompleted}
-                                searchResults={step.search_results}
-                              />
-                              {isCompleted && step.result && (
-                                <div className="mt-1 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // All integrations have tool-specific UI above — no fallback needed
+                        // No renderer found — fall through to null (generic card below)
                         console.warn(
-                          `⚠️ [TOOL-CARD] Step ${step.step_number}: No matching editor for integration="${integration}", tool="${primaryToolCall?.tool_name}" — rendering NULL`
+                          `⚠️ [TOOL-CARD] Step ${step.step_number}: No renderer for ui_component="${uiComponent}", tool="${primaryToolCall?.tool_name}" — rendering NULL`
                         );
                         return null;
                       })()
                     ) : step.status === "awaiting_approval" ? (
-                      // Generic approval card (no tool_calls) — with Google Calendar fallback
-                      (() => {
-                        const descLower = step.description.toLowerCase();
-                        const isCalendarCreate =
-                          (descLower.includes("google calendar") ||
-                            descLower.includes("calendar event") ||
-                            descLower.includes("calendar")) &&
-                          (descLower.includes("create") ||
-                            descLower.includes("add") ||
-                            descLower.includes("schedule") ||
-                            descLower.includes("new event") ||
-                            descLower.includes("invite"));
-
-                        if (isCalendarCreate && onApprove) {
-                          // Extract any email addresses mentioned in the description
-                          const emailMatches =
-                            step.description.match(/[\w.+%-]+@[\w-]+\.[\w.]+/g) || [];
-
-                          // Default start = next full hour, end = 1h after
-                          const now = new Date();
-                          const defaultStart = new Date(now);
-                          defaultStart.setHours(now.getHours() + 1, 0, 0, 0);
-                          const defaultEnd = new Date(defaultStart);
-                          defaultEnd.setHours(defaultStart.getHours() + 1, 0, 0, 0);
-
-                          const syntheticToolCall: ToolCallPreview = {
-                            id: `synthetic_calendar_${step.step_number}`,
-                            tool_name: "create_event",
-                            integration: "google_calendar",
-                            arguments: {
-                              summary: "New Event",
-                              calendarId: "primary",
-                              start: {
-                                dateTime: defaultStart.toISOString(),
-                              },
-                              end: {
-                                dateTime: defaultEnd.toISOString(),
-                              },
-                              attendees: emailMatches.map((email) => ({
-                                email,
-                              })),
-                            },
-                          };
-
-                          return (
-                            <CalendarEventEditor
-                              toolCall={syntheticToolCall}
-                              stepNumber={step.step_number}
-                              onApprove={onApprove}
-                              userHint={step.description}
-                            />
-                          );
-                        }
-
-                        // Generic fallback approval card — Approve / Skip with step description
-                        return (
-                          <div
-                            className={cn(
-                              "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
-                              "animate-in fade-in slide-in-from-top-2 duration-300",
-                              "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]"
-                            )}>
-                            <div className="px-4 py-3">
-                              <div className="mb-3 flex items-center gap-2.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-                                  <span className="text-xs text-orange-400/80">
-                                    Awaiting approval
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="mb-3 text-sm text-white/60">{step.description}</p>
-                              {onApprove && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => onApprove(step.step_number, "approve")}
-                                    className="h-8 bg-white/[0.08] px-4 text-xs text-white/80 hover:bg-white/[0.12]">
-                                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => onApprove(step.step_number, "skip")}
-                                    className="h-8 px-4 text-xs text-white/40 hover:bg-white/[0.06] hover:text-white/60">
-                                    Skip
-                                  </Button>
-                                </div>
-                              )}
+                      // Generic approval card (no tool_calls or no ui_component)
+                      <div
+                        className={cn(
+                          "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
+                          "animate-in fade-in slide-in-from-top-2 duration-300",
+                          "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]"
+                        )}>
+                        <div className="px-4 py-3">
+                          <div className="mb-3 flex items-center gap-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+                              <span className="text-xs text-orange-400/80">Awaiting approval</span>
                             </div>
                           </div>
-                        );
-                      })()
+                          <p className="mb-3 text-sm text-white/60">{step.description}</p>
+                          {onApprove && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => onApprove(step.step_number, "approve")}
+                                className="h-8 bg-white/[0.08] px-4 text-xs text-white/80 hover:bg-white/[0.12]">
+                                <Check className="mr-1.5 h-3.5 w-3.5" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => onApprove(step.step_number, "skip")}
+                                className="h-8 px-4 text-xs text-white/40 hover:bg-white/[0.06] hover:text-white/60">
+                                Skip
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
                       <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-[#1a1a1a]">

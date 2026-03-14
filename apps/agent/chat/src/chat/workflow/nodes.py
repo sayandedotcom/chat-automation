@@ -18,6 +18,7 @@ Routing functions and other utilities live in:
     workflow/prompts.py  — system prompt templates
 """
 
+import json
 import logging
 from typing import TYPE_CHECKING, Optional
 
@@ -45,6 +46,68 @@ if TYPE_CHECKING:
     from chat.integrations.registry import IntegrationRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _deep_parse_stringified_json(value):
+    """Recursively parse JSON strings that should be objects/arrays.
+
+    Gemini Flash sometimes double-serializes nested values, passing
+    '{"object": "block", ...}' (a string) where {"object": "block", ...}
+    (an object) is expected.  This walks the arg tree and parses any string
+    that looks like a JSON object or array.
+    """
+    if isinstance(value, str):
+        stripped = value.strip()
+        if (stripped.startswith("{") and stripped.endswith("}")) or (
+            stripped.startswith("[") and stripped.endswith("]")
+        ):
+            try:
+                parsed = json.loads(stripped)
+                # Recurse into the parsed result in case of nested stringification
+                return _deep_parse_stringified_json(parsed)
+            except (json.JSONDecodeError, ValueError):
+                return value
+        return value
+    if isinstance(value, dict):
+        return {k: _deep_parse_stringified_json(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_deep_parse_stringified_json(item) for item in value]
+    return value
+
+
+def _sanitize_tool_call_args(state: WorkflowState) -> WorkflowState:
+    """Fix double-serialized JSON in tool call arguments before MCP dispatch.
+
+    Returns a shallow-copied state with sanitized messages if any fix was needed.
+    """
+    messages = state.get("messages", [])
+    if not messages:
+        return state
+
+    last_msg = messages[-1]
+    if not (isinstance(last_msg, AIMessage) and getattr(last_msg, "tool_calls", None)):
+        return state
+
+    fixed_any = False
+    new_tool_calls = []
+    for tc in last_msg.tool_calls:
+        args = tc.get("args", {})
+        sanitized = _deep_parse_stringified_json(args)
+        if sanitized != args:
+            fixed_any = True
+            logger.warning(
+                "Fixed double-serialized args for tool %s", tc.get("name", "?")
+            )
+        new_tool_calls.append({**tc, "args": sanitized})
+
+    if not fixed_any:
+        return state
+
+    new_msg = AIMessage(
+        content=last_msg.content, tool_calls=new_tool_calls, id=last_msg.id
+    )
+    new_messages = list(messages[:-1]) + [new_msg]
+    return {**state, "messages": new_messages}
 
 
 class WorkflowNodes:
@@ -157,6 +220,7 @@ class WorkflowNodes:
             current_step,
             get_previous_results_fn=self._get_previous_results,
             resolve_tool_integration_fn=self._resolve_tool_integration,
+            resolve_ui_component_fn=self._resolve_ui_component,
             generate_spreadsheet_structure_fn=self._generate_spreadsheet_structure,
             start_step_execution_fn=self._start_step_execution,
         )
@@ -183,6 +247,7 @@ class WorkflowNodes:
         Using this method as the graph node ensures the graph always calls
         the up-to-date tool node.
         """
+        state = _sanitize_tool_call_args(state)
         return await self.tool_node.ainvoke(state, config=config)
 
     # ------------------------------------------------------------------
@@ -237,6 +302,11 @@ class WorkflowNodes:
         from chat.workflow.executor.helpers import resolve_tool_integration
 
         return resolve_tool_integration(tool_name, self.registry)
+
+    def _resolve_ui_component(self, tool_name: str) -> Optional[str]:
+        if self.registry:
+            return self.registry.get_ui_component_for_tool(tool_name)
+        return None
 
     def _apply_edited_args(
         self, ai_message: AIMessage, edited_content: dict
