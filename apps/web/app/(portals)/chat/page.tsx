@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 import { useMutation } from "@tanstack/react-query";
-import { StickToBottom } from "use-stick-to-bottom";
 
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
 import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
@@ -83,6 +82,39 @@ export default function ChatPage() {
   const threadIdRef = useRef<string | null>(null);
   // Multi-turn: completed previous turns
   const [completedTurns, setCompletedTurns] = useState<ConversationTurn[]>([]);
+
+  // Scroll control
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const currentTurnRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef(true);
+
+  // Auto-scroll to bottom when content changes (only when enabled)
+  useEffect(() => {
+    if (autoScrollRef.current && scrollContainerRef.current) {
+      const el = scrollContainerRef.current;
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [steps, planThinking, statusMessages, loadedIntegrations, workflowStatus, originalRequest]);
+
+  // Detect user scroll: re-enable auto-scroll when user reaches bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    autoScrollRef.current = isNearBottom;
+  }, []);
+
+  // After follow-up: scroll user message to top of viewport instantly
+  useEffect(() => {
+    if (workflowStatus === "planning" && completedTurns.length > 0 && currentTurnRef.current) {
+      autoScrollRef.current = false;
+      currentTurnRef.current.scrollIntoView({
+        behavior: "instant",
+        block: "start",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originalRequest]);
 
   // Restore session from URL param + sessionStorage on mount
   useEffect(() => {
@@ -168,6 +200,8 @@ export default function ChatPage() {
             error: null,
           },
         ]);
+        // Disable auto-scroll immediately so the auto-scroll effect won't fight the follow-up scroll
+        autoScrollRef.current = false;
       }
 
       // Reset current turn state (but NOT threadIdRef — keep the same thread)
@@ -818,18 +852,18 @@ export default function ChatPage() {
         {isChatActive && (
           <>
             {/* Scrollable content area - takes remaining space */}
-            <StickToBottom
-              className="[&>div]:scrollbar-thin [&>div]:scrollbar-thumb-[#2a2a2a] [&>div]:scrollbar-track-transparent [&>div]:scrollbar-thumb-rounded-full relative flex-1 overflow-hidden"
-              resize="instant"
-              initial="instant">
-              <StickToBottom.Content className="px-4 pt-6 pb-4">
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="scrollbar-thin scrollbar-thumb-[#2a2a2a] scrollbar-track-transparent scrollbar-thumb-rounded-full relative flex-1 overflow-x-hidden overflow-y-auto">
+              <div className="px-4 pt-6 pb-4">
                 <div className="mx-auto max-w-5xl space-y-6">
                   {/* Completed previous turns */}
                   {completedTurns.map((turn) => (
                     <div key={turn.id} className="space-y-4">
                       {/* Previous turn: user message bubble */}
                       <div className="flex justify-end">
-                        <div className="max-w-xl rounded-[24px] border border-white/[0.06] bg-[#1a1a1a] px-5 py-2 text-[13px] font-medium shadow-sm [&>p]:m-0">
+                        <div className="max-w-xl rounded-[24px] border border-white/[0.06] bg-[#1a1a1a] px-5 py-0 text-[13px] font-medium shadow-sm">
                           <MarkdownRenderer content={turn.userMessage} />
                         </div>
                       </div>
@@ -846,116 +880,127 @@ export default function ChatPage() {
                     </div>
                   ))}
 
-                  {/* Current turn: user message bubble */}
-                  <div className="flex justify-end">
-                    <div className="max-w-xl rounded-[24px] border border-white/[0.06] bg-[#1a1a1a] px-5 py-2 text-[13px] font-medium shadow-sm [&>p]:m-0">
-                      <MarkdownRenderer content={originalRequest} />
+                  {/* Current turn wrapper — min-height ensures scrollIntoView can position it at top */}
+                  <div
+                    ref={currentTurnRef}
+                    className="space-y-6"
+                    style={
+                      completedTurns.length > 0 ? { minHeight: "calc(100vh - 150px)" } : undefined
+                    }>
+                    {/* Current turn: user message bubble */}
+                    <div className="flex justify-end">
+                      <div className="max-w-xl rounded-[24px] border border-white/[0.06] bg-[#1a1a1a] px-5 py-0 text-[13px] font-medium shadow-sm">
+                        <MarkdownRenderer content={originalRequest} />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Shimmer loading indicator while planning */}
-                  {workflowStatus === "planning" && steps.length === 0 && (
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src="/logo.png"
-                        alt="Logo"
-                        width={32}
-                        height={32}
-                        className="rounded-full"
-                      />
-                      <ShimmerText
-                        text="Working on it..."
-                        className="!text-base !font-medium"
-                        wrapperClassName="p-0 justify-start"
-                      />
-                    </div>
-                  )}
+                    {/* Shimmer loading indicator while planning */}
+                    {workflowStatus === "planning" && steps.length === 0 && (
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src="/logo.png"
+                          alt="Logo"
+                          width={32}
+                          height={32}
+                          className="rounded-full"
+                        />
+                        <ShimmerText
+                          text="Working on it..."
+                          className="!text-base !font-medium"
+                          wrapperClassName="p-0 justify-start"
+                        />
+                      </div>
+                    )}
 
-                  {/* Current turn: active workflow timeline */}
-                  <WorkflowTimeline
-                    steps={steps}
-                    currentStep={currentStep}
-                    planThinking={planThinking || undefined}
-                    statusMessages={statusMessages}
-                    loadedIntegrations={loadedIntegrations}
-                    onRetry={handleRetry}
-                    onApprove={handleApprove}
-                    isComplete={workflowStatus === "complete"}
-                  />
+                    {/* Current turn: active workflow timeline */}
+                    <WorkflowTimeline
+                      steps={steps}
+                      currentStep={currentStep}
+                      planThinking={planThinking || undefined}
+                      statusMessages={statusMessages}
+                      loadedIntegrations={loadedIntegrations}
+                      onRetry={handleRetry}
+                      onApprove={handleApprove}
+                      isComplete={workflowStatus === "complete"}
+                    />
 
-                  {/* Auth required card */}
-                  {authRequired && authRequired.length > 0 && (
-                    <div className="flex items-start gap-4">
-                      <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-amber-400" />
-                      <div className="max-w-md space-y-3">
-                        <p className="text-sm text-zinc-300">
-                          To continue with your request, please connect{" "}
-                          {authRequired.map((i) => i.display_name).join(" and ")}.
-                        </p>
-                        <div className="space-y-2">
-                          {authRequired.map((integration) => {
-                            const config = integrationConfig.find(
-                              (c) => c.id === integration.connect_id
-                            );
-                            return (
-                              <div
-                                key={integration.connect_id}
-                                className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#1a1a1a] px-4 py-3">
-                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#252525]">
-                                  {config?.icon ? (
-                                    <Image
-                                      src={config.icon}
-                                      alt={integration.display_name}
-                                      width={20}
-                                      height={20}
-                                      className="object-contain"
-                                    />
-                                  ) : (
-                                    <span className="text-xs text-zinc-400">
-                                      {integration.display_name.charAt(0)}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-zinc-200">
-                                    {integration.display_name}
-                                  </p>
-                                  {config?.description && (
-                                    <p className="truncate text-xs text-zinc-500">
-                                      {config.description}
+                    {/* Auth required card */}
+                    {authRequired && authRequired.length > 0 && (
+                      <div className="flex items-start gap-4">
+                        <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-zinc-400" />
+                        <div className="max-w-md space-y-3">
+                          <ShimmerText
+                            text={`To continue with your request, please connect ${authRequired
+                              .map((i) => i.display_name)
+                              .join(" and ")}.`}
+                            className="!text-base !font-medium"
+                            wrapperClassName="p-0 justify-start"
+                          />
+                          <div className="space-y-2">
+                            {authRequired.map((integration) => {
+                              const config = integrationConfig.find(
+                                (c) => c.id === integration.connect_id
+                              );
+                              return (
+                                <div
+                                  key={integration.connect_id}
+                                  className="bubble flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#1a1a1a] px-4 py-3">
+                                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white">
+                                    {config?.icon ? (
+                                      <Image
+                                        src={config.icon}
+                                        alt={integration.display_name}
+                                        width={20}
+                                        height={20}
+                                        className="object-contain"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-zinc-400">
+                                        {integration.display_name.charAt(0)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-zinc-200">
+                                      {integration.display_name}
                                     </p>
-                                  )}
+                                    {config?.description && (
+                                      <p className="truncate text-xs text-zinc-500">
+                                        {config.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <a
+                                    href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
+                                    className="bubble flex-shrink-0 rounded-3xl bg-white/[0.08] px-3.5 py-2.5 text-xs font-light text-zinc-200 transition-colors hover:bg-white/[0.12]">
+                                    Connect
+                                  </a>
                                 </div>
-                                <a
-                                  href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
-                                  className="flex-shrink-0 rounded-lg bg-white/[0.08] px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/[0.12]">
-                                  Connect
-                                </a>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-zinc-600">
+                            After connecting, try your request again.
+                          </p>
                         </div>
-                        <p className="text-xs text-zinc-600">
-                          After connecting, try your request again.
-                        </p>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Error display */}
-                  {error && !authRequired && (
-                    <div className="flex items-start gap-4">
-                      <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-red-400" />
-                      <div className="rounded-2xl border border-red-500/30 bg-[#1a1a1a] px-4 py-3">
-                        <p className="text-sm text-red-400">
-                          <strong>Error:</strong> {error}
-                        </p>
+                    {/* Error display */}
+                    {error && !authRequired && (
+                      <div className="flex items-start gap-4">
+                        <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-red-400" />
+                        <div className="rounded-2xl border border-red-500/30 bg-[#1a1a1a] px-4 py-3">
+                          <p className="text-sm text-red-400">
+                            <strong>Error:</strong> {error}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </StickToBottom.Content>
-            </StickToBottom>
+              </div>
+            </div>
 
             {/* Fixed chat input at the bottom */}
             <div className="flex-shrink-0 bg-[#131313] px-4 pt-2 pb-4">
