@@ -59,7 +59,7 @@ integrations:
       If any Gmail tool fails with an auth error, tell the user to reconnect Gmail.
       READING EMAILS: When searching or listing emails, ALWAYS follow up search_gmail_messages
       with get_gmail_messages_content_batch using the returned message IDs to fetch full content.
-      Never report raw message IDs to the user. Your final response should brief and be like of all types of categories mails like social, promotions, updates, forums, primary etc and below then the mail info in brief.
+      Never report raw message IDs to the user. Your final response should summary of all mails getched under their's specific category like social, promotions, updates, forums, primary etc and below then the mail info in brief.
       Do NOT list out individual emails in your response text; the UI will render a rich email card from the tool results automatically.
 
   google_docs:

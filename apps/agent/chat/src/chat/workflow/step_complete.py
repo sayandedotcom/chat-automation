@@ -18,6 +18,56 @@ from chat.workflow.artifacts import (
 logger = logging.getLogger(__name__)
 
 
+def _build_rich_result(
+    last_message: str, messages: list, current_step_index: int
+) -> str:
+    """Build an enriched step result that includes key tool output content.
+
+    Combines the executor's final response with summaries of tool outputs
+    so that subsequent steps have richer context via get_previous_results.
+    """
+    if not last_message:
+        return "Step completed"
+
+    # Collect tool output content from this step's messages
+    # Walk backwards from the end to find tool results for this step
+    tool_summaries = []
+    char_budget = 4000  # Max chars from tool outputs to include
+    chars_used = 0
+
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+        content = msg.content
+        if isinstance(content, list):
+            content = str(content)
+        if not isinstance(content, str) or not content.strip():
+            continue
+
+        tool_name = getattr(msg, "name", "tool")
+        # Skip very short tool results (just confirmations like "OK" or IDs)
+        if len(content) < 50:
+            continue
+        # Truncate individual tool outputs
+        snippet = content[:1500] if len(content) > 1500 else content
+        remaining = char_budget - chars_used
+        if remaining <= 0:
+            break
+        if len(snippet) > remaining:
+            snippet = snippet[:remaining] + "..."
+        tool_summaries.append(f"[{tool_name}]: {snippet}")
+        chars_used += len(snippet)
+
+    if not tool_summaries:
+        return last_message
+
+    # Combine: AI summary first, then key tool outputs for context
+    combined = last_message
+    combined += "\n\n--- Tool Outputs (for context) ---\n"
+    combined += "\n".join(tool_summaries)
+    return combined
+
+
 async def run_step_complete(state: WorkflowState, *, registry=None) -> dict:
     """Mark the current step done, extract artifacts, advance to next step."""
     plan = state["plan"]
@@ -42,7 +92,12 @@ async def run_step_complete(state: WorkflowState, *, registry=None) -> dict:
             break
 
     current_step = plan.steps[current_index]
+    # result: clean AI response for frontend display (no raw tool output)
     current_step.result = last_message or "Step completed"
+    # executor_context: enriched with tool outputs for cross-step context passing only
+    current_step.executor_context = _build_rich_result(
+        last_message, messages, current_index
+    )
     current_step.status = "completed"
 
     # Populate tools_used from ToolMessage names in this step's messages

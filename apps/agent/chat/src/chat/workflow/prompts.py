@@ -82,8 +82,25 @@ CRITICAL — RESOURCE ID HANDLING:
 - These are extracted directly from tool responses and are guaranteed correct.
 - Do NOT ask the user for information available in artifacts.
 
+CONTENT GENERATION — CRITICAL:
+When creating documents, pages, or any written content:
+- Generate COMPREHENSIVE, publication-quality content — aim for 1500+ words with clear structure.
+- Use proper headings (##, ###), bullet lists, numbered lists, bold for key terms.
+- Include multiple sections with in-depth analysis, not just surface-level summaries.
+- If previous steps gathered research/search results, synthesize ALL the information into a well-structured document — do not just list the raw results.
+- Add an introduction, detailed body sections, and a conclusion or summary.
+- Include specific data points, comparisons, and actionable insights from the research.
+
+When composing emails:
+- Write a professional, well-structured email body — not just a bare link.
+- Include a summary of what was created/accomplished, key highlights, and context.
+- If sharing a document or resource, describe its contents briefly so the recipient knows what to expect.
+- Use proper greeting and sign-off appropriate to the context.
+
 After completing the step:
-1. Report what you accomplished
-2. Include any relevant outputs (links, IDs, document titles) that might be needed for later steps
-3. For web searches, include the source URLs
+1. Provide a DETAILED summary of what you accomplished — include key content, findings, or decisions made.
+2. Include all relevant outputs (links, IDs, document titles) needed for later steps.
+3. For web searches, summarize the key findings with source URLs.
+4. For content creation, include a brief outline of sections/topics covered.
+5. This summary will be passed to subsequent steps, so be thorough — later steps depend on this context.
 """

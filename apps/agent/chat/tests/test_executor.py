@@ -425,6 +425,7 @@ class TestContinueAfterTools:
         plan = make_plan()
         state = {
             "plan": plan,
+            "current_step_index": 0,
             "messages": [HumanMessage("q"), tool_msg1, tool_msg2],
             "_executor_chat": executor_chat,
             "_step_tool_calls": 3,
@@ -450,6 +451,7 @@ class TestContinueAfterTools:
         plan = make_plan()
         state = {
             "plan": plan,
+            "current_step_index": 0,
             "messages": [HumanMessage("q"), tool_msg1, tool_msg2],
             "_executor_chat": executor_chat,
             "_step_tool_calls": 4,
@@ -474,6 +476,7 @@ class TestContinueAfterTools:
         plan = make_plan()
         state = {
             "plan": plan,
+            "current_step_index": 0,
             "messages": [old_tool, some_ai, new_tool],
             "_executor_chat": executor_chat,
             "_step_tool_calls": 0,
@@ -496,6 +499,7 @@ class TestContinueAfterTools:
         plan = make_plan()
         state = {
             "plan": plan,
+            "current_step_index": 0,
             "messages": [HumanMessage("q"), tool_msg],
             "_executor_chat": executor_chat,
             "_step_tool_calls": 0,

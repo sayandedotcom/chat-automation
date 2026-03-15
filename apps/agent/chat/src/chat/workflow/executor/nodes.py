@@ -22,6 +22,30 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _extract_thinking(response) -> str | None:
+    """Extract thinking/reasoning text from an executor LLM response.
+
+    When the LLM responds with tool_calls alongside text content,
+    the text is its reasoning (thinking). When the response is purely
+    text (no tool calls), return None — the text is the result, not thinking.
+    """
+    if not hasattr(response, "content") or not response.content:
+        return None
+    content = response.content
+    if isinstance(content, list):
+        content = "\n".join(
+            item["text"] if isinstance(item, dict) and "text" in item else str(item)
+            for item in content
+        )
+    if not isinstance(content, str) or not content.strip():
+        return None
+    # Only treat as thinking when the LLM also made tool calls —
+    # otherwise the text IS the step result
+    if hasattr(response, "tool_calls") and response.tool_calls:
+        return content.strip()
+    return None
+
+
 async def run_executor(
     state: WorkflowState,
     *,
@@ -78,6 +102,10 @@ async def run_executor(
         )
 
     current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
+
+    # Populate step.thinking from the executor's text response
+    # When the LLM responds with tool_calls + text content, the text is its reasoning
+    current_step.thinking = _extract_thinking(response)
 
     result: dict = {
         "messages": [response],
@@ -177,6 +205,9 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
     """Continue the executor conversation after ToolNode results (multi-hop)."""
     import asyncio
 
+    plan = state["plan"]
+    current_index = state["current_step_index"]
+
     executor_chat = list(state["_executor_chat"])
     new_tool_msgs = []
     for msg in reversed(state["messages"]):
@@ -219,6 +250,7 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
 
     executor_chat.extend(chat_tool_msgs)
 
+    start_time = time.time()
     try:
         response = await asyncio.wait_for(
             executor_with_tools.ainvoke(executor_chat),
@@ -233,12 +265,21 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
         response = AIMessage(content="Here are the results from the tools above.")
 
     executor_chat.append(response)
+    duration_ms = int((time.time() - start_time) * 1000)
+
+    # Update step thinking for each tool-loop LLM call
+    if plan and 0 <= current_index < len(plan.steps):
+        step = plan.steps[current_index]
+        step.thinking_duration_ms = duration_ms
+        thinking = _extract_thinking(response)
+        if thinking:
+            step.thinking = thinking
 
     return {
         "messages": [response],
         "_executor_chat": executor_chat,
         "_step_tool_calls": state.get("_step_tool_calls", 0) + len(new_tool_msgs),
-        "plan": state["plan"],
+        "plan": plan,
     }
 
 
@@ -354,6 +395,7 @@ async def request_approval(
             artifacts=step_artifacts,
         )
         current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
+        current_step.thinking = _extract_thinking(response)
 
         if hasattr(response, "tool_calls") and response.tool_calls:
             for tc in response.tool_calls:

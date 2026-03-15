@@ -257,8 +257,8 @@ class TestRunStepComplete:
         mock_extract.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_non_search_step_skips_search_extraction(self):
-        """Steps without 'search' in description do NOT trigger search results extraction."""
+    async def test_non_search_step_still_extracts_search_results(self):
+        """All steps try to extract search results (not just search-named ones)."""
         plan = make_plan("Create a document")
         state = base_state(
             plan,
@@ -271,9 +271,10 @@ class TestRunStepComplete:
         with patch(
             "chat.workflow.step_complete.extract_search_results_from_messages"
         ) as mock_extract:
+            mock_extract.return_value = []
             await run_step_complete(state)
 
-        mock_extract.assert_not_called()
+        mock_extract.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_list_content_ai_message_is_joined(self):

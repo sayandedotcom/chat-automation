@@ -109,8 +109,11 @@ def get_previous_results(
     parts = []
     for step in plan.steps[:current_index]:
         has_content = False
-        if step.result:
-            parts.append(f"Step {step.step_number}: {step.result}")
+        # Use executor_context (richer, includes tool outputs) when available;
+        # fall back to result (clean AI response) for display-only content
+        context_text = step.executor_context or step.result
+        if context_text:
+            parts.append(f"Step {step.step_number}: {context_text}")
             has_content = True
 
         # Include artifact data only for steps that have results

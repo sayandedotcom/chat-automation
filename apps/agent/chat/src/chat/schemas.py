@@ -158,6 +158,11 @@ class WorkflowStep(BaseModel):
     thinking_duration_ms: Optional[int] = Field(
         default=None, description="Time spent thinking in milliseconds"
     )
+    # Rich context for cross-step passing (includes tool outputs — never sent to frontend)
+    executor_context: Optional[str] = Field(
+        default=None,
+        description="Full step context (AI response + tool outputs) for subsequent steps",
+    )
 
 
 class WorkflowPlan(BaseModel):
