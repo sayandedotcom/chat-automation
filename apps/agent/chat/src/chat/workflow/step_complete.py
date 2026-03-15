@@ -5,6 +5,7 @@ Marks the current step done, extracts artifacts, and advances to the next step.
 """
 
 import logging
+import re
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -68,7 +69,115 @@ def _build_rich_result(
     return combined
 
 
-async def run_step_complete(state: WorkflowState, *, registry=None) -> dict:
+# ---------------------------------------------------------------------------
+# Identifier extraction & LLM-based summarization
+# ---------------------------------------------------------------------------
+
+# Patterns for structured data that must NOT be summarized by LLM
+_URL_PATTERN = re.compile(r"https?://[^\s<>\"')\]},]+")
+_EMAIL_PATTERN = re.compile(r"[\w.+%-]+@[\w-]+\.[\w.]+")
+
+# Only summarize tool outputs exceeding this char threshold
+_SUMMARIZE_THRESHOLD = 3000
+
+
+def _extract_identifiers(text: str) -> tuple[list[str], str]:
+    """Extract URLs and emails from text.
+
+    Returns (identifiers, cleaned_text) where identifiers are prefixed
+    strings (e.g. "URL: ...") and cleaned_text has them replaced with
+    placeholders so the LLM cannot corrupt them.
+    """
+    identifiers: list[str] = []
+
+    for url in _URL_PATTERN.findall(text):
+        entry = f"URL: {url}"
+        if entry not in identifiers:
+            identifiers.append(entry)
+
+    for email in _EMAIL_PATTERN.findall(text):
+        entry = f"Email: {email}"
+        if entry not in identifiers:
+            identifiers.append(entry)
+
+    # Strip URLs/emails from text so LLM can't corrupt them
+    cleaned = _URL_PATTERN.sub("[URL_REMOVED]", text)
+    cleaned = _EMAIL_PATTERN.sub("[EMAIL_REMOVED]", cleaned)
+
+    return identifiers, cleaned
+
+
+async def _summarize_tool_outputs(messages: list, current_step, summarizer_llm) -> str:
+    """Summarize tool outputs with identifier preservation.
+
+    Small outputs are returned verbatim (no LLM call). Large outputs are
+    sent through the LLM with URLs/emails stripped out, then the extracted
+    identifiers are appended verbatim at the end.
+    """
+    tool_outputs: list[str] = []
+    original_parts: list[str] = []
+    all_identifiers: list[str] = []
+
+    for msg in messages:
+        if not isinstance(msg, ToolMessage) or not msg.content:
+            continue
+        content = str(msg.content) if not isinstance(msg.content, str) else msg.content
+        if len(content) < 50:
+            continue
+
+        tool_name = getattr(msg, "name", "tool")
+        identifiers, cleaned = _extract_identifiers(content)
+        all_identifiers.extend(identifiers)
+        tool_outputs.append(f"[{tool_name}]:\n{cleaned}")
+        original_parts.append(f"[{tool_name}]: {content}")
+
+    if not tool_outputs:
+        return ""
+
+    combined = "\n\n".join(tool_outputs)
+
+    # Small outputs: return original content with URLs intact (no LLM needed)
+    if len(combined) < _SUMMARIZE_THRESHOLD:
+        return "\n".join(original_parts)
+
+    # Large outputs: LLM summarization with identifier stripping
+    from langchain_core.messages import HumanMessage as HMsg
+    from langchain_core.messages import SystemMessage
+
+    response = await summarizer_llm.ainvoke(
+        [
+            SystemMessage(
+                content=(
+                    "You are a precise data summarizer. Extract key findings, "
+                    "data points, and results. Do NOT include any URLs, links, "
+                    "email addresses, or document IDs — those are tracked "
+                    "separately. Focus on the substance: names, numbers, dates, "
+                    "descriptions, and status information."
+                )
+            ),
+            HMsg(
+                content=(
+                    f"Summarize tool outputs for step: "
+                    f'"{current_step.description}"\n\n'
+                    f"{combined[:25000]}"
+                )
+            ),
+        ]
+    )
+
+    # Recombine: LLM summary + verbatim identifiers
+    result = response.content
+    if all_identifiers:
+        unique_ids = list(dict.fromkeys(all_identifiers))  # dedupe preserving order
+        result += "\n\n--- Extracted Data (verbatim) ---\n"
+        result += "\n".join(unique_ids)
+
+    return result
+
+
+async def run_step_complete(
+    state: WorkflowState, *, registry=None, summarizer_llm=None
+) -> dict:
     """Mark the current step done, extract artifacts, advance to next step."""
     plan = state["plan"]
     current_index = state["current_step_index"]
@@ -95,9 +204,21 @@ async def run_step_complete(state: WorkflowState, *, registry=None) -> dict:
     # result: clean AI response for frontend display (no raw tool output)
     current_step.result = last_message or "Step completed"
     # executor_context: enriched with tool outputs for cross-step context passing only
-    current_step.executor_context = _build_rich_result(
-        last_message, messages, current_index
-    )
+    if summarizer_llm:
+        summarized = await _summarize_tool_outputs(
+            messages, current_step, summarizer_llm
+        )
+        if summarized:
+            current_step.executor_context = (
+                (last_message + "\n\n" + summarized) if last_message else summarized
+            )
+        else:
+            current_step.executor_context = last_message or "Step completed"
+    else:
+        # Fallback to original truncation method
+        current_step.executor_context = _build_rich_result(
+            last_message, messages, current_index
+        )
     current_step.status = "completed"
 
     # Populate tools_used from ToolMessage names in this step's messages

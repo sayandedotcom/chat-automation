@@ -31,6 +31,7 @@ from chat.schemas import WorkflowPlan, WorkflowState, WorkflowStep
 from chat.workflow.llm import (
     get_executor_llm,
     get_planner_llm,
+    get_summarizer_llm,
 )
 
 # Re-export routing symbols so graph.py can import them from here (single source)
@@ -120,6 +121,7 @@ class WorkflowNodes:
         self.registry = registry
         self.planner_llm = get_planner_llm()
         self.executor_llm = get_executor_llm()
+        self.summarizer_llm = get_summarizer_llm()
         self.executor_with_tools = (
             self.executor_llm.bind_tools(self.tools)
             if self.tools
@@ -233,7 +235,9 @@ class WorkflowNodes:
         """Mark the current step done, extract artifacts, advance to next step."""
         from chat.workflow.step_complete import run_step_complete
 
-        return await run_step_complete(state, registry=self.registry)
+        return await run_step_complete(
+            state, registry=self.registry, summarizer_llm=self.summarizer_llm
+        )
 
     def get_tool_node(self) -> ToolNode:
         return self.tool_node

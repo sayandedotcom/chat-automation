@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 _planner_llm = None
 _executor_llm = None
 _classifier_llm = None
+_summarizer_llm = None
 
 
 def get_planner_llm():
@@ -40,6 +41,22 @@ def get_executor_llm():
         )
         logger.info("Initialized shared executor LLM")
     return _executor_llm
+
+
+def get_summarizer_llm():
+    """Get shared summarizer LLM instance for tool output summarization.
+
+    Uses Gemini Flash with low temperature for faithful summarization.
+    """
+    global _summarizer_llm
+    if _summarizer_llm is None:
+        _summarizer_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=GOOGLE_API_KEY,
+            temperature=0.1,
+        )
+        logger.info("Initialized shared summarizer LLM")
+    return _summarizer_llm
 
 
 def get_classifier_llm():

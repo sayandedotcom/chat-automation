@@ -7,15 +7,21 @@ Covers:
 - Marks plan.is_complete when last step is done
 - Resets executor state (_executor_chat, _step_tool_calls) after step
 - Handles no plan / out-of-bounds index gracefully
+- _extract_identifiers: URL/email extraction and text cleaning
+- _summarize_tool_outputs: small bypass, large LLM summarization
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from chat.schemas import WorkflowPlan, WorkflowStep
-from chat.workflow.step_complete import run_step_complete
+from chat.workflow.step_complete import (
+    _extract_identifiers,
+    _summarize_tool_outputs,
+    run_step_complete,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -292,3 +298,193 @@ class TestRunStepComplete:
 
         # step_complete joins text blocks with "\n"
         assert plan.steps[0].result == "Hello, \nworld!"
+
+
+# ---------------------------------------------------------------------------
+# _extract_identifiers
+# ---------------------------------------------------------------------------
+
+
+class TestExtractIdentifiers:
+    def test_extracts_urls(self):
+        text = "Check https://docs.google.com/document/d/abc123 for details."
+        identifiers, cleaned = _extract_identifiers(text)
+        assert "URL: https://docs.google.com/document/d/abc123" in identifiers
+        assert "[URL_REMOVED]" in cleaned
+        assert "https://docs.google.com" not in cleaned
+
+    def test_extracts_emails(self):
+        text = "Contact alice@example.com and bob+tag@company.org for info."
+        identifiers, cleaned = _extract_identifiers(text)
+        assert "Email: alice@example.com" in identifiers
+        assert "Email: bob+tag@company.org" in identifiers
+        assert "[EMAIL_REMOVED]" in cleaned
+        assert "alice@example.com" not in cleaned
+
+    def test_deduplicates_urls(self):
+        text = "Visit https://example.com twice: https://example.com"
+        identifiers, _ = _extract_identifiers(text)
+        url_entries = [i for i in identifiers if i.startswith("URL:")]
+        assert len(url_entries) == 1
+
+    def test_no_identifiers_in_plain_text(self):
+        text = "Just a plain text message with no links or emails."
+        identifiers, cleaned = _extract_identifiers(text)
+        assert identifiers == []
+        assert cleaned == text
+
+    def test_mixed_urls_and_emails(self):
+        text = (
+            "See https://drive.google.com/file/d/xyz and email "
+            "support@test.com for help."
+        )
+        identifiers, cleaned = _extract_identifiers(text)
+        assert len(identifiers) == 2
+        assert any("URL:" in i for i in identifiers)
+        assert any("Email:" in i for i in identifiers)
+        assert "https://" not in cleaned
+        assert "support@test.com" not in cleaned
+
+
+# ---------------------------------------------------------------------------
+# _summarize_tool_outputs
+# ---------------------------------------------------------------------------
+
+
+class TestSummarizeToolOutputs:
+    @pytest.mark.asyncio
+    async def test_empty_messages_returns_empty_string(self):
+        result = await _summarize_tool_outputs([], make_step(), None)
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_small_outputs_bypass_llm(self):
+        """Tool outputs under the threshold are returned verbatim without LLM."""
+        msgs = [
+            ToolMessage(
+                content="Found 3 documents matching your query in Google Drive.",
+                tool_call_id="call_1",
+                name="search_drive",
+            ),
+        ]
+        step = make_step(description="Search Google Drive")
+        # Pass None as LLM — it should not be called for small outputs
+        result = await _summarize_tool_outputs(msgs, step, None)
+        assert "Found 3 documents" in result
+        assert "[search_drive]" in result
+
+    @pytest.mark.asyncio
+    async def test_large_outputs_call_llm_with_cleaned_text(self):
+        """Large outputs trigger LLM summarization with URLs stripped."""
+        large_content = (
+            "Result from search: "
+            + "x" * 4000
+            + " https://docs.google.com/document/d/abc123"
+            + " contact: user@example.com"
+        )
+        msgs = [
+            ToolMessage(
+                content=large_content,
+                tool_call_id="call_1",
+                name="search_tool",
+            ),
+        ]
+        step = make_step(description="Search for documents")
+
+        mock_llm = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.content = "Found search results with relevant documents."
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+        result = await _summarize_tool_outputs(msgs, step, mock_llm)
+
+        # LLM was called
+        mock_llm.ainvoke.assert_awaited_once()
+        # The text sent to LLM should NOT contain the URL
+        call_args = mock_llm.ainvoke.call_args[0][0]
+        human_msg = call_args[1]  # second message is the HumanMessage
+        assert "https://docs.google.com" not in human_msg.content
+        assert "[URL_REMOVED]" in human_msg.content
+
+        # Result should contain LLM summary + verbatim identifiers
+        assert "Found search results" in result
+        assert "--- Extracted Data (verbatim) ---" in result
+        assert "URL: https://docs.google.com/document/d/abc123" in result
+        assert "Email: user@example.com" in result
+
+    @pytest.mark.asyncio
+    async def test_skips_short_tool_messages(self):
+        """ToolMessages with content < 50 chars are skipped."""
+        msgs = [
+            ToolMessage(content="OK", tool_call_id="call_1", name="tool_a"),
+        ]
+        result = await _summarize_tool_outputs(msgs, make_step(), None)
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_skips_non_tool_messages(self):
+        """Non-ToolMessages are ignored."""
+        msgs = [
+            AIMessage(content="I found the results."),
+            HumanMessage(content="Thanks"),
+        ]
+        result = await _summarize_tool_outputs(msgs, make_step(), None)
+        assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# run_step_complete with summarizer_llm
+# ---------------------------------------------------------------------------
+
+
+class TestRunStepCompleteWithSummarizer:
+    @pytest.mark.asyncio
+    async def test_uses_summarizer_when_provided(self):
+        """When summarizer_llm is provided and there are tool outputs, it's used."""
+        large_content = (
+            "Detailed results: " + "data " * 1000 + " https://example.com/doc/123"
+        )
+        plan = make_plan("Search for info")
+        state = base_state(
+            plan,
+            current_index=0,
+            messages=[
+                ToolMessage(
+                    content=large_content, tool_call_id="call_1", name="search"
+                ),
+                AIMessage(content="Found the info."),
+            ],
+        )
+
+        mock_llm = AsyncMock()
+        mock_response = AsyncMock()
+        mock_response.content = "Summary of search results."
+        mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+        await run_step_complete(state, summarizer_llm=mock_llm)
+
+        # executor_context should contain LLM summary + AI message
+        ctx = plan.steps[0].executor_context
+        assert "Found the info." in ctx
+        assert "Summary of search results." in ctx
+        assert "URL: https://example.com/doc/123" in ctx
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_build_rich_result_without_summarizer(self):
+        """Without summarizer_llm, falls back to _build_rich_result truncation."""
+        plan = make_plan("Do something")
+        content = "Tool output content that is at least 50 chars long for testing."
+        state = base_state(
+            plan,
+            current_index=0,
+            messages=[
+                ToolMessage(content=content, tool_call_id="call_1", name="some_tool"),
+                AIMessage(content="Done."),
+            ],
+        )
+
+        await run_step_complete(state)
+
+        ctx = plan.steps[0].executor_context
+        assert "Done." in ctx
+        assert "[some_tool]" in ctx
