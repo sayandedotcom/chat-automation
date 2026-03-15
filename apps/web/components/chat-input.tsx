@@ -165,7 +165,7 @@ export function ChatInputWithMentions({
                       size="sm"
                       pressed={isAutoMode}
                       onPressedChange={setIsAutoMode}
-                      className="h-8 cursor-pointer gap-2 rounded-xl border border-white/[0.08] px-3.5 text-[#9a9a9a] select-none hover:text-[#c0c0c0] data-[state=on]:text-[#c0bcc8]"
+                      className="bubble h-8 cursor-pointer gap-2 rounded-xl border border-white/[0.08] px-3.5 text-[#9a9a9a] select-none hover:text-[#c0c0c0] data-[state=on]:text-[#c0bcc8]"
                       style={{
                         background: isAutoMode
                           ? "linear-gradient(to bottom, #2d2440, #1e1b30)"
@@ -181,7 +181,7 @@ export function ChatInputWithMentions({
                       }}>
                       <span className="text-[13px] font-medium">Auto</span>
                       <div
-                        className={`flex h-[16px] w-[16px] items-center justify-center rounded-full transition-all duration-200 ${
+                        className={`bubble flex h-[16px] w-[16px] items-center justify-center rounded-full transition-all duration-200 ${
                           isAutoMode
                             ? "bg-white/20 text-white/90"
                             : "border border-[#3a3a3a] bg-[#2a2a2a]"

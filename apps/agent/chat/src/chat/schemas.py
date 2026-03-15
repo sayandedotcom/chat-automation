@@ -29,6 +29,18 @@ class SearchResultItem(BaseModel):
     date: Optional[str] = Field(default=None, description="Published date if available")
 
 
+class EmailResultItem(BaseModel):
+    """Structured email result from Gmail."""
+
+    message_id: str
+    thread_id: Optional[str] = None
+    sender: str  # "John Doe <john@example.com>"
+    subject: str
+    snippet: str  # First ~200 chars of body
+    date: str  # e.g. "Mar 14, 2026" or ISO string
+    is_unread: Optional[bool] = None
+
+
 class ClassifierOutput(BaseModel):
     """Structured output from the integration classifier LLM."""
 
@@ -129,6 +141,15 @@ class WorkflowStep(BaseModel):
     # Structured data for web search results
     search_results: Optional[list[SearchResultItem]] = Field(
         default=None, description="Structured search results from web search"
+    )
+    # Structured email results from Gmail
+    email_results: Optional[list[EmailResultItem]] = Field(
+        default=None, description="Structured email results from Gmail"
+    )
+    # Backend-resolved UI component ID for result rendering
+    ui_component: Optional[str] = Field(
+        default=None,
+        description="Backend-resolved UI component ID for result rendering",
     )
     # Per-step thinking capture
     thinking: Optional[str] = Field(

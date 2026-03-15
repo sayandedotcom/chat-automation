@@ -183,6 +183,21 @@ class ChatService:
                         ]
                         if step.search_results
                         else None,
+                        "email_results": [
+                            {
+                                "message_id": e.message_id,
+                                "thread_id": e.thread_id,
+                                "sender": e.sender,
+                                "subject": e.subject,
+                                "snippet": e.snippet,
+                                "date": e.date,
+                                "is_unread": e.is_unread,
+                            }
+                            for e in step.email_results
+                        ]
+                        if step.email_results
+                        else None,
+                        "ui_component": step.ui_component,
                     }
                     for step in plan.steps
                 ],
@@ -461,6 +476,23 @@ class ChatService:
                                     ]
                                     if s.search_results
                                     else None,
+                                    # Include structured email results if available
+                                    "email_results": [
+                                        {
+                                            "message_id": e.message_id,
+                                            "thread_id": e.thread_id,
+                                            "sender": e.sender,
+                                            "subject": e.subject,
+                                            "snippet": e.snippet,
+                                            "date": e.date,
+                                            "is_unread": e.is_unread,
+                                        }
+                                        for e in s.email_results
+                                    ]
+                                    if s.email_results
+                                    else None,
+                                    # Backend-resolved UI component ID
+                                    "ui_component": s.ui_component,
                                 }
                                 for s in plan.steps
                             ],

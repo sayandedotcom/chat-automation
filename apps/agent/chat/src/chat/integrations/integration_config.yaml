@@ -18,6 +18,10 @@ integrations:
     ui_components:
       send_gmail_message: "email_composer"
       draft_gmail_message: "email_composer"
+      get_gmail_messages_content_batch: "email_list_card"
+      get_gmail_message_content: "email_list_card"
+      get_gmail_thread_content: "email_list_card"
+      get_gmail_threads_content_batch: "email_list_card"
     tool_names:
       - "search_gmail_messages"
       - "get_gmail_message_content"
@@ -53,6 +57,10 @@ integrations:
       Do NOT ask the user for subject or body if they can be inferred from artifacts and context.
       The authenticated user is implicit — NEVER ask for the user's email address or userId.
       If any Gmail tool fails with an auth error, tell the user to reconnect Gmail.
+      READING EMAILS: When searching or listing emails, ALWAYS follow up search_gmail_messages
+      with get_gmail_messages_content_batch using the returned message IDs to fetch full content.
+      Never report raw message IDs to the user. Your final response should brief and be like of all types of categories mails like social, promotions, updates, forums, primary etc and below then the mail info in brief.
+      Do NOT list out individual emails in your response text; the UI will render a rich email card from the tool results automatically.
 
   google_docs:
     ui_components:
@@ -111,10 +119,17 @@ integrations:
       - "list_spreadsheets"
       - "format_sheet_range"
       - "create_sheet"
+      - "add_conditional_formatting"
+      - "update_conditional_formatting"
+      - "delete_conditional_formatting"
       - "read_sheet_comment"
       - "create_sheet_comment"
       - "reply_to_sheet_comment"
       - "resolve_sheet_comment"
+      - "read_spreadsheet_comments"
+      - "create_spreadsheet_comment"
+      - "reply_to_spreadsheet_comment"
+      - "resolve_spreadsheet_comment"
     display_name: "Google Sheets"
     icon: "google_sheets"
     requires_auth: true
@@ -154,6 +169,7 @@ integrations:
       - "create_presentation_comment"
       - "reply_to_presentation_comment"
       - "resolve_presentation_comment"
+      - "read_presentation_comments"
     display_name: "Google Slides"
     icon: "google_slides"
     requires_auth: true

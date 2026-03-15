@@ -168,8 +168,15 @@ async def start_step_execution(
     return response, executor_chat
 
 
+# Max chars per tool result fed to the executor LLM.
+# Full content stays in state["messages"] for step_complete extraction.
+_TOOL_RESULT_CHAR_LIMIT = 12_000
+
+
 async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dict:
     """Continue the executor conversation after ToolNode results (multi-hop)."""
+    import asyncio
+
     executor_chat = list(state["_executor_chat"])
     new_tool_msgs = []
     for msg in reversed(state["messages"]):
@@ -178,8 +185,53 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
         else:
             break
 
-    executor_chat.extend(new_tool_msgs)
-    response = await executor_with_tools.ainvoke(executor_chat)
+    # Log context size to help diagnose slow LLM calls
+    total_chars = sum(len(str(getattr(m, "content", ""))) for m in new_tool_msgs)
+    logger.info(
+        f"[CONTINUE] Feeding {len(new_tool_msgs)} tool result(s) to LLM "
+        f"({total_chars} chars), executor_chat len={len(executor_chat)}"
+    )
+
+    # Truncate oversized tool results for the LLM conversation only.
+    # The original ToolMessages in state["messages"] stay untouched so that
+    # step_complete can extract full structured data (email_results, etc.).
+    chat_tool_msgs = []
+    for msg in new_tool_msgs:
+        content = msg.content
+        content_str = str(content) if not isinstance(content, str) else content
+        if len(content_str) > _TOOL_RESULT_CHAR_LIMIT:
+            truncated = content_str[:_TOOL_RESULT_CHAR_LIMIT] + (
+                "\n\n[... truncated — full content available for processing]"
+            )
+            logger.info(
+                f"[CONTINUE] Truncated tool result '{getattr(msg, 'name', '?')}' "
+                f"from {len(content_str)} to {_TOOL_RESULT_CHAR_LIMIT} chars"
+            )
+            chat_tool_msgs.append(
+                ToolMessage(
+                    content=truncated,
+                    tool_call_id=msg.tool_call_id,
+                    name=getattr(msg, "name", None),
+                )
+            )
+        else:
+            chat_tool_msgs.append(msg)
+
+    executor_chat.extend(chat_tool_msgs)
+
+    try:
+        response = await asyncio.wait_for(
+            executor_with_tools.ainvoke(executor_chat),
+            timeout=120,  # 2 minutes — prevents indefinite hangs
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            f"[CONTINUE] LLM timed out after 120s processing "
+            f"{len(new_tool_msgs)} tool result(s) ({total_chars} chars)"
+        )
+        # Produce a non-tool-call response so the step completes
+        response = AIMessage(content="Here are the results from the tools above.")
+
     executor_chat.append(response)
 
     return {

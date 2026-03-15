@@ -11,13 +11,14 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from chat.schemas import WorkflowState
 from chat.workflow.artifacts import (
     extract_artifacts_from_step,
+    extract_email_results_from_messages,
     extract_search_results_from_messages,
 )
 
 logger = logging.getLogger(__name__)
 
 
-async def run_step_complete(state: WorkflowState) -> dict:
+async def run_step_complete(state: WorkflowState, *, registry=None) -> dict:
     """Mark the current step done, extract artifacts, advance to next step."""
     plan = state["plan"]
     current_index = state["current_step_index"]
@@ -64,6 +65,25 @@ async def run_step_complete(state: WorkflowState) -> dict:
         logger.info(
             f"[SEARCH_RESULTS] step={current_step.step_number}: no results extracted"
         )
+
+    # Extract email results from Gmail tool messages
+    email_results = extract_email_results_from_messages(messages)
+    if email_results:
+        current_step.email_results = email_results
+        logger.info(
+            f"[EMAIL_RESULTS] step={current_step.step_number}: extracted {len(email_results)} emails"
+        )
+
+    # Resolve step-level ui_component from the last tool that has a mapping
+    if registry and tool_names:
+        for tn in reversed(tool_names):
+            ui_comp = registry.get_ui_component_for_tool(tn)
+            if ui_comp:
+                current_step.ui_component = ui_comp
+                logger.info(
+                    f"[UI_COMPONENT] step={current_step.step_number}: resolved '{ui_comp}' from tool '{tn}'"
+                )
+                break
 
     turn_number = sum(1 for m in messages if isinstance(m, HumanMessage))
     msg_types = [

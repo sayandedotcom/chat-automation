@@ -33,6 +33,9 @@ _HEARTBEAT_INTERVAL = 15
 _services: dict[str, ChatService] = {}
 
 
+_HEARTBEAT_SENTINEL = object()
+
+
 async def _with_heartbeat(
     inner: AsyncIterator[dict],
     interval: float = _HEARTBEAT_INTERVAL,
@@ -43,19 +46,33 @@ async def _with_heartbeat(
     If the inner iterator doesn't yield within *interval* seconds, a
     ``{"type": "heartbeat"}`` SSE line is emitted to prevent the ALB from
     closing the idle TCP connection.
-    """
-    it = inner.__aiter__()
-    finished = False
 
-    while not finished:
+    Uses ``asyncio.wait`` (NOT ``wait_for``) so the underlying generator is
+    never cancelled — ``wait_for`` sends ``CancelledError`` into the
+    generator which terminates the entire stream.
+    """
+
+    async def _next_or_sentinel(ait: AsyncIterator[dict]):
         try:
-            event = await asyncio.wait_for(it.__anext__(), timeout=interval)
-            yield f"data: {json.dumps(event)}\n\n"
-        except asyncio.TimeoutError:
-            # No real event within the interval — send a keepalive
-            yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            return await ait.__anext__()
         except StopAsyncIteration:
-            finished = True
+            return _HEARTBEAT_SENTINEL
+
+    it = inner.__aiter__()
+
+    while True:
+        task = asyncio.ensure_future(_next_or_sentinel(it))
+
+        # Wait for the next event, sending heartbeats on each timeout
+        while not task.done():
+            done, _ = await asyncio.wait({task}, timeout=interval)
+            if not done:
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+
+        result = task.result()
+        if result is _HEARTBEAT_SENTINEL:
+            break
+        yield f"data: {json.dumps(result)}\n\n"
 
 
 # -------------------

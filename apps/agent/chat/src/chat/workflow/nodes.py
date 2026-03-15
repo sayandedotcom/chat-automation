@@ -233,7 +233,7 @@ class WorkflowNodes:
         """Mark the current step done, extract artifacts, advance to next step."""
         from chat.workflow.step_complete import run_step_complete
 
-        return await run_step_complete(state)
+        return await run_step_complete(state, registry=self.registry)
 
     def get_tool_node(self) -> ToolNode:
         return self.tool_node

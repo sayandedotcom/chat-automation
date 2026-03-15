@@ -33,6 +33,8 @@ import {
 import { CalendarEventEditor } from "./calendar-event-editor";
 import { DocumentEditor } from "./document-editor";
 import { EmailComposer } from "./email-composer";
+import { EmailListCard } from "./email-list-card";
+import type { EmailResultData } from "./email-list-card";
 import { NotionPageEditor } from "./notion-page-editor";
 import { SearchResultsList, parseSearchResults } from "./search-results-list";
 import { SheetsEditor } from "./sheets-editor";
@@ -99,6 +101,13 @@ const UI_COMPONENT_RENDERERS: Record<string, (ctx: EditorRenderContext) => React
       searchResults={ctx.step.search_results}
     />
   ),
+  email_list_card: (ctx) => (
+    <EmailListCard
+      emails={ctx.step.email_results || []}
+      stepNumber={ctx.step.step_number}
+      description={ctx.step.description}
+    />
+  ),
 };
 
 // Thinking event from the backend
@@ -139,6 +148,10 @@ export interface WorkflowStep {
   tool_calls?: ToolCallPreview[]; // Tool call data for rich approval UI
   // Structured search results from Tavily
   search_results?: SearchResultData[];
+  // Structured email results from Gmail
+  email_results?: EmailResultData[];
+  // Backend-resolved UI component ID for result rendering
+  ui_component?: string | null;
   // Per-step thinking
   thinking?: string;
   thinking_duration_ms?: number;
@@ -234,6 +247,14 @@ function getStatusIcon(tool: string, description: string) {
 
 // Check if a step should show a rich result card (with expandable content)
 function shouldShowRichCard(step: WorkflowStep): boolean {
+  // Backend-driven: if a ui_component is set, always show rich card
+  if (step.ui_component) {
+    console.log(
+      `🃏 [RICH-CARD] Step ${step.step_number}: YES (ui_component="${step.ui_component}")`
+    );
+    return true;
+  }
+
   const primaryTool = step.tools_used?.[0] || "general";
 
   // Structured search results → always show rich card (tools_used may be empty)
@@ -614,78 +635,97 @@ export function WorkflowTimeline({
                         </div>
                       </div>
                     ) : isRichCard && step.status === "completed" ? (
-                      /* RICH RESULT CARD (Web Search, etc.) */
+                      /* RICH RESULT CARD — backend-driven via ui_component or legacy fallback */
                       <div className="space-y-2">
-                        {step.search_results && step.search_results.length > 0 ? (
-                          /* Web Search — use WebSearchCard + result summary */
-                          <>
-                            <WebSearchCard
-                              toolCall={{
-                                id: `search_${step.step_number}`,
-                                tool_name: "tavily_search",
-                                integration: "web_search",
+                        {(() => {
+                          // Try backend-driven renderer first
+                          const renderer = step.ui_component
+                            ? UI_COMPONENT_RENDERERS[step.ui_component]
+                            : undefined;
+                          if (renderer) {
+                            return renderer({
+                              step,
+                              primaryToolCall: {
+                                id: `result_${step.step_number}`,
+                                tool_name: step.tools_used?.[0] || "",
+                                integration: "",
                                 arguments: { query: step.description },
-                              }}
-                              stepNumber={step.step_number}
-                              onApprove={onApprove || (() => {})}
-                              completed={true}
-                              searchResults={step.search_results}
-                            />
-                            {step.result && (
-                              <div className="mt-1 text-sm text-gray-300">
-                                <MarkdownRenderer content={step.result} />
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          /* Generic rich card for other tools */
-                          <div
-                            className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]"
-                            onClick={() => toggleStep(step.step_number)}>
-                            {/* Card header with tool info */}
-                            <div className="flex items-center justify-between px-4 py-3">
-                              <div className="flex items-center gap-3">
-                                {toolIcon && (
-                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                                    <Image
-                                      src={toolIcon}
-                                      alt={primaryTool}
-                                      width={14}
-                                      height={14}
-                                      className="object-contain opacity-80 grayscale"
-                                    />
-                                  </div>
-                                )}
-                                <span className="text-sm font-medium text-white/90">
-                                  {toolNameMap[primaryTool] || primaryTool}
-                                </span>
-                              </div>
-                              <button className="rounded-lg bg-white/5 p-1.5 transition-colors hover:bg-white/15">
-                                {isExpanded ? (
-                                  <ChevronUp className="h-4 w-4 text-white/70" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 text-white/70" />
-                                )}
-                              </button>
-                            </div>
+                              },
+                              onApprove: onApprove || (() => {}),
+                              isCompleted: true,
+                            });
+                          }
 
-                            {/* Expanded content */}
-                            {isExpanded && (
-                              <div className="border-t border-white/5 px-4 pb-4">
-                                <div className="pt-3">
-                                  {step.error && (
-                                    <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
-                                      <strong>Error:</strong> {step.error}
+                          // Legacy fallback: search_results without ui_component
+                          if (step.search_results && step.search_results.length > 0) {
+                            return (
+                              <WebSearchCard
+                                toolCall={{
+                                  id: `search_${step.step_number}`,
+                                  tool_name: "tavily_search",
+                                  integration: "web_search",
+                                  arguments: { query: step.description },
+                                }}
+                                stepNumber={step.step_number}
+                                onApprove={onApprove || (() => {})}
+                                completed={true}
+                                searchResults={step.search_results}
+                              />
+                            );
+                          }
+
+                          // Generic rich card fallback
+                          return (
+                            <div
+                              className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]"
+                              onClick={() => toggleStep(step.step_number)}>
+                              <div className="flex items-center justify-between px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {toolIcon && (
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+                                      <Image
+                                        src={toolIcon}
+                                        alt={primaryTool}
+                                        width={14}
+                                        height={14}
+                                        className="object-contain opacity-80 grayscale"
+                                      />
                                     </div>
                                   )}
-                                  {step.result && (
-                                    <div className="space-y-2">
-                                      <MarkdownRenderer content={step.result} />
-                                    </div>
-                                  )}
+                                  <span className="text-sm font-medium text-white/90">
+                                    {toolNameMap[primaryTool] || primaryTool}
+                                  </span>
                                 </div>
+                                <button className="rounded-lg bg-white/5 p-1.5 transition-colors hover:bg-white/15">
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4 text-white/70" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-white/70" />
+                                  )}
+                                </button>
                               </div>
-                            )}
+                              {isExpanded && (
+                                <div className="border-t border-white/5 px-4 pb-4">
+                                  <div className="pt-3">
+                                    {step.error && (
+                                      <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
+                                        <strong>Error:</strong> {step.error}
+                                      </div>
+                                    )}
+                                    {step.result && (
+                                      <div className="space-y-2">
+                                        <MarkdownRenderer content={step.result} />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {step.result && step.ui_component && (
+                          <div className="mt-1 text-sm text-gray-300">
+                            <MarkdownRenderer content={step.result} />
                           </div>
                         )}
                         {/* Per-step thinking for rich cards */}

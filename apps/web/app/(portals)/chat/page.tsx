@@ -323,6 +323,8 @@ export default function ChatPage() {
         thinking?: string; // Per-step thinking
         thinking_duration_ms?: number;
         search_results?: WorkflowStep["search_results"];
+        email_results?: WorkflowStep["email_results"];
+        ui_component?: string | null;
       }>;
       is_complete?: boolean;
     };
@@ -506,6 +508,10 @@ export default function ChatPage() {
                 tool_calls: existingStep?.tool_calls,
                 // Structured search results from backend
                 search_results: s.search_results || existingStep?.search_results,
+                // Structured email results from backend
+                email_results: s.email_results || existingStep?.email_results,
+                // Backend-resolved UI component ID
+                ui_component: s.ui_component || existingStep?.ui_component,
               };
             });
 
@@ -633,6 +639,8 @@ export default function ChatPage() {
                 status: string;
                 result?: string;
                 search_results?: WorkflowStep["search_results"];
+                email_results?: WorkflowStep["email_results"];
+                ui_component?: string | null;
               }) => {
                 const existing = prevByNumber.get(s.step_number);
                 return {
@@ -642,6 +650,8 @@ export default function ChatPage() {
                   result: s.result,
                   tool_calls: existing?.tool_calls,
                   search_results: s.search_results || existing?.search_results,
+                  email_results: s.email_results || existing?.email_results,
+                  ui_component: s.ui_component || existing?.ui_component,
                 };
               }
             );
@@ -730,6 +740,8 @@ export default function ChatPage() {
                 thinking?: string;
                 thinking_duration_ms?: number;
                 search_results?: WorkflowStep["search_results"];
+                email_results?: WorkflowStep["email_results"];
+                ui_component?: string | null;
               }) => {
                 const existing = prevByNumber.get(s.step_number);
                 // If this step is the new approval step, apply tool_calls from approval_step_info
@@ -752,6 +764,10 @@ export default function ChatPage() {
                     : existing?.tool_calls,
                   // Structured search results
                   search_results: s.search_results || existing?.search_results,
+                  // Structured email results
+                  email_results: s.email_results || existing?.email_results,
+                  // Backend-resolved UI component ID
+                  ui_component: s.ui_component || existing?.ui_component,
                 };
               }
             );

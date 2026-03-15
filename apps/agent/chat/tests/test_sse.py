@@ -9,7 +9,6 @@ Covers:
 import asyncio
 import json
 import pytest
-from unittest.mock import patch
 
 from chat.routers.chat import _with_heartbeat
 
@@ -60,73 +59,36 @@ class TestWithHeartbeat:
 
     @pytest.mark.asyncio
     async def test_injects_heartbeat_on_timeout(self):
-        """asyncio.TimeoutError from wait_for causes a heartbeat to be injected.
+        """A delay before the first real event causes a heartbeat to be injected."""
 
-        We patch asyncio.wait_for so that the first call raises TimeoutError and the
-        second call returns a real event dict — this avoids Python 3.10's behaviour of
-        cancelling (and closing) async generators on timeout.  StopAsyncIteration
-        terminates the _with_heartbeat loop.
-        """
-        real_event = {"type": "done"}
-        _STOP = object()  # sentinel
-        side_effects = [asyncio.TimeoutError(), real_event, _STOP]
-        call_count = 0
+        async def delayed_iter():
+            await asyncio.sleep(0.15)  # longer than interval → heartbeat
+            yield {"type": "done"}
 
-        async def fake_wait_for(coro, timeout):
-            nonlocal call_count
-            coro.close()  # clean up the coroutine to avoid ResourceWarning
-            result = side_effects[call_count]
-            call_count += 1
-            if result is _STOP:
-                raise StopAsyncIteration
-            if isinstance(result, BaseException):
-                raise result
-            return result
-
-        with patch("chat.routers.chat.asyncio.wait_for", side_effect=fake_wait_for):
-            inner = make_async_iter([])  # never actually polled; wait_for is mocked
-            lines = [line async for line in _with_heartbeat(inner, interval=1)]
-
+        lines = [line async for line in _with_heartbeat(delayed_iter(), interval=0.05)]
         events = await events_from_sse(lines)
         heartbeats = [e for e in events if e["type"] == "heartbeat"]
         real_events = [e for e in events if e["type"] != "heartbeat"]
 
-        assert len(heartbeats) == 1
+        assert len(heartbeats) >= 1
         assert len(real_events) == 1
         assert real_events[0]["type"] == "done"
 
     @pytest.mark.asyncio
     async def test_heartbeat_does_not_suppress_real_events(self):
-        """Multiple heartbeats can precede real events; ordering is preserved."""
-        _STOP = object()
-        side_effects = [
-            asyncio.TimeoutError(),
-            {"type": "progress"},
-            {"type": "done"},
-            _STOP,
-        ]
-        call_count = 0
+        """Heartbeats are injected during delays but real events still arrive."""
 
-        async def fake_wait_for(coro, timeout):
-            nonlocal call_count
-            coro.close()
-            result = side_effects[call_count]
-            call_count += 1
-            if result is _STOP:
-                raise StopAsyncIteration
-            if isinstance(result, BaseException):
-                raise result
-            return result
+        async def slow_iter():
+            await asyncio.sleep(0.15)  # longer than interval → triggers heartbeat
+            yield {"type": "progress"}
+            yield {"type": "done"}
 
-        with patch("chat.routers.chat.asyncio.wait_for", side_effect=fake_wait_for):
-            inner = make_async_iter([])
-            lines = [line async for line in _with_heartbeat(inner, interval=1)]
-
+        lines = [line async for line in _with_heartbeat(slow_iter(), interval=0.05)]
         events = await events_from_sse(lines)
         heartbeats = [e for e in events if e["type"] == "heartbeat"]
         real = [e for e in events if e["type"] != "heartbeat"]
 
-        assert len(heartbeats) == 1
+        assert len(heartbeats) >= 1
         assert len(real) == 2
         assert real[0]["type"] == "progress"
         assert real[1]["type"] == "done"
@@ -164,36 +126,19 @@ class TestWithHeartbeat:
 
     @pytest.mark.asyncio
     async def test_multiple_heartbeats_possible(self):
-        """Multiple TimeoutErrors result in multiple heartbeat events."""
-        _STOP = object()
-        side_effects = [
-            asyncio.TimeoutError(),
-            asyncio.TimeoutError(),
-            asyncio.TimeoutError(),
-            {"type": "done"},
-            _STOP,
+        """Long gap produces multiple heartbeat events."""
+
+        async def very_slow_iter():
+            await asyncio.sleep(0.25)  # ~5x the interval → multiple heartbeats
+            yield {"type": "done"}
+
+        lines = [
+            line async for line in _with_heartbeat(very_slow_iter(), interval=0.05)
         ]
-        call_count = 0
-
-        async def fake_wait_for(coro, timeout):
-            nonlocal call_count
-            coro.close()
-            result = side_effects[call_count]
-            call_count += 1
-            if result is _STOP:
-                raise StopAsyncIteration
-            if isinstance(result, BaseException):
-                raise result
-            return result
-
-        with patch("chat.routers.chat.asyncio.wait_for", side_effect=fake_wait_for):
-            inner = make_async_iter([])
-            lines = [line async for line in _with_heartbeat(inner, interval=1)]
-
         events = await events_from_sse(lines)
         heartbeats = [e for e in events if e["type"] == "heartbeat"]
 
-        assert len(heartbeats) == 3
+        assert len(heartbeats) >= 3
 
 
 # ---------------------------------------------------------------------------
@@ -251,35 +196,19 @@ class TestSSEEventOrdering:
     @pytest.mark.asyncio
     async def test_heartbeat_before_real_events_ordering(self):
         """Heartbeats interleaved with real events; real event order is preserved."""
-        _STOP = object()
-        # Simulate: timeout, event1, timeout, event2, stop
-        side_effects = [
-            asyncio.TimeoutError(),
-            {"type": "thinking", "seq": 1},
-            asyncio.TimeoutError(),
-            {"type": "progress", "seq": 2},
-            _STOP,
+
+        async def staggered_iter():
+            await asyncio.sleep(0.15)  # heartbeat(s) injected
+            yield {"type": "thinking", "seq": 1}
+            await asyncio.sleep(0.15)  # more heartbeat(s)
+            yield {"type": "progress", "seq": 2}
+
+        lines = [
+            line async for line in _with_heartbeat(staggered_iter(), interval=0.05)
         ]
-        call_count = 0
-
-        async def fake_wait_for(coro, timeout):
-            nonlocal call_count
-            coro.close()
-            result = side_effects[call_count]
-            call_count += 1
-            if result is _STOP:
-                raise StopAsyncIteration
-            if isinstance(result, BaseException):
-                raise result
-            return result
-
-        with patch("chat.routers.chat.asyncio.wait_for", side_effect=fake_wait_for):
-            inner = make_async_iter([])
-            lines = [line async for line in _with_heartbeat(inner, interval=1)]
-
         result_events = await events_from_sse(lines)
         real = [e for e in result_events if e["type"] != "heartbeat"]
         heartbeats = [e for e in result_events if e["type"] == "heartbeat"]
 
-        assert len(heartbeats) == 2
+        assert len(heartbeats) >= 2
         assert [e["seq"] for e in real] == [1, 2]
