@@ -951,7 +951,7 @@ export default function ChatPage() {
                             text={`To continue with your request, please connect ${authRequired
                               .map((i) => i.display_name)
                               .join(" and ")}.`}
-                            className="!text-base !font-medium"
+                            className="!text-sm !font-medium"
                             wrapperClassName="p-0 justify-start"
                           />
                           <div className="space-y-2">
@@ -962,7 +962,7 @@ export default function ChatPage() {
                               return (
                                 <div
                                   key={integration.connect_id}
-                                  className="bubble flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#1a1a1a] px-4 py-3">
+                                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#1a1a1a] px-4 py-3">
                                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white">
                                     {config?.icon ? (
                                       <Image
