@@ -479,6 +479,30 @@ class TestMultiIntegrationExtraction:
         assert artifacts[0]["id"] == "abc_123_def"
         assert artifacts[0]["integration"] == "google_docs"
 
+    def test_string_encoded_mcp_content_extracts_doc_name(self):
+        """String-encoded MCP content block: name regex should match the doc title,
+        not a JSON key like 'type'.
+        """
+        # Content is a plain string that looks like JSON-encoded MCP blocks
+        string_encoded = json.dumps(
+            [
+                {
+                    "type": "text",
+                    "text": "Created Google Doc 'Best Front-End Frameworks' "
+                    "(ID: 1abc_DEF-ghi_JKL) for user@test.com. "
+                    "Link: https://docs.google.com/document/d/1abc_DEF-ghi_JKL/edit",
+                }
+            ]
+        )
+        tool_msg = ToolMessage(content=string_encoded, tool_call_id="tc_str")
+        artifacts = extract_artifacts_from_step([tool_msg], step_number=3)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert a["type"] == "document"
+        assert a["id"] == "1abc_DEF-ghi_JKL"
+        assert a["name"] == "Best Front-End Frameworks"
+        assert a["integration"] == "google_docs"
+
     def test_generic_id_without_confirming_field_ignored(self):
         """A ToolMessage with just 'id' but no confirming URL should NOT produce artifact."""
         tool_msg = ToolMessage(
