@@ -75,6 +75,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           env: api-production
           desc: "API deployment to production"
+          auto_inactive: true
 
       - name: Checkout
         uses: actions/checkout@v4
