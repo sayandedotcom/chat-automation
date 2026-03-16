@@ -668,21 +668,10 @@ def extract_artifacts_from_step(
 
         content = msg.content
 
-        # Normalise content: MCP servers often return list of content blocks
-        raw_text = None
-        if isinstance(content, list):
-            text_parts = [
-                block.get("text", "")
-                if isinstance(block, dict) and block.get("type") == "text"
-                else block
-                if isinstance(block, str)
-                else ""
-                for block in content
-            ]
-            raw_text = "\n".join(text_parts) or None
-        elif isinstance(content, str):
-            raw_text = content
-        # dict handled below
+        # Normalise content: MCP servers often return list of content blocks,
+        # string-encoded JSON, or double-nested variants.
+        raw_text = _unwrap_mcp_text(content) or None
+        # dict content not handled by _unwrap_mcp_text — checked below
 
         logger.info(
             f"[ARTIFACT_EXTRACT] ToolMessage content type={type(content).__name__}, "
