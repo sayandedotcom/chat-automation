@@ -26,10 +26,6 @@ export default $config({
           { listen: "443/https", forward: "8000/http" },
           { listen: "80/http", redirect: "443/https" },
         ],
-        health: {
-          path: "/healthz",
-          grace: "60s",
-        },
       },
       image: {
         context: ".",
