@@ -198,6 +198,16 @@ const toolNameMap: Record<string, string> = {
   general: "General",
 };
 
+// Editor components that require real tool_calls data (title, content, etc.)
+// These must NOT render from synthetic/placeholder primaryToolCall in the rich-card path.
+const EDITOR_COMPONENTS = new Set([
+  "document_editor",
+  "notion_page_editor",
+  "sheets_editor",
+  "email_composer",
+  "calendar_event_editor",
+]);
+
 // Tools that should show rich result cards (not simple status lines)
 const richResultTools = new Set([
   "web-search",
@@ -247,8 +257,9 @@ function getStatusIcon(tool: string, description: string) {
 
 // Check if a step should show a rich result card (with expandable content)
 function shouldShowRichCard(step: WorkflowStep): boolean {
-  // Backend-driven: if a ui_component is set, always show rich card
-  if (step.ui_component) {
+  // Backend-driven: show rich card for ui_component, but skip editor components
+  // without tool_calls — they'd render empty (no title/content in synthetic data).
+  if (step.ui_component && (!EDITOR_COMPONENTS.has(step.ui_component) || step.tool_calls?.length)) {
     console.log(
       `🃏 [RICH-CARD] Step ${step.step_number}: YES (ui_component="${step.ui_component}")`
     );
@@ -570,11 +581,22 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // No renderer found — fall through to null (generic card below)
+                        // No renderer found — show description as simple fallback
                         console.warn(
-                          `⚠️ [TOOL-CARD] Step ${step.step_number}: No renderer for ui_component="${uiComponent}", tool="${primaryToolCall?.tool_name}" — rendering NULL`
+                          `⚠️ [TOOL-CARD] Step ${step.step_number}: No renderer for ui_component="${uiComponent}", tool="${primaryToolCall?.tool_name}" — rendering fallback`
                         );
-                        return null;
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 py-0.5">
+                              <span className="text-sm text-white/50">{step.description}</span>
+                            </div>
+                            {isCompleted && step.result && (
+                              <div className="mt-2 text-sm text-gray-300">
+                                <MarkdownRenderer content={step.result} />
+                              </div>
+                            )}
+                          </div>
+                        );
                       })()
                     ) : step.status === "awaiting_approval" ? (
                       // Generic approval card (no tool_calls or no ui_component)
@@ -638,9 +660,13 @@ export function WorkflowTimeline({
                       /* RICH RESULT CARD — backend-driven via ui_component or legacy fallback */
                       <div className="space-y-2">
                         {(() => {
-                          // Try backend-driven renderer first
-                          const renderer = step.ui_component
-                            ? UI_COMPONENT_RENDERERS[step.ui_component]
+                          // Try backend-driven renderer first — but skip editor components
+                          // that require real tool_calls data (they'd render empty with
+                          // synthetic placeholder arguments).
+                          const canUseRenderer =
+                            step.ui_component && !EDITOR_COMPONENTS.has(step.ui_component);
+                          const renderer = canUseRenderer
+                            ? UI_COMPONENT_RENDERERS[step.ui_component!]
                             : undefined;
                           if (renderer) {
                             return renderer({
