@@ -34,6 +34,7 @@ function extractTitle(args: Record<string, unknown>): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const props = args.properties as any;
   if (props) {
+    // Check common keys first
     for (const key of ["title", "Title", "Name", "name"]) {
       const field = props[key];
       if (typeof field === "string") return field;
@@ -42,6 +43,22 @@ function extractTitle(args: Record<string, unknown>): string {
         if (typeof field.title === "string") return field.title;
         if (Array.isArray(field.title) && field.title[0]?.text?.content)
           return field.title[0].text.content;
+      }
+    }
+
+    // Fallback: scan ALL properties for any with Notion's type:"title" or a title array
+    // Handles databases with custom title columns like "Task", "Project", etc.
+    for (const [, value] of Object.entries(props)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const field = value as any;
+      if (!field || typeof field !== "object") continue;
+      if (field.type === "title" && Array.isArray(field.title)) {
+        if (field.title[0]?.text?.content) return field.title[0].text.content;
+        if (field.title[0]?.plain_text) return field.title[0].plain_text;
+      }
+      // Also check for bare title arrays (without type wrapper)
+      if (Array.isArray(field) && field[0]?.type === "text" && field[0]?.text?.content) {
+        return field[0].text.content;
       }
     }
   }
@@ -70,8 +87,39 @@ function richTextToMarkdown(richTexts: any[]): string {
 const LIST_TYPES = new Set(["bulleted_list_item", "numbered_list_item", "to_do"]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+const KNOWN_BLOCK_TYPES = new Set([
+  "paragraph",
+  "heading_1",
+  "heading_2",
+  "heading_3",
+  "bulleted_list_item",
+  "numbered_list_item",
+  "to_do",
+  "quote",
+  "code",
+  "divider",
+]);
+
 function blockToMarkdown(block: any): { text: string; type: string } | null {
-  const type: string = block.type || block.object;
+  // Infer type: explicit type field, then object field, then probe for known block keys
+  let type: string = block.type || block.object;
+  if (!type) {
+    for (const key of KNOWN_BLOCK_TYPES) {
+      if (block[key]) {
+        type = key;
+        break;
+      }
+    }
+  }
+
+  // Handle top-level rich_text (no wrapping block key) as paragraph
+  if (!type && Array.isArray(block.rich_text)) {
+    const text = richTextToMarkdown(block.rich_text);
+    return { text, type: "paragraph" };
+  }
+
+  if (!type) return null;
+
   const data = block[type];
   if (!data) return null;
 

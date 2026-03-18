@@ -1,24 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 
 import Image from "next/image";
 
-import {
-  Calendar,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  FileText,
-  Globe,
-  Loader2,
-  Mail,
-  Plus,
-  RotateCcw,
-  Search,
-  X,
-} from "lucide-react";
+import { Check, Loader2, Plus, RotateCcw, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
@@ -208,92 +194,27 @@ const EDITOR_COMPONENTS = new Set([
   "calendar_event_editor",
 ]);
 
-// Tools that should show rich result cards (not simple status lines)
-const richResultTools = new Set([
-  "web-search",
-  "tavily_search",
-  "tavily_extract",
-  "tavily_crawl",
-  "notion",
-  "slack",
-  "github",
-  "linear",
-  "vercel",
-  "supabase",
-]);
-
-// Get icon component for simple status messages
-function getStatusIcon(tool: string, description: string) {
-  // Check description for context
-  const lowerDesc = description.toLowerCase();
-
-  if (lowerDesc.includes("email") || tool === "gmail") {
-    return <Mail className="h-4 w-4 text-white/50" />;
-  }
-  if (lowerDesc.includes("calendar") || tool === "google-calendar") {
-    return <Calendar className="h-4 w-4 text-white/50" />;
-  }
-  if (
-    lowerDesc.includes("document") ||
-    lowerDesc.includes("notion") ||
-    tool === "notion" ||
-    tool === "google-docs"
-  ) {
-    return <FileText className="h-4 w-4 text-white/50" />;
-  }
-  if (lowerDesc.includes("time") || lowerDesc.includes("schedule")) {
-    return <Clock className="h-4 w-4 text-white/50" />;
-  }
-  if (lowerDesc.includes("search") || tool === "web-search") {
-    return <Search className="h-4 w-4 text-white/50" />;
-  }
-  if (lowerDesc.includes("vercel") || tool === "vercel") {
-    return <Globe className="h-4 w-4 text-white/50" />;
-  }
-
-  // Default: simple dot
-  return <div className="h-1.5 w-1.5 rounded-full bg-white/40" />;
-}
-
-// Check if a step should show a rich result card (with expandable content)
+// Check if a step should show a rich result card (with expandable content).
+// Only returns true when a specific renderer exists — no generic card fallbacks.
 function shouldShowRichCard(step: WorkflowStep): boolean {
-  // Backend-driven: show rich card for ui_component, but skip editor components
-  // without tool_calls — they'd render empty (no title/content in synthetic data).
-  if (step.ui_component && (!EDITOR_COMPONENTS.has(step.ui_component) || step.tool_calls?.length)) {
-    console.log(
-      `🃏 [RICH-CARD] Step ${step.step_number}: YES (ui_component="${step.ui_component}")`
-    );
+  // Backend-driven ui_component that has a renderer AND is NOT an editor
+  // (editors are handled by the tool-card branch which requires real tool_calls)
+  if (
+    step.ui_component &&
+    UI_COMPONENT_RENDERERS[step.ui_component] &&
+    !EDITOR_COMPONENTS.has(step.ui_component)
+  ) {
     return true;
   }
 
-  const primaryTool = step.tools_used?.[0] || "general";
-
-  // Structured search results → always show rich card (tools_used may be empty)
+  // Structured search results → WebSearchCard
   if (step.search_results && step.search_results.length > 0) {
-    console.log(
-      `🃏 [RICH-CARD] Step ${step.step_number}: YES (search_results present, count=${step.search_results.length})`
-    );
     return true;
   }
 
-  // Always show card for web-search with results
-  if (primaryTool === "web-search" && (step.search_results?.length || step.result)) {
-    console.log(`🃏 [RICH-CARD] Step ${step.step_number}: YES (web-search with results)`);
+  // Structured email results → EmailListCard
+  if (step.email_results && step.email_results.length > 0) {
     return true;
-  }
-
-  // Show card for rich result tools with substantial results
-  if (richResultTools.has(primaryTool) && step.result && step.result.length > 100) {
-    console.log(
-      `🃏 [RICH-CARD] Step ${step.step_number}: YES (${primaryTool} with ${step.result.length} chars)`
-    );
-    return true;
-  }
-
-  if (richResultTools.has(primaryTool)) {
-    console.log(
-      `🃏 [RICH-CARD] Step ${step.step_number}: NO (${primaryTool} is rich-eligible but result_len=${step.result?.length || 0} < 100)`
-    );
   }
 
   return false;
@@ -311,7 +232,6 @@ export function WorkflowTimeline({
   isComplete,
   className,
 }: WorkflowTimelineProps) {
-  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const timelineRef = useRef<HTMLDivElement>(null);
 
   // Filter steps to only show visible ones (not pending) - memoized to prevent infinite loops
@@ -325,54 +245,6 @@ export function WorkflowTimeline({
     );
     return visible;
   }, [steps]);
-
-  // Get stable identifiers for dependency tracking
-  const visibleStepNumbers = visibleSteps.map((s) => s.step_number).join(",");
-  const activeStepNumbers = visibleSteps
-    .filter((s) => s.status === "in_progress" || s.status === "awaiting_approval")
-    .map((s) => s.step_number)
-    .join(",");
-
-  // Auto-expand steps that are in_progress or awaiting_approval
-  useEffect(() => {
-    if (!activeStepNumbers) return;
-
-    const activeIds = activeStepNumbers.split(",").map(Number);
-    console.log(`🔽 [COLLAPSE] Auto-expanding active steps: [${activeIds.join(", ")}]`);
-    setExpandedSteps((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      activeIds.forEach((id) => {
-        if (!prev.has(id)) {
-          next.add(id);
-          changed = true;
-        }
-      });
-      if (changed) {
-        console.log(`🔽 [COLLAPSE] expandedSteps updated: [${Array.from(next).join(", ")}]`);
-      }
-      return changed ? next : prev;
-    });
-  }, [activeStepNumbers]);
-
-  // Debug: log expandedSteps changes
-  useEffect(() => {
-    console.log(`🔽 [COLLAPSE] Current expandedSteps: [${Array.from(expandedSteps).join(", ")}]`);
-  }, [expandedSteps]);
-
-  const toggleStep = (stepNumber: number) => {
-    console.log(`🔽 [COLLAPSE] User toggled step ${stepNumber}`);
-    setExpandedSteps((prev) => {
-      const next = new Set(prev);
-      if (next.has(stepNumber)) {
-        next.delete(stepNumber);
-      } else {
-        next.add(stepNumber);
-      }
-      console.log(`🔽 [COLLAPSE] After toggle: [${Array.from(next).join(", ")}]`);
-      return next;
-    });
-  };
 
   if (steps.length === 0) {
     return null;
@@ -454,7 +326,6 @@ export function WorkflowTimeline({
 
           {/* Workflow steps */}
           {visibleSteps.map((step, index) => {
-            const isExpanded = expandedSteps.has(step.step_number);
             const primaryTool = step.tools_used?.[0] || "general";
             const toolIcon = toolIconMap[primaryTool];
             const isRichCard = shouldShowRichCard(step);
@@ -469,11 +340,11 @@ export function WorkflowTimeline({
               const integration = step.tool_calls![0]?.integration;
               renderBranch = `tool-card(integration=${integration}, tool=${step.tool_calls![0]?.tool_name})`;
             } else if (step.status === "awaiting_approval") {
-              renderBranch = "generic-approval";
+              renderBranch = "loading-approval";
             } else if (step.status === "failed") {
               renderBranch = "failed-card";
             } else if (isRichCard && step.status === "completed") {
-              renderBranch = `rich-card(tool=${primaryTool}, expanded=${isExpanded})`;
+              renderBranch = `rich-card(tool=${primaryTool})`;
             } else {
               renderBranch = `simple-line(tool=${primaryTool})`;
             }
@@ -581,7 +452,7 @@ export function WorkflowTimeline({
                           );
                         }
 
-                        // No renderer found — show description as simple fallback
+                        // No renderer found — simple status line fallback
                         console.warn(
                           `⚠️ [TOOL-CARD] Step ${step.step_number}: No renderer for ui_component="${uiComponent}", tool="${primaryToolCall?.tool_name}" — rendering fallback`
                         );
@@ -599,40 +470,10 @@ export function WorkflowTimeline({
                         );
                       })()
                     ) : step.status === "awaiting_approval" ? (
-                      // Generic approval card (no tool_calls or no ui_component)
-                      <div
-                        className={cn(
-                          "overflow-hidden rounded-2xl border bg-[#1a1a1a]",
-                          "animate-in fade-in slide-in-from-top-2 duration-300",
-                          "border-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_40px_-12px_rgba(0,0,0,0.6)]"
-                        )}>
-                        <div className="px-4 py-3">
-                          <div className="mb-3 flex items-center gap-2.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-                              <span className="text-xs text-orange-400/80">Awaiting approval</span>
-                            </div>
-                          </div>
-                          <p className="mb-3 text-sm text-white/60">{step.description}</p>
-                          {onApprove && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => onApprove(step.step_number, "approve")}
-                                className="h-8 bg-white/[0.08] px-4 text-xs text-white/80 hover:bg-white/[0.12]">
-                                <Check className="mr-1.5 h-3.5 w-3.5" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onApprove(step.step_number, "skip")}
-                                className="h-8 px-4 text-xs text-white/40 hover:bg-white/[0.06] hover:text-white/60">
-                                Skip
-                              </Button>
-                            </div>
-                          )}
-                        </div>
+                      // Brief loading state — tool_calls SSE event arrives shortly with the proper card
+                      <div className="flex items-center gap-3 py-0.5">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white/40" />
+                        <span className="text-sm text-white/50">{step.description}</span>
                       </div>
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
@@ -682,7 +523,7 @@ export function WorkflowTimeline({
                             });
                           }
 
-                          // Legacy fallback: search_results without ui_component
+                          // Structured search results without ui_component
                           if (step.search_results && step.search_results.length > 0) {
                             return (
                               <WebSearchCard
@@ -700,56 +541,33 @@ export function WorkflowTimeline({
                             );
                           }
 
-                          // Generic rich card fallback
+                          // Structured email results without ui_component
+                          if (step.email_results && step.email_results.length > 0) {
+                            return (
+                              <EmailListCard
+                                emails={step.email_results}
+                                stepNumber={step.step_number}
+                                description={step.description}
+                              />
+                            );
+                          }
+
+                          // Safety-net fallback — shouldShowRichCard should prevent reaching here
                           return (
-                            <div
-                              className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a]"
-                              onClick={() => toggleStep(step.step_number)}>
-                              <div className="flex items-center justify-between px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                  {toolIcon && (
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                                      <Image
-                                        src={toolIcon}
-                                        alt={primaryTool}
-                                        width={14}
-                                        height={14}
-                                        className="object-contain opacity-80 grayscale"
-                                      />
-                                    </div>
-                                  )}
-                                  <span className="text-sm font-medium text-white/90">
-                                    {toolNameMap[primaryTool] || primaryTool}
-                                  </span>
-                                </div>
-                                <button className="rounded-lg bg-white/5 p-1.5 transition-colors hover:bg-white/15">
-                                  {isExpanded ? (
-                                    <ChevronUp className="h-4 w-4 text-white/70" />
-                                  ) : (
-                                    <ChevronDown className="h-4 w-4 text-white/70" />
-                                  )}
-                                </button>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-3 py-0.5">
+                                <span className="text-sm text-white/50">{step.description}</span>
                               </div>
-                              {isExpanded && (
-                                <div className="border-t border-white/5 px-4 pb-4">
-                                  <div className="pt-3">
-                                    {step.error && (
-                                      <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
-                                        <strong>Error:</strong> {step.error}
-                                      </div>
-                                    )}
-                                    {step.result && (
-                                      <div className="space-y-2">
-                                        <MarkdownRenderer content={step.result} />
-                                      </div>
-                                    )}
-                                  </div>
+                              {step.result && (
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
                                 </div>
                               )}
                             </div>
                           );
                         })()}
-                        {step.result && step.ui_component && (
+                        {/* AI result text shown below the card */}
+                        {step.result && (
                           <div className="mt-1 text-sm text-gray-300">
                             <MarkdownRenderer content={step.result} />
                           </div>
@@ -767,7 +585,6 @@ export function WorkflowTimeline({
                       /* SIMPLE STATUS LINE (General messages - like image 3) */
                       <div className="space-y-2">
                         <div className="flex items-center gap-3 py-0.5">
-                          {/* {getStatusIcon(primaryTool, step.description)} */}
                           <div
                             className={cn(
                               "text-sm",
