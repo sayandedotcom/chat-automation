@@ -93,7 +93,7 @@ export default function ChatPage() {
     if (autoScrollRef.current && scrollContainerRef.current) {
       requestAnimationFrame(() => {
         const el = scrollContainerRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
       });
     }
   }, [steps, planThinking, statusMessages, loadedIntegrations, workflowStatus, originalRequest]);
@@ -108,11 +108,22 @@ export default function ChatPage() {
 
   // After follow-up: scroll user message to top of viewport instantly
   useEffect(() => {
-    if (workflowStatus === "planning" && completedTurns.length > 0 && currentTurnRef.current) {
+    if (
+      workflowStatus === "planning" &&
+      completedTurns.length > 0 &&
+      currentTurnRef.current &&
+      scrollContainerRef.current
+    ) {
       autoScrollRef.current = false;
-      currentTurnRef.current.scrollIntoView({
-        behavior: "instant",
-        block: "start",
+      requestAnimationFrame(() => {
+        const scrollEl = scrollContainerRef.current;
+        const turnEl = currentTurnRef.current;
+        if (!scrollEl || !turnEl) return;
+        // Match the initial message's pt-6 (24px) offset from scroll container top
+        const turnRect = turnEl.getBoundingClientRect();
+        const scrollRect = scrollEl.getBoundingClientRect();
+        const targetScrollTop = turnRect.top - scrollRect.top + scrollEl.scrollTop - 24;
+        scrollEl.scrollTop = targetScrollTop;
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
