@@ -91,8 +91,10 @@ export default function ChatPage() {
   // Auto-scroll to bottom when content changes (only when enabled)
   useEffect(() => {
     if (autoScrollRef.current && scrollContainerRef.current) {
-      const el = scrollContainerRef.current;
-      el.scrollTop = el.scrollHeight;
+      requestAnimationFrame(() => {
+        const el = scrollContainerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
     }
   }, [steps, planThinking, statusMessages, loadedIntegrations, workflowStatus, originalRequest]);
 
@@ -832,26 +834,8 @@ export default function ChatPage() {
   const isIdle = workflowStatus === "idle";
   const isChatActive = !isIdle;
 
-  // Wrapper that conditionally shows background or solid black
-  const ContentWrapper = ({ children }: { children: React.ReactNode }) => {
-    if (isChatActive) {
-      // Solid grey background when chat is active - fixed height container
-      return (
-        <div className="m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131313]">
-          {children}
-        </div>
-      );
-    }
-    // Show planetary background when idle
-    return (
-      <div className="m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131313]">
-        {children}
-      </div>
-    );
-  };
-
   return (
-    <ContentWrapper>
+    <div className="m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131313]">
       <div className="relative z-10 flex h-full w-full flex-col">
         {/* Idle state - show greeting and input */}
         {isIdle && (
@@ -1036,6 +1020,6 @@ export default function ChatPage() {
           </>
         )}
       </div>
-    </ContentWrapper>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 
 import { cn } from "@workspace/ui/lib/utils";
@@ -38,13 +39,23 @@ export function ThinkingIndicator({
       </button>
 
       {/* Expanded thinking content */}
-      {isExpanded && (
-        <div className="mt-1.5">
-          <div className="border-l border-white/10 pl-4">
-            <p className="text-sm leading-relaxed text-white/40 italic">{content}</p>
-          </div>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            key="thinking-content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden">
+            <div className="mt-1.5">
+              <div className="border-l border-white/10 pl-4">
+                <p className="text-sm leading-relaxed text-white/40 italic">{content}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
