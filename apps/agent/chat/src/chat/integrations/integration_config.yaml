@@ -13,6 +13,16 @@ integrations:
     mcp_server: "tavily"
     description: "Web search and research: finding information, answering questions, comparing options, discovering latest content online."
     identity_keywords: []
+    executor_hints: |
+      WEB SEARCH RESPONSE FORMAT:
+      - Write an explanatory, well-structured summary of the search findings using proper
+        markdown: headings (##, ###), bullet points, numbered lists, bold key terms, and
+        comparisons where relevant.
+      - Do NOT include source URLs, links, or references in your response text — the UI
+        already renders a web search card with all sources and links. Showing them again
+        is redundant.
+      - Focus on synthesizing insights, key takeaways, and actionable information rather
+        than just listing raw results.
 
   gmail:
     ui_components:
@@ -157,6 +167,7 @@ integrations:
       4. Freeze the header row so it stays visible when scrolling (if the tool supports freezeRows).
       5. Always report the spreadsheet URL and ID in your response.
       Formatting the header row is MANDATORY — never skip step 3.
+      The authenticated user is implicit — NEVER ask for the user's email address or account info.
 
   google_slides:
     tool_names:
@@ -181,6 +192,7 @@ integrations:
     executor_hints: |
       GOOGLE SLIDES: Always report the presentation URL and ID in your response after
       creating a presentation.
+      The authenticated user is implicit — NEVER ask for the user's email address or account info.
 
   google_calendar:
     ui_components:
@@ -217,6 +229,7 @@ integrations:
       review and edit all fields in the interactive form shown in the UI before the event
       is actually created. Always report the event link (htmlLink) in your response after
       creating or modifying an event.
+      The authenticated user is implicit — NEVER ask for the user's email address or account info.
 
   google_drive:
     tool_names:
@@ -251,6 +264,7 @@ integrations:
     executor_hints: |
       GOOGLE DRIVE: Always report the file URL (webViewLink) in your response after
       uploading or creating a file.
+      The authenticated user is implicit — NEVER ask for the user's email address or account info.
 
   notion:
     ui_components:
