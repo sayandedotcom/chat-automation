@@ -11,7 +11,7 @@ interface VercelTokenResponse {
 
 export const vercelRouter: IRouter = Router();
 
-vercelRouter.get("/", (_req, res) => {
+vercelRouter.get("/", (req, res) => {
   const clientId = process.env.VERCEL_CLIENT_ID;
   if (!clientId) {
     res.status(500).json({ error: "VERCEL_CLIENT_ID not configured" });
@@ -24,6 +24,11 @@ vercelRouter.get("/", (_req, res) => {
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
+
+  const returnTo = req.query["returnTo"] as string | undefined;
+  if (returnTo) {
+    authUrl.searchParams.set("state", returnTo);
+  }
 
   res.redirect(authUrl.toString());
 });
@@ -80,7 +85,13 @@ vercelRouter.get("/callback", async (req, res) => {
       maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
     });
 
-    res.redirect(`${APP_URL}/integrations/callback?provider=vercel`);
+    const returnTo = req.query["state"] as string | undefined;
+    const callbackUrl = new URL(`${APP_URL}/integrations/callback`);
+    callbackUrl.searchParams.set("provider", "vercel");
+    if (returnTo) {
+      callbackUrl.searchParams.set("returnTo", returnTo);
+    }
+    res.redirect(callbackUrl.toString());
   } catch (err) {
     console.error("Vercel OAuth error:", err);
     res.redirect(`${APP_URL}/integrations/callback?error=oauth_failed`);

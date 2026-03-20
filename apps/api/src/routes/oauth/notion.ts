@@ -11,7 +11,7 @@ interface NotionTokenResponse {
 
 export const notionRouter: IRouter = Router();
 
-notionRouter.get("/", (_req, res) => {
+notionRouter.get("/", (req, res) => {
   const clientId = process.env.NOTION_CLIENT_ID;
   if (!clientId) {
     res.status(500).json({ error: "NOTION_CLIENT_ID not configured" });
@@ -25,6 +25,11 @@ notionRouter.get("/", (_req, res) => {
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("owner", "user");
+
+  const returnTo = req.query["returnTo"] as string | undefined;
+  if (returnTo) {
+    authUrl.searchParams.set("state", returnTo);
+  }
 
   res.redirect(authUrl.toString());
 });
@@ -85,7 +90,13 @@ notionRouter.get("/callback", async (req, res) => {
       maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
     });
 
-    res.redirect(`${APP_URL}/integrations/callback?provider=notion`);
+    const returnTo = req.query["state"] as string | undefined;
+    const callbackUrl = new URL(`${APP_URL}/integrations/callback`);
+    callbackUrl.searchParams.set("provider", "notion");
+    if (returnTo) {
+      callbackUrl.searchParams.set("returnTo", returnTo);
+    }
+    res.redirect(callbackUrl.toString());
   } catch (err) {
     console.error("Notion OAuth error:", err);
     res.redirect(`${APP_URL}/integrations/callback?error=oauth_failed`);

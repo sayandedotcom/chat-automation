@@ -11,10 +11,10 @@ const SCOPES = [
 
 export const googleSlidesRouter: IRouter = Router();
 
-googleSlidesRouter.get("/", (_req, res) => {
+googleSlidesRouter.get("/", (req, res) => {
   const redirectUri =
     process.env.GOOGLE_SLIDES_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-slides/callback`;
-  googleAuthInit(res, SCOPES, redirectUri);
+  googleAuthInit(req, res, SCOPES, redirectUri);
 });
 
 googleSlidesRouter.get("/callback", async (req, res) => {

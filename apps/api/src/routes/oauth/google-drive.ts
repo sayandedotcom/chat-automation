@@ -10,10 +10,10 @@ const SCOPES = [
 
 export const googleDriveRouter: IRouter = Router();
 
-googleDriveRouter.get("/", (_req, res) => {
+googleDriveRouter.get("/", (req, res) => {
   const redirectUri =
     process.env.GOOGLE_DRIVE_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-drive/callback`;
-  googleAuthInit(res, SCOPES, redirectUri);
+  googleAuthInit(req, res, SCOPES, redirectUri);
 });
 
 googleDriveRouter.get("/callback", async (req, res) => {

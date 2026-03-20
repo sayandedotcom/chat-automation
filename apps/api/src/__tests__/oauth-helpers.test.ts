@@ -27,6 +27,7 @@ vi.mock("../config/index.js", () => ({
 
 describe("OAuth Helpers", () => {
   let mockRes: Partial<Response>;
+  let mockReq: Partial<Request>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,6 +37,7 @@ describe("OAuth Helpers", () => {
       json: vi.fn().mockReturnThis(),
       cookie: vi.fn(),
     };
+    mockReq = { query: {} };
     process.env = { ...originalEnv };
   });
 
@@ -99,6 +101,7 @@ describe("OAuth Helpers", () => {
       delete process.env.GOOGLE_CLIENT_ID;
 
       googleAuthInit(
+        mockReq as Request,
         mockRes as Response,
         "https://www.googleapis.com/auth/gmail.readonly",
         "http://localhost:8000/oauth/gmail/callback"
@@ -114,6 +117,7 @@ describe("OAuth Helpers", () => {
       process.env.GOOGLE_CLIENT_ID = "test-client-id";
 
       googleAuthInit(
+        mockReq as Request,
         mockRes as Response,
         "https://www.googleapis.com/auth/gmail.readonly",
         "http://localhost:8000/oauth/gmail/callback"
@@ -140,7 +144,12 @@ describe("OAuth Helpers", () => {
     it("should handle multiple scopes", () => {
       process.env.GOOGLE_CLIENT_ID = "test-client-id";
 
-      googleAuthInit(mockRes as Response, "scope1 scope2", "http://localhost:8000/callback");
+      googleAuthInit(
+        mockReq as Request,
+        mockRes as Response,
+        "scope1 scope2",
+        "http://localhost:8000/callback"
+      );
 
       const redirectUrl = (mockRes.redirect as ReturnType<typeof vi.fn>).mock
         .calls[0]?.[0] as string;

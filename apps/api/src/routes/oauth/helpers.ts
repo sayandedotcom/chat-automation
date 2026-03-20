@@ -35,7 +35,12 @@ export function getCookieDomain(urlStr: string): string | undefined {
 /**
  * Build a Google OAuth consent URL and redirect the user to it.
  */
-export function googleAuthInit(res: Response, scopes: string, redirectUri: string): void {
+export function googleAuthInit(
+  req: Request,
+  res: Response,
+  scopes: string,
+  redirectUri: string
+): void {
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {
@@ -51,6 +56,11 @@ export function googleAuthInit(res: Response, scopes: string, redirectUri: strin
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
   authUrl.searchParams.set("include_granted_scopes", "true");
+
+  const returnTo = req.query["returnTo"] as string | undefined;
+  if (returnTo) {
+    authUrl.searchParams.set("state", returnTo);
+  }
 
   res.redirect(authUrl.toString());
 }
@@ -162,7 +172,13 @@ export async function googleAuthCallback(
       // Don't fail the OAuth flow if sync fails
     }
 
-    res.redirect(`${APP_URL}/integrations/callback?provider=${opts.provider}`);
+    const returnTo = req.query["state"] as string | undefined;
+    const callbackUrl = new URL(`${APP_URL}/integrations/callback`);
+    callbackUrl.searchParams.set("provider", opts.provider);
+    if (returnTo) {
+      callbackUrl.searchParams.set("returnTo", returnTo);
+    }
+    res.redirect(callbackUrl.toString());
   } catch (err) {
     console.error(`${opts.provider} OAuth error:`, err);
     res.redirect(`${APP_URL}/integrations/callback?error=oauth_failed`);

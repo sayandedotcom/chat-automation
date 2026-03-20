@@ -11,10 +11,10 @@ const SCOPES = [
 
 export const googleDocsRouter: IRouter = Router();
 
-googleDocsRouter.get("/", (_req, res) => {
+googleDocsRouter.get("/", (req, res) => {
   const redirectUri =
     process.env.GOOGLE_DOCS_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-docs/callback`;
-  googleAuthInit(res, SCOPES, redirectUri);
+  googleAuthInit(req, res, SCOPES, redirectUri);
 });
 
 googleDocsRouter.get("/callback", async (req, res) => {

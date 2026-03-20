@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { ProcessingOverlay } from "@/components/processing-overlay";
-import { integrations } from "@/config/integrations";
+
 import { useTRPC } from "@/lib/trpc";
+
+import { integrations } from "@/config/integrations";
 
 const MIN_PROCESSING_MS = 2500;
 const ERROR_DISPLAY_MS = 3500;
@@ -39,18 +41,20 @@ export default function IntegrationCallbackPage() {
     const params = new URLSearchParams(window.location.search);
     const providerParam = params.get("provider");
     const errorParam = params.get("error");
+    const returnTo = params.get("returnTo");
+    const fallback = returnTo || "/integrations";
 
     if (errorParam) {
       // Show error overlay, then redirect after a delay
       setError(ERROR_MESSAGES[errorParam] || `Integration failed: ${errorParam}`);
       setTimeout(() => {
-        router.replace("/integrations");
+        router.replace(fallback);
       }, ERROR_DISPLAY_MS);
       return;
     }
 
     if (!providerParam) {
-      router.replace("/integrations");
+      router.replace(fallback);
       return;
     }
 
@@ -62,7 +66,7 @@ export default function IntegrationCallbackPage() {
       const elapsed = Date.now() - start;
       const remaining = Math.max(0, MIN_PROCESSING_MS - elapsed);
       setTimeout(() => {
-        router.replace("/integrations");
+        router.replace(fallback);
       }, remaining);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

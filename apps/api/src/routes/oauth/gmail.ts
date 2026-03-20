@@ -12,9 +12,9 @@ const SCOPES = [
 
 export const gmailRouter: IRouter = Router();
 
-gmailRouter.get("/", (_req, res) => {
+gmailRouter.get("/", (req, res) => {
   const redirectUri = process.env.GMAIL_REDIRECT_URI ?? `${API_BASE_URL}/oauth/gmail/callback`;
-  googleAuthInit(res, SCOPES, redirectUri);
+  googleAuthInit(req, res, SCOPES, redirectUri);
 });
 
 gmailRouter.get("/callback", async (req, res) => {

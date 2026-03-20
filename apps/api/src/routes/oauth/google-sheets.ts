@@ -11,10 +11,10 @@ const SCOPES = [
 
 export const googleSheetsRouter: IRouter = Router();
 
-googleSheetsRouter.get("/", (_req, res) => {
+googleSheetsRouter.get("/", (req, res) => {
   const redirectUri =
     process.env.GOOGLE_SHEETS_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-sheets/callback`;
-  googleAuthInit(res, SCOPES, redirectUri);
+  googleAuthInit(req, res, SCOPES, redirectUri);
 });
 
 googleSheetsRouter.get("/callback", async (req, res) => {
