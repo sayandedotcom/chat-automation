@@ -21,7 +21,7 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 
 ![Workflow Graph](./workflow_graph.png)
 
-<video src="./demo-video.mp4" controls="controls" style="max-width: 100%;"></video>
+[![Demo Video](https://img.youtube.com/vi/QBlWBrueJYA/0.jpg)](https://www.youtube.com/watch?v=QBlWBrueJYA)
 
 ## Architecture
 
