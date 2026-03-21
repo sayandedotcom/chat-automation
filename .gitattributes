@@ -26,7 +26,6 @@
 *.gif binary
 *.ico binary
 *.mov binary
-*.mp4 filter=lfs diff=lfs merge=lfs -text
 *.mp3 binary
 *.flv binary
 *.fla binary
