@@ -1,7 +1,8 @@
 <div align="center">
   <img src="apps/web/public/logo.png" alt="Chat Automation Logo" width="120" height="120">
-  
-  # Chat Automation
+
+# Chat Automation
+
 </div>
 
 AI-powered chat automation platform with an Express API, Next.js frontend, and a LangGraph-based Python agent with MCP tool integrations.
@@ -19,6 +20,8 @@ AI-powered chat automation platform with an Express API, Next.js frontend, and a
 **Technical Blog:** [Building an Autonomous AI Agent: A Deep Dive into the Architecture](https://sayande.hashnode.dev/building-an-autonomous-ai-agent-a-deep-dive-into-the-architecture)
 
 ![Workflow Graph](./workflow_graph.png)
+
+<video src="./demo-video.mp4" controls="controls" style="max-width: 100%;"></video>
 
 ## Architecture
 
