@@ -5,7 +5,7 @@ Service layer for dynamic AI workflow execution.
 Use this for multi-step, variable-length workflows.
 """
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from typing import Optional
 from collections.abc import AsyncGenerator
 import uuid
@@ -275,6 +275,7 @@ class ChatService:
 
         # Track current executing step for token attribution
         current_executing_step = None
+        tracked_step_index = None  # Persists current_step_index across node outputs
 
         async for chunk in self._workflow.get_app().astream(
             initial_state,
@@ -289,35 +290,55 @@ class ChatService:
                 chunk_type, data = chunk
 
                 if chunk_type == "messages":
-                    # This is a message chunk (token) from LLM streaming
-                    if isinstance(data, list) and len(data) > 0:
-                        for msg_chunk in data:
-                            # Check if it's an AIMessage with content
-                            if hasattr(msg_chunk, "content") and msg_chunk.content:
-                                content = msg_chunk.content
-                                # Extract text from various content formats
-                                if isinstance(content, list):
-                                    text_parts = []
-                                    for item in content:
-                                        if isinstance(item, dict) and "text" in item:
-                                            text_parts.append(item["text"])
-                                        elif isinstance(item, str):
-                                            text_parts.append(item)
-                                    text = "".join(text_parts)
-                                elif isinstance(content, str):
-                                    text = content
-                                else:
-                                    continue
+                    # LangGraph yields messages as (AIMessageChunk, metadata) tuple
+                    msg_chunk = None
+                    msg_metadata = {}
+                    if isinstance(data, tuple) and len(data) >= 1:
+                        msg_chunk = data[0]
+                        if len(data) >= 2 and isinstance(data[1], dict):
+                            msg_metadata = data[1]
+                    elif isinstance(data, list) and len(data) > 0:
+                        msg_chunk = data[0]  # fallback for older formats
 
-                                if text:
-                                    if current_executing_step is not None:
-                                        # Stream executor tokens attributed to step
-                                        yield {
-                                            "type": "token",
-                                            "thread_id": thread_id,
-                                            "step_number": current_executing_step,
-                                            "content": text,
-                                        }
+                    # Only stream tokens from executor nodes
+                    source_node = msg_metadata.get("langgraph_node", "")
+                    if source_node not in (
+                        "executor",
+                        "executor_with_approval",
+                    ):
+                        continue
+
+                    # Only process AI response tokens, not system/human/tool messages
+                    if not isinstance(msg_chunk, (AIMessageChunk, AIMessage)):
+                        continue
+
+                    if (
+                        msg_chunk is not None
+                        and hasattr(msg_chunk, "content")
+                        and msg_chunk.content
+                    ):
+                        content = msg_chunk.content
+                        # Extract text from various content formats
+                        if isinstance(content, list):
+                            text_parts = []
+                            for item in content:
+                                if isinstance(item, dict) and "text" in item:
+                                    text_parts.append(item["text"])
+                                elif isinstance(item, str):
+                                    text_parts.append(item)
+                            text = "".join(text_parts)
+                        elif isinstance(content, str):
+                            text = content
+                        else:
+                            text = ""
+
+                        if text and current_executing_step is not None:
+                            yield {
+                                "type": "token",
+                                "thread_id": thread_id,
+                                "step_number": current_executing_step,
+                                "content": text,
+                            }
                     continue  # Skip to next chunk
 
                 # If it's an updates chunk, unwrap it
@@ -394,14 +415,15 @@ class ChatService:
                 current_step_index = output.get("current_step_index")
 
                 # Track which step is currently executing for token attribution
+                if current_step_index is not None:
+                    tracked_step_index = current_step_index
+
                 if (
                     plan
-                    and current_step_index is not None
-                    and 0 <= current_step_index < len(plan.steps)
+                    and tracked_step_index is not None
+                    and 0 <= tracked_step_index < len(plan.steps)
                 ):
-                    step = plan.steps[current_step_index]
-                    if step.status == "in_progress":
-                        current_executing_step = step.step_number
+                    current_executing_step = plan.steps[tracked_step_index].step_number
                 # Check for STATE-BASED HITL approval request
                 if output.get("awaiting_approval") and output.get("approval_step_info"):
                     approval_info = output["approval_step_info"]
@@ -429,10 +451,10 @@ class ChatService:
                     # Yield step thinking events for executor nodes
                     if node_name in ("executor", "executor_with_approval"):
                         if (
-                            current_step_index is not None
-                            and 0 <= current_step_index < len(plan.steps)
+                            tracked_step_index is not None
+                            and 0 <= tracked_step_index < len(plan.steps)
                         ):
-                            step = plan.steps[current_step_index]
+                            step = plan.steps[tracked_step_index]
                             if step.thinking_duration_ms:
                                 yield {
                                     "type": "step_thinking",
@@ -445,7 +467,9 @@ class ChatService:
                     yield {
                         "type": "progress",
                         "thread_id": thread_id,
-                        "current_step": current_step_index,
+                        "current_step": current_step_index
+                        if current_step_index is not None
+                        else tracked_step_index,
                         "total_steps": len(plan.steps),
                         "artifacts": output.get("artifacts", []),
                         "plan": {

@@ -274,7 +274,7 @@ export function WorkflowTimeline({
                 </div>
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
-                <ThinkingIndicator content={planThinking} duration={2} defaultExpanded={false} />
+                <ThinkingIndicator content={planThinking} duration={2} defaultExpanded={true} />
               </div>
             </div>
           )}
@@ -364,7 +364,10 @@ export function WorkflowTimeline({
                       </div>
                     ) : step.status === "awaiting_approval" ? (
                       (() => {
-                        const integration = step.tool_calls?.[0]?.integration;
+                        // Prefer the tool call with a ui_component (the primary action)
+                        const primaryTc =
+                          step.tool_calls?.find((tc) => tc.ui_component) || step.tool_calls?.[0];
+                        const integration = primaryTc?.integration;
                         const iconPath = integration ? `/integrations/${integration}.svg` : null;
                         return (
                           <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/30 bg-[#0a0a0a]">
@@ -498,8 +501,14 @@ export function WorkflowTimeline({
                         </div>
                       </div>
                     ) : isRichCard && step.status === "completed" ? (
-                      /* RICH RESULT CARD — backend-driven via ui_component or legacy fallback */
+                      /* RICH RESULT CARD — result text first (streamed), then card below */
                       <div className="space-y-2">
+                        {/* AI result text — rendered first so streamed content stays in place */}
+                        {step.result && (
+                          <div className="text-sm text-gray-300">
+                            <MarkdownRenderer content={step.result} />
+                          </div>
+                        )}
                         {(() => {
                           // Try backend-driven renderer first — but skip editor components
                           // that require real tool_calls data (they'd render empty with
@@ -558,20 +567,9 @@ export function WorkflowTimeline({
                               <div className="flex items-center gap-3 py-0.5">
                                 <span className="text-sm text-white/50">{step.description}</span>
                               </div>
-                              {step.result && (
-                                <div className="mt-2 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
-                                </div>
-                              )}
                             </div>
                           );
                         })()}
-                        {/* AI result text shown below the card */}
-                        {step.result && (
-                          <div className="mt-1 text-sm text-gray-300">
-                            <MarkdownRenderer content={step.result} />
-                          </div>
-                        )}
                         {/* Per-step thinking for rich cards */}
                         {step.thinking && (
                           <ThinkingIndicator
@@ -601,11 +599,13 @@ export function WorkflowTimeline({
                             ) : (
                               <span>{step.description}</span>
                             )}
-                            {step.status === "completed" && step.result && !isRichCard && (
-                              <div className="mt-2 text-gray-400">
-                                <MarkdownRenderer content={step.result} />
-                              </div>
-                            )}
+                            {(step.status === "completed" || step.status === "in_progress") &&
+                              step.result &&
+                              !isRichCard && (
+                                <div className="mt-2 text-gray-400">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
+                              )}
                           </div>
                         </div>
                         {/* Per-step thinking */}

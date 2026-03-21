@@ -18,6 +18,35 @@ from chat.workflow.artifacts import (
 
 logger = logging.getLogger(__name__)
 
+# Boundary patterns emitted by our own code
+_STEP_TRANSITION_RE = re.compile(r"^✓ Step \d+ complete\.")
+_ALL_COMPLETE_RE = re.compile(r"^All \d+ steps completed\.\n?$")
+_PLAN_CREATED_PREFIX = "📋 **Workflow Plan Created**"
+
+
+def _scope_messages_to_current_step(messages: list) -> list:
+    """Extract only messages from the current step's execution.
+
+    Walks backward from the end, collecting messages until it hits a known
+    step/turn boundary (step-transition marker, plan-created marker, all-complete
+    marker, or a HumanMessage). Returns messages in forward order.
+    """
+    scoped: list = []
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            break
+        if isinstance(msg, AIMessage) and isinstance(msg.content, str):
+            c = msg.content
+            if (
+                c.startswith(_PLAN_CREATED_PREFIX)
+                or _STEP_TRANSITION_RE.match(c)
+                or _ALL_COMPLETE_RE.match(c)
+            ):
+                break
+        scoped.append(msg)
+    scoped.reverse()
+    return scoped
+
 
 def _build_rich_result(
     last_message: str, messages: list, current_step_index: int
@@ -186,8 +215,11 @@ async def run_step_complete(
     if not plan or current_index >= len(plan.steps):
         return {}
 
+    # Scope to current step's messages only — prevents cross-step/turn bleed
+    step_messages = _scope_messages_to_current_step(messages)
+
     last_message = ""
-    for msg in reversed(messages):
+    for msg in reversed(step_messages):
         if isinstance(msg, AIMessage) and msg.content:
             if isinstance(msg.content, list):
                 last_message = "\n".join(
@@ -206,7 +238,7 @@ async def run_step_complete(
     # executor_context: enriched with tool outputs for cross-step context passing only
     if summarizer_llm:
         summarized = await _summarize_tool_outputs(
-            messages, current_step, summarizer_llm
+            step_messages, current_step, summarizer_llm
         )
         if summarized:
             current_step.executor_context = (
@@ -217,13 +249,13 @@ async def run_step_complete(
     else:
         # Fallback to original truncation method
         current_step.executor_context = _build_rich_result(
-            last_message, messages, current_index
+            last_message, step_messages, current_index
         )
     current_step.status = "completed"
 
     # Populate tools_used from ToolMessage names in this step's messages
     tool_names = []
-    for msg in messages:
+    for msg in step_messages:
         if isinstance(msg, ToolMessage) and getattr(msg, "name", None):
             if msg.name not in tool_names:
                 tool_names.append(msg.name)
@@ -231,7 +263,7 @@ async def run_step_complete(
         current_step.tools_used = tool_names
 
     # Always try to extract search results (not just when "search" is in the description)
-    search_results = extract_search_results_from_messages(messages)
+    search_results = extract_search_results_from_messages(step_messages)
     if search_results:
         current_step.search_results = search_results
         logger.info(
@@ -243,7 +275,7 @@ async def run_step_complete(
         )
 
     # Extract email results from Gmail tool messages
-    email_results = extract_email_results_from_messages(messages)
+    email_results = extract_email_results_from_messages(step_messages)
     if email_results:
         current_step.email_results = email_results
         logger.info(

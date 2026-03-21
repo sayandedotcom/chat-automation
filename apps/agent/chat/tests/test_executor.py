@@ -406,9 +406,15 @@ class TestRunExecutorWithApproval:
 
 class TestContinueAfterTools:
     def _make_executor(self, response: AIMessage):
-        """Create a mock executor_with_tools object with an ainvoke method."""
+        """Create a mock executor_with_tools object with astream support."""
         mock = MagicMock()
-        mock.ainvoke = AsyncMock(return_value=response)
+        mock._astream_calls = []
+
+        async def _fake_astream(messages, config=None):
+            mock._astream_calls.append(messages)
+            yield response
+
+        mock.astream = _fake_astream
         return mock
 
     @pytest.mark.asyncio
@@ -433,8 +439,8 @@ class TestContinueAfterTools:
 
         await continue_after_tools(state, mock_executor)
 
-        # Verify both tool messages were passed to LLM via ainvoke
-        called_chat = mock_executor.ainvoke.call_args[0][0]
+        # Verify both tool messages were passed to LLM via astream
+        called_chat = mock_executor._astream_calls[0]
         tool_messages_in_chat = [m for m in called_chat if isinstance(m, ToolMessage)]
         assert len(tool_messages_in_chat) == 2
 

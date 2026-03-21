@@ -19,6 +19,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from chat.schemas import WorkflowPlan, WorkflowStep
 from chat.workflow.step_complete import (
     _extract_identifiers,
+    _scope_messages_to_current_step,
     _summarize_tool_outputs,
     run_step_complete,
 )
@@ -488,3 +489,168 @@ class TestRunStepCompleteWithSummarizer:
         ctx = plan.steps[0].executor_context
         assert "Done." in ctx
         assert "[some_tool]" in ctx
+
+
+# ---------------------------------------------------------------------------
+# _scope_messages_to_current_step & cross-step/turn bleed prevention
+# ---------------------------------------------------------------------------
+
+
+class TestScopeMessagesToCurrentStep:
+    def test_tools_used_scoped_to_current_step(self):
+        """Prior step's ToolMessage behind a boundary should not appear in scoped list."""
+        messages = [
+            # --- prior step ---
+            ToolMessage(
+                content='{"results": [{"title": "Python tutorial", "url": "https://example.com"}]}',
+                tool_call_id="call_old",
+                name="tavily_search",
+            ),
+            AIMessage(content="Here are the search results."),
+            # --- boundary: step transition ---
+            AIMessage(
+                content="✓ Step 1 complete. Moving to step 2: Read Notion page\n"
+            ),
+            # --- current step ---
+            ToolMessage(
+                content="Page content: Introduction to Python...",
+                tool_call_id="call_new",
+                name="API-get-block-children",
+            ),
+            AIMessage(content="I read the Notion page."),
+        ]
+        scoped = _scope_messages_to_current_step(messages)
+
+        tool_names = [msg.name for msg in scoped if isinstance(msg, ToolMessage)]
+        assert "API-get-block-children" in tool_names
+        assert "tavily_search" not in tool_names
+
+    def test_search_results_not_leaked_across_steps(self):
+        """Tavily ToolMessage behind a step boundary must not appear in scoped messages."""
+        tavily_content = (
+            '{"results": [{"title": "Result 1", "url": "https://r1.com", '
+            '"content": "Some content here about the topic"}]}'
+        )
+        messages = [
+            # --- prior step with search ---
+            ToolMessage(
+                content=tavily_content,
+                tool_call_id="call_search",
+                name="tavily_search",
+            ),
+            AIMessage(content="Found search results."),
+            AIMessage(content="✓ Step 1 complete. Moving to step 2: Create document\n"),
+            # --- current step (no search) ---
+            ToolMessage(
+                content="Document created successfully with ID doc_123.",
+                tool_call_id="call_create",
+                name="create_document",
+            ),
+            AIMessage(content="Created the document."),
+        ]
+        scoped = _scope_messages_to_current_step(messages)
+
+        # No tavily message should be in scoped messages
+        tavily_msgs = [
+            msg
+            for msg in scoped
+            if isinstance(msg, ToolMessage) and msg.name == "tavily_search"
+        ]
+        assert tavily_msgs == []
+
+    def test_scope_messages_across_turns(self):
+        """Full prior turn behind a HumanMessage boundary is excluded."""
+        messages = [
+            # --- Turn 1 ---
+            HumanMessage(content="Search for Python tutorials"),
+            ToolMessage(
+                content='{"results": [{"title": "Tutorial"}]}',
+                tool_call_id="call_t1",
+                name="tavily_search",
+            ),
+            AIMessage(content="Here are results from turn 1."),
+            AIMessage(content="All 2 steps completed.\n"),
+            # --- Turn 2 ---
+            HumanMessage(content="Now create a Google Doc"),
+            ToolMessage(
+                content="Doc created.",
+                tool_call_id="call_t2",
+                name="create_document",
+            ),
+            AIMessage(content="Created the document in turn 2."),
+        ]
+        scoped = _scope_messages_to_current_step(messages)
+
+        # Only turn 2 messages after the last HumanMessage
+        assert len(scoped) == 2  # ToolMessage + AIMessage
+        tool_names = [msg.name for msg in scoped if isinstance(msg, ToolMessage)]
+        assert tool_names == ["create_document"]
+
+    def test_scope_with_list_content_ai_message(self):
+        """AIMessage with list content (tool_use blocks) is NOT a boundary."""
+        messages = [
+            AIMessage(content="✓ Step 1 complete. Moving to step 2: Do more\n"),
+            # AIMessage with list content (e.g. tool_use blocks) — not a boundary
+            AIMessage(
+                content=[
+                    {"type": "text", "text": "Let me help."},
+                    {
+                        "type": "tool_use",
+                        "id": "call_1",
+                        "name": "some_tool",
+                        "input": {},
+                    },
+                ]
+            ),
+            ToolMessage(
+                content="Tool result here with enough content to be meaningful.",
+                tool_call_id="call_1",
+                name="some_tool",
+            ),
+            AIMessage(content="Done with the task."),
+        ]
+        scoped = _scope_messages_to_current_step(messages)
+
+        # The list-content AIMessage + ToolMessage + final AIMessage should all be included
+        assert len(scoped) == 3
+        assert any(
+            isinstance(msg, AIMessage) and isinstance(msg.content, list)
+            for msg in scoped
+        )
+
+
+class TestRunStepCompleteScoping:
+    @pytest.mark.asyncio
+    async def test_tools_used_excludes_prior_step_tools(self):
+        """run_step_complete should only report tools from the current step."""
+        plan = make_plan("Search web", "Read Notion page")
+        # Simulate: step 1 done, now completing step 2 (index=1)
+        # Messages include step 1's tool + boundary + step 2's tool
+        state = base_state(
+            plan,
+            current_index=1,
+            messages=[
+                HumanMessage(content="do research"),
+                ToolMessage(
+                    content='{"results": [{"title": "Result", "url": "https://example.com", "content": "blah"}]}',
+                    tool_call_id="call_s1",
+                    name="tavily_search",
+                ),
+                AIMessage(content="Found results."),
+                AIMessage(
+                    content="✓ Step 1 complete. Moving to step 2: Read Notion page\n"
+                ),
+                ToolMessage(
+                    content="Notion page content: some long text here that is meaningful enough.",
+                    tool_call_id="call_s2",
+                    name="API-get-block-children",
+                ),
+                AIMessage(content="I read the Notion page."),
+            ],
+        )
+
+        await run_step_complete(state)
+
+        step = plan.steps[1]
+        assert step.tools_used == ["API-get-block-children"]
+        assert step.search_results is None

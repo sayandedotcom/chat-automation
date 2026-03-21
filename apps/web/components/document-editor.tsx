@@ -36,7 +36,15 @@ export function DocumentEditor({
   const args = toolCall.arguments;
 
   const [title, setTitle] = useState(() => String(args.title ?? ""));
-  const [content, setContent] = useState(() => String(args.content ?? ""));
+  const [content, setContent] = useState(() => {
+    const raw = String(args.content ?? "");
+    // Strip leading heading that duplicates the document title
+    const t = String(args.title ?? "");
+    if (t && raw.startsWith(`# ${t}`)) {
+      return raw.slice(t.length + 2).replace(/^\n+/, "");
+    }
+    return raw;
+  });
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(

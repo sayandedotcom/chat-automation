@@ -22,6 +22,58 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def deep_parse_stringified_json(value):
+    """Recursively parse JSON strings that should be objects/arrays.
+
+    Gemini Flash sometimes double-serializes nested values, passing
+    '{"object": "block", ...}' (a string) where {"object": "block", ...}
+    (an object) is expected.  This walks the arg tree and parses any string
+    that looks like a JSON object or array.
+    """
+    if isinstance(value, str):
+        stripped = value.strip()
+        if (stripped.startswith("{") and stripped.endswith("}")) or (
+            stripped.startswith("[") and stripped.endswith("]")
+        ):
+            try:
+                parsed = json.loads(stripped)
+                # Recurse into the parsed result in case of nested stringification
+                return deep_parse_stringified_json(parsed)
+            except (json.JSONDecodeError, ValueError):
+                return value
+        return value
+    if isinstance(value, dict):
+        return {k: deep_parse_stringified_json(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [deep_parse_stringified_json(item) for item in value]
+    return value
+
+
+def fix_notion_workspace_parent(args: dict) -> dict:
+    """Fix common LLM mistakes with Notion workspace parent format.
+
+    Gemini Flash often generates parent: "workspace" or
+    parent: {"page_id": "workspace"} instead of the correct
+    parent: {"type": "workspace", "workspace": true}.
+    """
+    parent = args.get("parent")
+    if parent is None:
+        return args
+    correct = {"type": "workspace", "workspace": True}
+    # Case 1: plain string "workspace"
+    if parent == "workspace":
+        return {**args, "parent": correct}
+    if not isinstance(parent, dict):
+        return args
+    # Case 2: {"page_id": "workspace"} or {"type": "page_id", "page_id": "workspace"}
+    if parent.get("page_id") == "workspace":
+        return {**args, "parent": correct}
+    # Case 3: {"type": "workspace"} but missing workspace key
+    if parent.get("type") == "workspace" and "workspace" not in parent:
+        return {**args, "parent": {**parent, "workspace": True}}
+    return args
+
+
 def extract_tool_name_from_error(error: str) -> Optional[str]:
     """Extract a tool name from an error message about a missing tool."""
     for pattern in [
@@ -168,44 +220,6 @@ async def generate_spreadsheet_structure(
             "title": step.description,
             "sheets": [{"name": "Sheet1", "columns": []}],
         }
-
-
-def synthesize_calendar_preview(step: WorkflowStep) -> list[dict] | None:
-    """Synthesize a calendar tool-call preview when the LLM produces no tool calls.
-
-    Returns a single-element list suitable for ``tool_calls_preview``, or
-    ``None`` if the step description doesn't look like a calendar-create action.
-    """
-    desc = step.description.lower()
-    is_calendar_create = "calendar" in desc and any(
-        kw in desc for kw in ("create", "add", "schedule", "new event", "invite")
-    )
-    if not is_calendar_create:
-        return None
-
-    import re
-    from datetime import datetime, timedelta
-
-    email_matches = re.findall(r"[\w.+%-]+@[\w-]+\.[\w.]+", step.description)
-    now = datetime.now()
-    default_start = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
-    default_end = default_start + timedelta(hours=1)
-
-    return [
-        {
-            "id": f"synthetic_calendar_{step.step_number}",
-            "tool_name": "create_event",
-            "integration": "google_calendar",
-            "ui_component": "calendar_event_editor",
-            "arguments": {
-                "summary": "New Event",
-                "calendarId": "primary",
-                "start": {"dateTime": default_start.isoformat()},
-                "end": {"dateTime": default_end.isoformat()},
-                "attendees": [{"email": e} for e in email_matches],
-            },
-        }
-    ]
 
 
 async def try_incremental_load(

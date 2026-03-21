@@ -301,12 +301,17 @@ integrations:
       - "notion"
     executor_hints: |
       NOTION: To create a page at the workspace top level, use API-post-page with
-      parent: {"type": "workspace", "workspace": true}. To create under an existing
-      page, use parent: {"type": "page_id", "page_id": "<id>"}. Include content in
+      parent: {"workspace": true}. Do NOT use "workspace" as a string or as page_id.
+      To create under an existing page, use parent: {"type": "page_id", "page_id": "<uuid>"}.
+      Include content in
       "children" as block objects. Use "properties" with "title" for page title:
       properties: {"title": [{"text": {"content": "Page Title"}}]}. Do NOT ask for
       parent page ID if user doesn't specify one — use workspace parent. To search
       for pages, use API-post-search.
+      Always report the page URL and ID in your response after creating or modifying a page.
+      IMPORTANT: The Notion API allows a MAXIMUM of 100 children blocks per request.
+      Keep page content concise — use fewer, richer blocks. Combine related short
+      paragraphs. Never exceed 95 blocks in a single API-post-page call.
 
   vercel:
     tool_names:

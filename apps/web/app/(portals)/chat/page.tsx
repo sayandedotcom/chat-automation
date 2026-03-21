@@ -434,6 +434,7 @@ export default function ChatPage() {
                     ...step,
                     thinking: event.thinking,
                     thinking_duration_ms: event.duration_ms,
+                    result: "", // Clear thinking tokens — real result tokens follow
                   }
                 : step
             )
@@ -511,7 +512,7 @@ export default function ChatPage() {
                 description: s.description,
                 status: finalStatus,
                 tools_used: s.tools_used,
-                result: s.result,
+                result: s.result ?? existingStep?.result,
                 requires_human_approval: s.requires_human_approval,
                 approval_reason: s.approval_reason,
                 // Per-step thinking
@@ -984,7 +985,7 @@ export default function ChatPage() {
                                     )}
                                   </div>
                                   <a
-                                    href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}`}
+                                    href={`${process.env.NEXT_PUBLIC_API_URL}/oauth/${integration.connect_id}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
                                     className="bubble flex-shrink-0 rounded-3xl bg-white/[0.08] px-3.5 py-2.5 text-xs font-light text-zinc-200 transition-colors hover:bg-white/[0.12]">
                                     Connect
                                   </a>

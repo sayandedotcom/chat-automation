@@ -18,7 +18,7 @@ Routing functions and other utilities live in:
     workflow/prompts.py  — system prompt templates
 """
 
-import json
+import functools
 import logging
 from typing import TYPE_CHECKING, Optional
 
@@ -28,6 +28,10 @@ from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolNode
 
 from chat.schemas import WorkflowPlan, WorkflowState, WorkflowStep
+from chat.workflow.executor.helpers import (
+    deep_parse_stringified_json,
+    fix_notion_workspace_parent,
+)
 from chat.workflow.llm import (
     get_executor_llm,
     get_planner_llm,
@@ -49,33 +53,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _deep_parse_stringified_json(value):
-    """Recursively parse JSON strings that should be objects/arrays.
-
-    Gemini Flash sometimes double-serializes nested values, passing
-    '{"object": "block", ...}' (a string) where {"object": "block", ...}
-    (an object) is expected.  This walks the arg tree and parses any string
-    that looks like a JSON object or array.
-    """
-    if isinstance(value, str):
-        stripped = value.strip()
-        if (stripped.startswith("{") and stripped.endswith("}")) or (
-            stripped.startswith("[") and stripped.endswith("]")
-        ):
-            try:
-                parsed = json.loads(stripped)
-                # Recurse into the parsed result in case of nested stringification
-                return _deep_parse_stringified_json(parsed)
-            except (json.JSONDecodeError, ValueError):
-                return value
-        return value
-    if isinstance(value, dict):
-        return {k: _deep_parse_stringified_json(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_deep_parse_stringified_json(item) for item in value]
-    return value
-
-
 def _sanitize_tool_call_args(state: WorkflowState) -> WorkflowState:
     """Fix double-serialized JSON in tool call arguments before MCP dispatch.
 
@@ -93,7 +70,10 @@ def _sanitize_tool_call_args(state: WorkflowState) -> WorkflowState:
     new_tool_calls = []
     for tc in last_msg.tool_calls:
         args = tc.get("args", {})
-        sanitized = _deep_parse_stringified_json(args)
+        sanitized = deep_parse_stringified_json(args)
+        # Fix Notion workspace parent format
+        if tc.get("name") == "API-post-page":
+            sanitized = fix_notion_workspace_parent(sanitized)
         if sanitized != args:
             fixed_any = True
             logger.warning(
@@ -127,6 +107,11 @@ class WorkflowNodes:
             if self.tools
             else self.executor_llm
         )
+        self.executor_with_tools_forced = (
+            self.executor_llm.bind_tools(self.tools, tool_choice="any")
+            if self.tools
+            else self.executor_llm
+        )
         self.tool_node = (
             ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
         )
@@ -153,6 +138,12 @@ class WorkflowNodes:
             self.tools = new_tools
         if new_ewt is not None:
             self.executor_with_tools = new_ewt
+            # Keep forced binding in sync
+            self.executor_with_tools_forced = (
+                self.executor_llm.bind_tools(self.tools, tool_choice="any")
+                if self.tools
+                else self.executor_llm
+            )
         if new_tn is not None:
             self.tool_node = new_tn
         return result
@@ -171,35 +162,49 @@ class WorkflowNodes:
     # Executor (auto)
     # ------------------------------------------------------------------
 
-    async def executor_node(self, state: WorkflowState) -> dict:
+    async def executor_node(self, state: WorkflowState, config: RunnableConfig) -> dict:
         """Execute the current step automatically."""
         from chat.workflow.executor.nodes import run_executor
 
         return await run_executor(
             state,
-            continue_after_tools_fn=self._continue_after_tools,
+            continue_after_tools_fn=functools.partial(
+                self._continue_after_tools, config=config
+            ),
             get_previous_results_fn=self._get_previous_results,
-            start_step_execution_fn=self._start_step_execution,
-            try_incremental_load_fn=self._try_incremental_load,
+            start_step_execution_fn=functools.partial(
+                self._start_step_execution, config=config
+            ),
+            try_incremental_load_fn=functools.partial(
+                self._try_incremental_load, config=config
+            ),
         )
 
     # ------------------------------------------------------------------
     # Executor with approval
     # ------------------------------------------------------------------
 
-    async def executor_with_approval_node(self, state: WorkflowState) -> dict:
+    async def executor_with_approval_node(
+        self, state: WorkflowState, config: RunnableConfig
+    ) -> dict:
         """Handle steps that require human approval (state-based HITL)."""
         from chat.workflow.executor.nodes import run_executor_with_approval
 
         return await run_executor_with_approval(
             state,
-            continue_after_tools_fn=self._continue_after_tools,
-            handle_approval_decision_fn=self._handle_approval_decision,
-            request_approval_fn=self._request_approval,
+            continue_after_tools_fn=functools.partial(
+                self._continue_after_tools, config=config
+            ),
+            handle_approval_decision_fn=functools.partial(
+                self._handle_approval_decision, config=config
+            ),
+            request_approval_fn=functools.partial(
+                self._request_approval, config=config
+            ),
         )
 
     async def _handle_approval_decision(
-        self, state, plan, current_step, approval_decision
+        self, state, plan, current_step, approval_decision, *, config=None
     ) -> dict:
         from chat.workflow.executor.nodes import handle_approval_decision
 
@@ -210,10 +215,14 @@ class WorkflowNodes:
             approval_decision,
             get_previous_results_fn=self._get_previous_results,
             apply_edited_args_fn=self._apply_edited_args,
-            start_step_execution_fn=self._start_step_execution,
+            start_step_execution_fn=functools.partial(
+                self._start_step_execution, config=config
+            ),
         )
 
-    async def _request_approval(self, state, plan, current_step) -> dict:
+    async def _request_approval(
+        self, state, plan, current_step, *, config=None
+    ) -> dict:
         from chat.workflow.executor.nodes import request_approval
 
         return await request_approval(
@@ -224,7 +233,13 @@ class WorkflowNodes:
             resolve_tool_integration_fn=self._resolve_tool_integration,
             resolve_ui_component_fn=self._resolve_ui_component,
             generate_spreadsheet_structure_fn=self._generate_spreadsheet_structure,
-            start_step_execution_fn=self._start_step_execution,
+            start_step_execution_fn=functools.partial(
+                self._start_step_execution_forced, config=config
+            ),
+            # Enable pre-execution of non-UI tools
+            tool_node=self.tool_node,
+            executor_with_tools=self.executor_with_tools,
+            config=config,
         )
 
     # ------------------------------------------------------------------
@@ -268,6 +283,8 @@ class WorkflowNodes:
         initial_integrations,
         step_artifacts,
         incremental_load_events,
+        *,
+        config=None,
     ):
         from chat.workflow.executor.helpers import try_incremental_load
 
@@ -284,7 +301,9 @@ class WorkflowNodes:
             tools=self.tools,
             executor_llm=self.executor_llm,
             executor_with_tools=self.executor_with_tools,
-            start_step_execution_fn=self._start_step_execution,
+            start_step_execution_fn=functools.partial(
+                self._start_step_execution, config=config
+            ),
         )
         (
             response,
@@ -295,6 +314,11 @@ class WorkflowNodes:
             self.executor_with_tools,
             self.tool_node,
         ) = result
+        self.executor_with_tools_forced = (
+            self.executor_llm.bind_tools(self.tools, tool_choice="any")
+            if self.tools
+            else self.executor_llm
+        )
         return response, executor_chat, new_integrations, incremental_load_events
 
     def _extract_tool_name_from_error(self, error: str) -> Optional[str]:
@@ -344,6 +368,8 @@ class WorkflowNodes:
         initial_integrations=None,
         approved_content=None,
         artifacts=None,
+        *,
+        config=None,
     ) -> tuple:
         from chat.workflow.executor.nodes import start_step_execution
 
@@ -358,9 +384,40 @@ class WorkflowNodes:
             executor_with_tools=self.executor_with_tools,
             executor_llm=self.executor_llm,
             registry=self.registry,
+            config=config,
         )
 
-    async def _continue_after_tools(self, state: WorkflowState) -> dict:
+    async def _start_step_execution_forced(
+        self,
+        step,
+        plan,
+        previous_results,
+        conversation_summary="",
+        initial_integrations=None,
+        approved_content=None,
+        artifacts=None,
+        *,
+        config=None,
+    ) -> tuple:
+        from chat.workflow.executor.nodes import start_step_execution
+
+        return await start_step_execution(
+            step,
+            plan,
+            previous_results,
+            conversation_summary,
+            initial_integrations,
+            approved_content,
+            artifacts,
+            executor_with_tools=self.executor_with_tools_forced,
+            executor_llm=self.executor_llm,
+            registry=self.registry,
+            config=config,
+        )
+
+    async def _continue_after_tools(self, state: WorkflowState, *, config=None) -> dict:
         from chat.workflow.executor.nodes import continue_after_tools
 
-        return await continue_after_tools(state, self.executor_with_tools)
+        return await continue_after_tools(
+            state, self.executor_with_tools, config=config
+        )

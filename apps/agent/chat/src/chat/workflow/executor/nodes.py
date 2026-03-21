@@ -14,12 +14,36 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from chat.schemas import WorkflowPlan, WorkflowState, WorkflowStep
 from chat.workflow.context import format_artifacts_context, format_integration_context
+from chat.workflow.executor.helpers import (
+    deep_parse_stringified_json,
+    extract_pagination_metadata,
+    fix_notion_workspace_parent,
+)
 from chat.workflow.prompts import EXECUTOR_SYSTEM_PROMPT
 
 if TYPE_CHECKING:
     from chat.integrations.registry import IntegrationRegistry
 
 logger = logging.getLogger(__name__)
+
+
+async def _astream_collect(model, messages, config=None):
+    """Invoke model via streaming so LangGraph can emit real-time token events.
+
+    Equivalent to model.ainvoke(messages) but uses astream() internally,
+    which triggers on_llm_new_token callbacks that LangGraph's
+    StreamMessagesHandler captures for stream_mode="messages".
+
+    The caller must pass the LangGraph RunnableConfig (which contains the
+    StreamMessagesHandler callback) explicitly — ensure_config() does NOT
+    pick up the handler when called deep in the call chain.
+    """
+    full = None
+    async for chunk in model.astream(messages, config=config):
+        full = chunk if full is None else full + chunk
+    if full is None:
+        return AIMessage(content="")
+    return full
 
 
 def _extract_thinking(response) -> str | None:
@@ -101,11 +125,12 @@ async def run_executor(
             incremental_load_events,
         )
 
-    current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
-
     # Populate step.thinking from the executor's text response
     # When the LLM responds with tool_calls + text content, the text is its reasoning
-    current_step.thinking = _extract_thinking(response)
+    thinking = _extract_thinking(response)
+    if thinking:
+        current_step.thinking = thinking
+        current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
 
     result: dict = {
         "messages": [response],
@@ -159,6 +184,7 @@ async def start_step_execution(
     executor_with_tools,
     executor_llm,
     registry: "IntegrationRegistry | None",
+    config=None,
 ) -> tuple:
     """Build the executor conversation and invoke the LLM."""
     system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
@@ -191,7 +217,7 @@ async def start_step_execution(
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_content),
     ]
-    response = await executor_with_tools.ainvoke(executor_chat)
+    response = await _astream_collect(executor_with_tools, executor_chat, config=config)
     executor_chat.append(response)
     return response, executor_chat
 
@@ -201,7 +227,9 @@ async def start_step_execution(
 _TOOL_RESULT_CHAR_LIMIT = 12_000
 
 
-async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dict:
+async def continue_after_tools(
+    state: WorkflowState, executor_with_tools, config=None
+) -> dict:
     """Continue the executor conversation after ToolNode results (multi-hop)."""
     import asyncio
 
@@ -231,12 +259,16 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
         content = msg.content
         content_str = str(content) if not isinstance(content, str) else content
         if len(content_str) > _TOOL_RESULT_CHAR_LIMIT:
+            pagination_info = extract_pagination_metadata(content_str)
             truncated = content_str[:_TOOL_RESULT_CHAR_LIMIT] + (
                 "\n\n[... truncated — full content available for processing]"
             )
+            if pagination_info:
+                truncated += f"\n\nPagination info from response: {pagination_info}"
             logger.info(
                 f"[CONTINUE] Truncated tool result '{getattr(msg, 'name', '?')}' "
                 f"from {len(content_str)} to {_TOOL_RESULT_CHAR_LIMIT} chars"
+                f"{' (pagination preserved)' if pagination_info else ''}"
             )
             chat_tool_msgs.append(
                 ToolMessage(
@@ -253,7 +285,7 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
     start_time = time.time()
     try:
         response = await asyncio.wait_for(
-            executor_with_tools.ainvoke(executor_chat),
+            _astream_collect(executor_with_tools, executor_chat, config=config),
             timeout=120,  # 2 minutes — prevents indefinite hangs
         )
     except asyncio.TimeoutError:
@@ -270,10 +302,10 @@ async def continue_after_tools(state: WorkflowState, executor_with_tools) -> dic
     # Update step thinking for each tool-loop LLM call
     if plan and 0 <= current_index < len(plan.steps):
         step = plan.steps[current_index]
-        step.thinking_duration_ms = duration_ms
         thinking = _extract_thinking(response)
         if thinking:
             step.thinking = thinking
+            step.thinking_duration_ms = duration_ms
 
     return {
         "messages": [response],
@@ -363,6 +395,9 @@ async def handle_approval_decision(
     }
 
 
+_MAX_PRE_EXEC_ROUNDS = 3  # Safety limit for pre-executing non-UI tools
+
+
 async def request_approval(
     state,
     plan,
@@ -373,6 +408,9 @@ async def request_approval(
     resolve_ui_component_fn=None,
     generate_spreadsheet_structure_fn,
     start_step_execution_fn,
+    tool_node=None,
+    executor_with_tools=None,
+    config=None,
 ) -> dict:
     """Run LLM to generate tool-call preview, then pause for human approval."""
     current_step.status = "awaiting_approval"
@@ -383,6 +421,7 @@ async def request_approval(
     tool_calls_preview = []
     pending_message = None
     executor_chat = None
+    accumulated_messages: list = []
 
     try:
         start_time = time.time()
@@ -394,12 +433,84 @@ async def request_approval(
             state.get("initial_integrations", []),
             artifacts=step_artifacts,
         )
-        current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
-        current_step.thinking = _extract_thinking(response)
+        thinking = _extract_thinking(response)
+        if thinking:
+            current_step.thinking = thinking
+            current_step.thinking_duration_ms = int((time.time() - start_time) * 1000)
+
+        # --- PRE-EXECUTION LOOP ---
+        # Auto-execute tool calls that have no ui_component (preparatory
+        # reads/searches).  Continue until we find a tool call with a
+        # ui_component (the primary user-facing action).
+        if tool_node and executor_with_tools and resolve_ui_component_fn:
+            for _ in range(_MAX_PRE_EXEC_ROUNDS):
+                if not (hasattr(response, "tool_calls") and response.tool_calls):
+                    break  # Text response — nothing to pre-execute
+
+                has_ui_tool = any(
+                    resolve_ui_component_fn(tc.get("name", ""))
+                    for tc in response.tool_calls
+                )
+                if has_ui_tool:
+                    break  # Found the primary action — show approval
+
+                # All tool calls are non-UI (preparatory) — auto-execute
+                logger.info(
+                    "Pre-executing non-UI tools for step %d: %s",
+                    current_step.step_number,
+                    [tc.get("name") for tc in response.tool_calls],
+                )
+
+                sanitized_tc = []
+                for tc in response.tool_calls:
+                    args = deep_parse_stringified_json(tc.get("args", {}))
+                    if tc.get("name") == "API-post-page":
+                        args = fix_notion_workspace_parent(args)
+                    sanitized_tc.append({**tc, "args": args})
+                exec_msg = AIMessage(
+                    content=response.content,
+                    tool_calls=sanitized_tc,
+                    id=response.id,
+                )
+
+                tool_result = await tool_node.ainvoke({"messages": [exec_msg]})
+                tool_msgs = [
+                    m for m in tool_result["messages"] if isinstance(m, ToolMessage)
+                ]
+
+                accumulated_messages.append(response)
+                accumulated_messages.extend(tool_msgs)
+
+                # Continue executor conversation (non-forced, non-streaming)
+                executor_chat.extend(tool_msgs)
+                response = await executor_with_tools.ainvoke(executor_chat)
+                executor_chat.append(response)
+        # --- END PRE-EXECUTION LOOP ---
+
+        # If step completed entirely during pre-execution (text response, no
+        # tool calls) → mark in_progress and return immediately.
+        if not (hasattr(response, "tool_calls") and response.tool_calls):
+            if accumulated_messages:
+                current_step.status = "in_progress"
+                return {
+                    "messages": accumulated_messages + [response],
+                    "_executor_chat": executor_chat,
+                    "_step_tool_calls": len(
+                        [m for m in accumulated_messages if isinstance(m, ToolMessage)]
+                    ),
+                    "plan": plan,
+                    "awaiting_approval": False,
+                    "approval_step_info": None,
+                    "approval_decision": None,
+                    "_pending_tool_calls_message": None,
+                }
 
         if hasattr(response, "tool_calls") and response.tool_calls:
             for tc in response.tool_calls:
                 tool_name = tc.get("name", "")
+                args = deep_parse_stringified_json(tc.get("args", {}))
+                if tool_name == "API-post-page":
+                    args = fix_notion_workspace_parent(args)
                 preview_entry = {
                     "id": tc.get("id", ""),
                     "tool_name": tool_name,
@@ -409,7 +520,7 @@ async def request_approval(
                         if resolve_ui_component_fn
                         else None
                     ),
-                    "arguments": tc.get("args", {}),
+                    "arguments": args,
                 }
                 tool_calls_preview.append(preview_entry)
 
@@ -445,15 +556,7 @@ async def request_approval(
             f"Failed to generate preview for step {current_step.step_number}: {e}"
         )
 
-    # Fallback: synthesize calendar preview when LLM produced no tool calls
-    if not tool_calls_preview:
-        from chat.workflow.executor.helpers import synthesize_calendar_preview
-
-        synthetic = synthesize_calendar_preview(current_step)
-        if synthetic:
-            tool_calls_preview = synthetic
-
-    return {
+    result = {
         "plan": plan,
         "awaiting_approval": True,
         "approval_step_info": {
@@ -468,3 +571,7 @@ async def request_approval(
         "_step_tool_calls": 0,
         "_pending_tool_calls_message": pending_message,
     }
+    # Preserve tool results from pre-executed non-UI tools in state
+    if accumulated_messages:
+        result["messages"] = accumulated_messages
+    return result

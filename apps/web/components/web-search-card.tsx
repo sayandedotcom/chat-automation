@@ -56,7 +56,7 @@ export function WebSearchCard({
   searchResults,
   result,
 }: WebSearchCardProps) {
-  const [isCollapsed, setIsCollapsed] = useState(completed);
+  const [isCollapsed, setIsCollapsed] = useState(!completed);
   const [actionTaken, setActionTaken] = useState<"approved" | "skipped" | null>(
     completed ? "approved" : null
   );
@@ -64,7 +64,7 @@ export function WebSearchCard({
   useEffect(() => {
     if (completed && !actionTaken) {
       setActionTaken("approved");
-      setIsCollapsed(true);
+      setIsCollapsed(false);
     }
   }, [completed, actionTaken]);
 

@@ -32,7 +32,14 @@ function extractTitle(args: Record<string, unknown>): string {
 
   // Notion API format: properties.title or properties.Name
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const props = args.properties as any;
+  let props = args.properties as any;
+  if (typeof props === "string") {
+    try {
+      props = JSON.parse(props);
+    } catch {
+      /* keep as-is */
+    }
+  }
   if (props) {
     // Check common keys first
     for (const key of ["title", "Title", "Name", "name"]) {
@@ -156,7 +163,14 @@ function extractContent(args: Record<string, unknown>): string {
 
   // Notion API format: children array of block objects
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const children = args.children as any[];
+  let children = args.children as any[];
+  if (typeof children === "string") {
+    try {
+      children = JSON.parse(children);
+    } catch {
+      return "";
+    }
+  }
   if (!Array.isArray(children)) return "";
 
   const parts: { text: string; type: string }[] = [];
@@ -309,7 +323,15 @@ export function NotionPageEditor({
   const args = toolCall.arguments;
 
   const [title, setTitle] = useState(() => extractTitle(args));
-  const [content, setContent] = useState(() => extractContent(args));
+  const [content, setContent] = useState(() => {
+    const raw = extractContent(args);
+    // Strip leading heading that duplicates the page title
+    const t = extractTitle(args);
+    if (t && raw.startsWith(`# ${t}`)) {
+      return raw.slice(t.length + 2).replace(/^\n+/, "");
+    }
+    return raw;
+  });
   const [isCreating, setIsCreating] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(completed);
   const [actionTaken, setActionTaken] = useState<"created" | "skipped" | null>(
@@ -342,7 +364,21 @@ export function NotionPageEditor({
         children: markdownToNotionBlocks(content),
       };
       // Preserve parent from original args if present
-      if (args.parent) notionArgs.parent = args.parent;
+      if (args.parent) {
+        let parent = args.parent;
+        if (typeof parent === "string") {
+          if (parent === "workspace") {
+            parent = { type: "workspace", workspace: true };
+          } else {
+            try {
+              parent = JSON.parse(parent);
+            } catch {
+              /* use as-is */
+            }
+          }
+        }
+        notionArgs.parent = parent;
+      }
       onApprove(stepNumber, "edit", {
         tool_calls: [{ id: toolCall.id, arguments: notionArgs }],
       });
