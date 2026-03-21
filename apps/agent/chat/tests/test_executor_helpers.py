@@ -344,3 +344,93 @@ class TestExtractToolNameFromError:
     def test_empty_error_returns_none(self):
         result = extract_tool_name_from_error("")
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# extract_pagination_metadata
+# ---------------------------------------------------------------------------
+
+import json
+from chat.workflow.executor.helpers import extract_pagination_metadata
+
+
+class TestExtractPaginationMetadata:
+    def test_extracts_notion_pagination(self):
+        """Extracts next_cursor and has_more from Notion-style response."""
+        content = json.dumps(
+            {
+                "object": "list",
+                "results": [{"id": "block_1"}, {"id": "block_2"}],
+                "next_cursor": "abc-def-123",
+                "has_more": True,
+                "type": "block",
+            }
+        )
+        result = extract_pagination_metadata(content)
+        parsed = json.loads(result)
+        assert parsed["next_cursor"] == "abc-def-123"
+        assert parsed["has_more"] is True
+
+    def test_returns_empty_for_non_json(self):
+        assert extract_pagination_metadata("Just plain text result") == ""
+
+    def test_returns_empty_for_json_without_pagination(self):
+        content = json.dumps({"object": "page", "id": "page_123", "title": "My Page"})
+        assert extract_pagination_metadata(content) == ""
+
+    def test_returns_empty_for_json_array(self):
+        content = json.dumps([{"id": "item_1"}, {"id": "item_2"}])
+        assert extract_pagination_metadata(content) == ""
+
+    def test_extracts_has_more_false(self):
+        """When has_more is false, still extracts it (LLM needs to know no more pages)."""
+        content = json.dumps(
+            {
+                "object": "list",
+                "results": [],
+                "next_cursor": None,
+                "has_more": False,
+            }
+        )
+        result = extract_pagination_metadata(content)
+        parsed = json.loads(result)
+        assert parsed["has_more"] is False
+        assert parsed["next_cursor"] is None
+
+    def test_extracts_generic_cursor_fields(self):
+        content = json.dumps(
+            {
+                "data": [1, 2, 3],
+                "cursor": "next_page_token_xyz",
+                "total": 150,
+                "page_size": 50,
+            }
+        )
+        result = extract_pagination_metadata(content)
+        parsed = json.loads(result)
+        assert parsed["cursor"] == "next_page_token_xyz"
+        assert parsed["total"] == 150
+
+    def test_returns_empty_for_empty_string(self):
+        assert extract_pagination_metadata("") == ""
+
+    def test_returns_empty_for_malformed_json(self):
+        assert extract_pagination_metadata('{"broken": true,}') == ""
+
+    def test_excludes_non_pagination_fields(self):
+        content = json.dumps(
+            {
+                "object": "list",
+                "results": [{"id": "1"}],
+                "next_cursor": "cursor_123",
+                "has_more": True,
+                "type": "block",
+                "block": {},
+            }
+        )
+        result = extract_pagination_metadata(content)
+        parsed = json.loads(result)
+        assert "object" not in parsed
+        assert "results" not in parsed
+        assert "type" not in parsed
+        assert "block" not in parsed

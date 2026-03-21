@@ -74,6 +74,43 @@ def fix_notion_workspace_parent(args: dict) -> dict:
     return args
 
 
+# Pagination fields to preserve when truncating oversized tool results.
+# Covers Notion (next_cursor, has_more) and generic cursor/offset patterns.
+_PAGINATION_KEYS = {
+    "next_cursor",
+    "has_more",
+    "cursor",
+    "next_page_cursor",
+    "has_more_results",
+    "offset",
+    "total",
+    "page_size",
+    "next_start_cursor",
+    "start_cursor",
+}
+
+
+def extract_pagination_metadata(content_str: str) -> str:
+    """Extract pagination fields from a JSON tool result.
+
+    Returns a compact JSON string of pagination metadata, or empty string
+    if the content is not JSON or contains no pagination fields.
+    """
+    try:
+        data = json.loads(content_str)
+    except (json.JSONDecodeError, ValueError):
+        return ""
+
+    if not isinstance(data, dict):
+        return ""
+
+    pagination = {k: v for k, v in data.items() if k in _PAGINATION_KEYS}
+    if not pagination:
+        return ""
+
+    return json.dumps(pagination)
+
+
 def extract_tool_name_from_error(error: str) -> Optional[str]:
     """Extract a tool name from an error message about a missing tool."""
     for pattern in [

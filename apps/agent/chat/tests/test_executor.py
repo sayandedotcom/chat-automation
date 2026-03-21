@@ -515,3 +515,95 @@ class TestContinueAfterTools:
 
         assert result["messages"] == [fake_response]
         assert result["plan"] is plan
+
+    @pytest.mark.asyncio
+    async def test_truncated_tool_result_preserves_pagination_metadata(self):
+        """When a tool result is truncated, pagination metadata is appended."""
+        import json
+
+        # Build a large Notion-style response that exceeds 12K chars
+        large_results = [
+            {"id": f"block_{i}", "type": "paragraph", "paragraph": {"text": "x" * 200}}
+            for i in range(100)
+        ]
+        notion_response = json.dumps(
+            {
+                "object": "list",
+                "results": large_results,
+                "next_cursor": "cursor_abc_123",
+                "has_more": True,
+                "type": "block",
+                "block": {},
+            }
+        )
+        assert len(notion_response) > 12_000  # verify it triggers truncation
+
+        tool_msg = ToolMessage(
+            content=notion_response,
+            tool_call_id="call_notion",
+            name="API-get-block-children",
+        )
+        executor_chat = [MagicMock()]
+        fake_response = AIMessage(content="Here is the page content.")
+        mock_executor = self._make_executor(fake_response)
+
+        plan = make_plan()
+        state = {
+            "plan": plan,
+            "current_step_index": 0,
+            "messages": [HumanMessage("read notion page"), tool_msg],
+            "_executor_chat": executor_chat,
+            "_step_tool_calls": 0,
+        }
+
+        await continue_after_tools(state, mock_executor)
+
+        # Check what was sent to the LLM
+        called_chat = mock_executor._astream_calls[0]
+        tool_in_chat = [m for m in called_chat if isinstance(m, ToolMessage)][0]
+
+        # The truncated content should contain pagination info
+        assert "cursor_abc_123" in tool_in_chat.content
+        assert "has_more" in tool_in_chat.content
+        assert "truncated" in tool_in_chat.content
+
+    @pytest.mark.asyncio
+    async def test_small_tool_result_not_modified(self):
+        """Tool results under the limit are passed through unchanged."""
+        import json
+
+        small_response = json.dumps(
+            {
+                "object": "list",
+                "results": [{"id": "block_1"}],
+                "next_cursor": None,
+                "has_more": False,
+            }
+        )
+        assert len(small_response) < 12_000
+
+        tool_msg = ToolMessage(
+            content=small_response,
+            tool_call_id="call_notion",
+            name="API-get-block-children",
+        )
+        executor_chat = [MagicMock()]
+        fake_response = AIMessage(content="Done.")
+        mock_executor = self._make_executor(fake_response)
+
+        plan = make_plan()
+        state = {
+            "plan": plan,
+            "current_step_index": 0,
+            "messages": [HumanMessage("read notion"), tool_msg],
+            "_executor_chat": executor_chat,
+            "_step_tool_calls": 0,
+        }
+
+        await continue_after_tools(state, mock_executor)
+
+        called_chat = mock_executor._astream_calls[0]
+        tool_in_chat = [m for m in called_chat if isinstance(m, ToolMessage)][0]
+
+        # Content should be passed through unchanged
+        assert tool_in_chat.content == small_response
