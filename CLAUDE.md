@@ -16,8 +16,11 @@ pnpm build        # Turbo-cached build of all packages
 pnpm test         # Run all Vitest + pytest tests
 pnpm lint         # ESLint + Ruff checks
 pnpm format       # Prettier + Ruff formatting
+pnpm typecheck    # TypeScript type checking across all packages
+pnpm knip         # Dead code detection
 pnpm db:push      # Apply Prisma schema changes (no migration file)
 pnpm db:migrate   # Create and apply a new Prisma migration
+pnpm db:generate  # Regenerate Prisma client after schema changes
 pnpm db:studio    # Open Prisma Studio
 ```
 
@@ -60,21 +63,25 @@ All traffic in Docker goes through Nginx (`:8080`). Routes:
 
 For local `pnpm dev`, services run directly on their ports (web: 3000, api: 8000, agent: 8001).
 
+### Web (`apps/web`)
+
+Next.js 16 with App Router (routes in `apps/web/app/`, not `src/app/`). Uses Turbopack for dev. Frontend consumes tRPC via TanStack React Query (`@trpc/tanstack-react-query`). UI components from `packages/ui` (shadcn/ui-based).
+
 ### API (`apps/api`)
 
 Express 5 + tRPC with end-to-end TypeScript type safety. Authentication via Passport.js (Google OAuth 2.0) with JWE-encrypted session cookies (`jose`). Database access through Prisma ORM with a PostgreSQL adapter. tRPC procedures are `publicProcedure` or `protectedProcedure` (auth guard). Zod validates all inputs at API boundaries.
 
 ### Agent (`apps/agent/chat`)
 
-FastAPI service with LangGraph stateful workflows. The graph executes:
+FastAPI service with LangGraph stateful workflows. Source code in `apps/agent/chat/src/chat/`. The graph executes:
 
 ```
 SMART_ROUTER → PLANNER → ROUTE_EXECUTOR → EXECUTOR / EXECUTOR_WITH_APPROVAL → STEP_COMPLETE → (loop or END)
 ```
 
-- **Smart Router** (`nodes.py:smart_router_node`): Calls `await classify_integrations()` to identify which MCP tool servers to load, then verifies user has connected those services.
-- **Two-phase classifier** (`classifier.py`): NLP stemmer + rapidfuzz phrase matching first; Gemini Flash LLM fallback only for low-confidence results. Config in `integration_config.yaml`.
-- **Planner**: Outputs structured JSON including a `requires_human_approval` flag per step.
+- **Smart Router** (`workflow/smart_router.py`): Calls `await classify_integrations()` to identify which MCP tool servers to load, then verifies user has connected those services.
+- **Two-phase classifier** (`integrations/classifier.py`): NLP stemmer + rapidfuzz phrase matching first; Gemini Flash LLM fallback only for low-confidence results. Config in `integrations/integration_config.yaml`.
+- **Planner** (`workflow/planner.py`): Outputs structured JSON including a `requires_human_approval` flag per step.
 - **HITL**: State-based approval that persists across the workflow — approval state is stored in LangGraph state, not re-prompted.
 - **Checkpointing**: `AsyncPostgresSaver` (from `langgraph.checkpoint.postgres.aio`) — **not** sync `PostgresSaver`, which raises `NotImplementedError` with `astream()`.
 
@@ -100,8 +107,10 @@ Only strip **inflectional** suffixes (`-s`, `-es`, `-ing`, `-ed`, `-ly`, `-ies`,
 
 ### Python tooling
 
-Agent uses `uv` for dependency management. Run Python commands as `uv run <cmd>` inside `apps/agent/chat/`. Ruff is the linter and formatter (88-char line width).
+Agent uses `uv` for dependency management. Run Python commands as `uv run <cmd>` inside `apps/agent/chat/`. Ruff is the linter and formatter (88-char line width). Pytest is configured with `asyncio_mode = "auto"` — no need for `@pytest.mark.asyncio` decorators.
 
-### Commit style
+### Git hooks and commit style
 
-Conventional Commits enforced by commitlint: `type(scope): message`. Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`.
+Conventional Commits enforced by commitlint (commit-msg hook): `type(scope): message`. Subject must be **lower-case**. Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+
+Pre-commit hook runs lint-staged: Prettier + ESLint on TS/JS files, Ruff on Python files, `prisma format` on schema changes.
