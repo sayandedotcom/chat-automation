@@ -124,6 +124,11 @@ export default function ChatPage() {
         const scrollRect = scrollEl.getBoundingClientRect();
         const targetScrollTop = turnRect.top - scrollRect.top + scrollEl.scrollTop - 24;
         scrollEl.scrollTop = targetScrollTop;
+        // The programmatic scroll triggers handleScroll which may set autoScrollRef=true
+        // (because content fits in viewport → isNearBottom=true). Reset after scroll event.
+        requestAnimationFrame(() => {
+          autoScrollRef.current = false;
+        });
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
