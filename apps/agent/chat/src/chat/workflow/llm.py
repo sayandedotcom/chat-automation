@@ -34,23 +34,26 @@ def get_planner_llm():
 def get_executor_llm():
     """Get shared executor LLM instance (without tools — bind tools per request).
 
-    Uses a non-thinking model for speed — the executor translates plan steps
-    into tool calls and doesn't benefit from deep reasoning.
+    Uses gemini-2.5-flash with minimal thinking budget — the executor needs
+    tool-call capability (lite models fail on complex tool schemas like Notion)
+    but doesn't benefit from deep reasoning.
     """
     global _executor_llm
     if _executor_llm is None:
         _executor_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-flash",
             google_api_key=GOOGLE_API_KEY,
+            thinking_budget=1024,
         )
-        logger.info("Initialized shared executor LLM (gemini-2.5-flash-lite)")
+        logger.info("Initialized shared executor LLM (thinking_budget=1024)")
     return _executor_llm
 
 
 def get_summarizer_llm():
     """Get shared summarizer LLM instance for tool output summarization.
 
-    Uses a non-thinking model with low temperature for faithful summarization.
+    Uses a non-thinking lite model — summarization is straightforward text
+    processing that doesn't require complex tool calls.
     """
     global _summarizer_llm
     if _summarizer_llm is None:
@@ -66,7 +69,8 @@ def get_summarizer_llm():
 def get_classifier_llm():
     """Get shared classifier LLM with structured output.
 
-    Uses a non-thinking model — classification is a simple mapping task.
+    Uses a non-thinking lite model — classification is a simple mapping task
+    with a small structured output schema.
     Returns a ClassifierOutput schema directly — no manual JSON parsing needed.
     """
     global _classifier_llm
