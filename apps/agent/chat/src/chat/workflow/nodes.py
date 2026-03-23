@@ -117,6 +117,42 @@ class WorkflowNodes:
         )
 
     # ------------------------------------------------------------------
+    # Per-step tool scoping
+    # ------------------------------------------------------------------
+
+    def _get_step_scoped_bindings(self, step: WorkflowStep):
+        """Return (executor_with_tools, executor_with_tools_forced) scoped to step.
+
+        When the planner annotates a step with integrations (e.g. ["notion"]),
+        we bind only those tools to the LLM — dramatically reducing input tokens.
+        Falls back to the full toolset if step.integrations is empty or the
+        registry doesn't have the requested integrations.
+        """
+        if step.integrations and self.registry:
+            scoped = self.registry.get_toolset(step.integrations)
+            if scoped:
+                logger.info(
+                    "Scoping tools for step %d to %s (%d tools, down from %d)",
+                    step.step_number,
+                    step.integrations,
+                    len(scoped),
+                    len(self.tools),
+                )
+                return (
+                    self.executor_llm.bind_tools(scoped),
+                    self.executor_llm.bind_tools(scoped, tool_choice="any"),
+                )
+        return self.executor_with_tools, self.executor_with_tools_forced
+
+    def _get_current_step_bindings(self, state: WorkflowState):
+        """Get scoped (executor_with_tools, executor_with_tools_forced) for the current step."""
+        plan = state.get("plan")
+        current_index = state.get("current_step_index", 0)
+        if plan and 0 <= current_index < len(plan.steps):
+            return self._get_step_scoped_bindings(plan.steps[current_index])
+        return self.executor_with_tools, self.executor_with_tools_forced
+
+    # ------------------------------------------------------------------
     # Smart Router
     # ------------------------------------------------------------------
 
@@ -166,14 +202,17 @@ class WorkflowNodes:
         """Execute the current step automatically."""
         from chat.workflow.executor.nodes import run_executor
 
+        # Scope tools to current step's integrations
+        scoped_ewt, _ = self._get_current_step_bindings(state)
+
         return await run_executor(
             state,
             continue_after_tools_fn=functools.partial(
-                self._continue_after_tools, config=config
+                self._continue_after_tools, config=config, scoped_ewt=scoped_ewt
             ),
             get_previous_results_fn=self._get_previous_results,
             start_step_execution_fn=functools.partial(
-                self._start_step_execution, config=config
+                self._start_step_execution, config=config, scoped_ewt=scoped_ewt
             ),
             try_incremental_load_fn=functools.partial(
                 self._try_incremental_load, config=config
@@ -190,21 +229,36 @@ class WorkflowNodes:
         """Handle steps that require human approval (state-based HITL)."""
         from chat.workflow.executor.nodes import run_executor_with_approval
 
+        # Scope tools to current step's integrations
+        scoped_ewt, scoped_ewt_forced = self._get_current_step_bindings(state)
+
         return await run_executor_with_approval(
             state,
             continue_after_tools_fn=functools.partial(
-                self._continue_after_tools, config=config
+                self._continue_after_tools, config=config, scoped_ewt=scoped_ewt
             ),
             handle_approval_decision_fn=functools.partial(
-                self._handle_approval_decision, config=config
+                self._handle_approval_decision,
+                config=config,
+                scoped_ewt=scoped_ewt,
             ),
             request_approval_fn=functools.partial(
-                self._request_approval, config=config
+                self._request_approval,
+                config=config,
+                scoped_ewt=scoped_ewt,
+                scoped_ewt_forced=scoped_ewt_forced,
             ),
         )
 
     async def _handle_approval_decision(
-        self, state, plan, current_step, approval_decision, *, config=None
+        self,
+        state,
+        plan,
+        current_step,
+        approval_decision,
+        *,
+        config=None,
+        scoped_ewt=None,
     ) -> dict:
         from chat.workflow.executor.nodes import handle_approval_decision
 
@@ -216,12 +270,19 @@ class WorkflowNodes:
             get_previous_results_fn=self._get_previous_results,
             apply_edited_args_fn=self._apply_edited_args,
             start_step_execution_fn=functools.partial(
-                self._start_step_execution, config=config
+                self._start_step_execution, config=config, scoped_ewt=scoped_ewt
             ),
         )
 
     async def _request_approval(
-        self, state, plan, current_step, *, config=None
+        self,
+        state,
+        plan,
+        current_step,
+        *,
+        config=None,
+        scoped_ewt=None,
+        scoped_ewt_forced=None,
     ) -> dict:
         from chat.workflow.executor.nodes import request_approval
 
@@ -234,11 +295,13 @@ class WorkflowNodes:
             resolve_ui_component_fn=self._resolve_ui_component,
             generate_spreadsheet_structure_fn=self._generate_spreadsheet_structure,
             start_step_execution_fn=functools.partial(
-                self._start_step_execution_forced, config=config
+                self._start_step_execution_forced,
+                config=config,
+                scoped_ewt=scoped_ewt_forced,
             ),
             # Enable pre-execution of non-UI tools
             tool_node=self.tool_node,
-            executor_with_tools=self.executor_with_tools,
+            executor_with_tools=scoped_ewt or self.executor_with_tools,
             config=config,
         )
 
@@ -370,6 +433,7 @@ class WorkflowNodes:
         artifacts=None,
         *,
         config=None,
+        scoped_ewt=None,
     ) -> tuple:
         from chat.workflow.executor.nodes import start_step_execution
 
@@ -381,7 +445,7 @@ class WorkflowNodes:
             initial_integrations,
             approved_content,
             artifacts,
-            executor_with_tools=self.executor_with_tools,
+            executor_with_tools=scoped_ewt or self.executor_with_tools,
             executor_llm=self.executor_llm,
             registry=self.registry,
             config=config,
@@ -398,6 +462,7 @@ class WorkflowNodes:
         artifacts=None,
         *,
         config=None,
+        scoped_ewt=None,
     ) -> tuple:
         from chat.workflow.executor.nodes import start_step_execution
 
@@ -409,15 +474,17 @@ class WorkflowNodes:
             initial_integrations,
             approved_content,
             artifacts,
-            executor_with_tools=self.executor_with_tools_forced,
+            executor_with_tools=scoped_ewt or self.executor_with_tools_forced,
             executor_llm=self.executor_llm,
             registry=self.registry,
             config=config,
         )
 
-    async def _continue_after_tools(self, state: WorkflowState, *, config=None) -> dict:
+    async def _continue_after_tools(
+        self, state: WorkflowState, *, config=None, scoped_ewt=None
+    ) -> dict:
         from chat.workflow.executor.nodes import continue_after_tools
 
         return await continue_after_tools(
-            state, self.executor_with_tools, config=config
+            state, scoped_ewt or self.executor_with_tools, config=config
         )

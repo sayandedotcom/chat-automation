@@ -187,15 +187,18 @@ async def start_step_execution(
     config=None,
 ) -> tuple:
     """Build the executor conversation and invoke the LLM."""
+    # Use step-scoped integrations if the planner annotated them, else all loaded
+    step_integrations = step.integrations if step.integrations else initial_integrations
+
     system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
         conversation_context=f"\nCONVERSATION HISTORY:\n{conversation_summary}\n"
         if conversation_summary
         else "",
-        integration_context=format_integration_context(initial_integrations),
+        integration_context=format_integration_context(step_integrations),
         artifacts_context=format_artifacts_context(artifacts or []),
         integration_hints=(
-            registry.get_hints(initial_integrations, "executor")
-            if registry and initial_integrations
+            registry.get_hints(step_integrations, "executor")
+            if registry and step_integrations
             else ""
         ),
         current_step=step.description,
@@ -225,6 +228,54 @@ async def start_step_execution(
 # Max chars per tool result fed to the executor LLM.
 # Full content stays in state["messages"] for step_complete extraction.
 _TOOL_RESULT_CHAR_LIMIT = 12_000
+
+# Max chars per tool-call argument blob kept in executor_chat history.
+# Large args (e.g. 17K of Notion page JSON) cause exponential token growth
+# when re-sent on every subsequent LLM call within the same step.
+_TOOL_CALL_ARGS_CHAR_LIMIT = 2_000
+
+
+def _truncate_tool_call_args(executor_chat: list) -> list:
+    """Return executor_chat with oversized tool_call args truncated.
+
+    Only affects the LLM conversation — state['messages'] keeps full data.
+    """
+    result = []
+    for msg in executor_chat:
+        if hasattr(msg, "tool_calls") and msg.tool_calls:
+            needs_truncation = any(
+                len(json.dumps(tc.get("args", {}))) > _TOOL_CALL_ARGS_CHAR_LIMIT
+                for tc in msg.tool_calls
+            )
+            if needs_truncation:
+                truncated_calls = []
+                for tc in msg.tool_calls:
+                    args_str = json.dumps(tc.get("args", {}))
+                    if len(args_str) > _TOOL_CALL_ARGS_CHAR_LIMIT:
+                        logger.info(
+                            "[TRUNCATE] Tool call '%s' args: %d → %d chars",
+                            tc.get("name", "?"),
+                            len(args_str),
+                            _TOOL_CALL_ARGS_CHAR_LIMIT,
+                        )
+                        truncated_calls.append(
+                            {
+                                **tc,
+                                "args": {
+                                    "_summary": args_str[:_TOOL_CALL_ARGS_CHAR_LIMIT]
+                                    + "... [truncated]"
+                                },
+                            }
+                        )
+                    else:
+                        truncated_calls.append(tc)
+                msg = AIMessage(
+                    content=msg.content,
+                    tool_calls=truncated_calls,
+                    id=msg.id,
+                )
+        result.append(msg)
+    return result
 
 
 async def continue_after_tools(
@@ -280,6 +331,9 @@ async def continue_after_tools(
         else:
             chat_tool_msgs.append(msg)
 
+    # Truncate large tool-call args from prior turns to prevent token explosion.
+    # E.g. a 17K Notion page JSON from call #1 would be re-sent verbatim in call #2.
+    executor_chat = _truncate_tool_call_args(executor_chat)
     executor_chat.extend(chat_tool_msgs)
 
     start_time = time.time()

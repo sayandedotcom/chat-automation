@@ -208,6 +208,7 @@ class TestPlannedStep:
             description="Send the email",
             requires_human_approval=True,
             approval_reason="Sends a message to an external recipient",
+            integrations=["gmail"],
         )
         assert step.requires_human_approval is True
         assert "email" in step.description

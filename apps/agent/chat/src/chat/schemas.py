@@ -98,6 +98,10 @@ class PlannedStep(BaseModel):
     approval_reason: str = Field(
         ..., description="Brief explanation of why this does or doesn't need approval"
     )
+    integrations: list[str] = Field(
+        ...,
+        description="Which integration(s) this step uses from AVAILABLE INTEGRATIONS (e.g. ['web_search'], ['notion'], ['gmail']). Use exact integration names.",
+    )
 
 
 class WorkflowPlanOutput(BaseModel):
@@ -157,6 +161,11 @@ class WorkflowStep(BaseModel):
     )
     thinking_duration_ms: Optional[int] = Field(
         default=None, description="Time spent thinking in milliseconds"
+    )
+    # Which integration(s) this step targets (set by planner, used for per-step tool scoping)
+    integrations: list[str] = Field(
+        default_factory=list,
+        description="Integration(s) needed for this step (e.g. ['notion', 'gmail'])",
     )
     # Rich context for cross-step passing (includes tool outputs — never sent to frontend)
     executor_context: Optional[str] = Field(

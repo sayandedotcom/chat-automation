@@ -50,6 +50,11 @@ For EACH step, you MUST determine if it requires human approval:
 - Any read-only operation
 
 Be thoughtful about your approval decisions - only require approval when the action has real-world consequences.
+
+For EACH step, also specify which integration(s) from AVAILABLE INTEGRATIONS the step will use.
+Use the exact integration names (e.g. "web_search", "notion", "gmail", "google_docs").
+A web search step uses ["web_search"], creating a Notion page uses ["notion"], sending email uses ["gmail"], etc.
+If a step uses multiple integrations, list all of them.
 """
 
 EXECUTOR_SYSTEM_PROMPT = """You are a workflow executor. Execute the specific step given to you.

@@ -32,45 +32,50 @@ def get_planner_llm():
 
 
 def get_executor_llm():
-    """Get shared executor LLM instance (without tools — bind tools per request)."""
+    """Get shared executor LLM instance (without tools — bind tools per request).
+
+    Uses a non-thinking model for speed — the executor translates plan steps
+    into tool calls and doesn't benefit from deep reasoning.
+    """
     global _executor_llm
     if _executor_llm is None:
         _executor_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             google_api_key=GOOGLE_API_KEY,
         )
-        logger.info("Initialized shared executor LLM")
+        logger.info("Initialized shared executor LLM (gemini-2.5-flash-lite)")
     return _executor_llm
 
 
 def get_summarizer_llm():
     """Get shared summarizer LLM instance for tool output summarization.
 
-    Uses Gemini Flash with low temperature for faithful summarization.
+    Uses a non-thinking model with low temperature for faithful summarization.
     """
     global _summarizer_llm
     if _summarizer_llm is None:
         _summarizer_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             google_api_key=GOOGLE_API_KEY,
             temperature=0.1,
         )
-        logger.info("Initialized shared summarizer LLM")
+        logger.info("Initialized shared summarizer LLM (gemini-2.5-flash-lite)")
     return _summarizer_llm
 
 
 def get_classifier_llm():
     """Get shared classifier LLM with structured output.
 
+    Uses a non-thinking model — classification is a simple mapping task.
     Returns a ClassifierOutput schema directly — no manual JSON parsing needed.
     """
     global _classifier_llm
     if _classifier_llm is None:
         base = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             google_api_key=GOOGLE_API_KEY,
             temperature=0.0,
         )
         _classifier_llm = base.with_structured_output(ClassifierOutput)
-        logger.info("Initialized shared classifier LLM (structured output)")
+        logger.info("Initialized shared classifier LLM (gemini-2.5-flash-lite)")
     return _classifier_llm

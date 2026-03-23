@@ -31,11 +31,7 @@ async def run_planner(
     """Create a step-by-step plan with HITL flags using structured LLM output."""
     messages = state["messages"]
     user_request = next(
-        (
-            msg.content
-            for msg in reversed(messages)
-            if isinstance(msg, HumanMessage)
-        ),
+        (msg.content for msg in reversed(messages) if isinstance(msg, HumanMessage)),
         "",
     )
 
@@ -90,6 +86,7 @@ async def run_planner(
             description=step.description,
             requires_human_approval=step.requires_human_approval,
             approval_reason=step.approval_reason,
+            integrations=step.integrations,
             status="pending",
         )
         for i, step in enumerate(plan_output.steps)
