@@ -24,13 +24,14 @@ if TYPE_CHECKING:
     from chat.integrations.registry import IntegrationRegistry
 
 
-_checkpointer = (
-    None  # Module-level singleton — shared across all DynamicWorkflow instances
-)
+import threading
+
+_checkpointer_lock = threading.Lock()
+_checkpointer = None
 
 
 def get_checkpointer():
-    """Get the shared checkpointer (singleton).
+    """Get the shared checkpointer (singleton, thread-safe).
 
     MemorySaver must be shared across ChatService instances so that
     checkpoint data persists when OAuth tokens refresh and a new
@@ -39,8 +40,9 @@ def get_checkpointer():
     global _checkpointer
     if _checkpointer is not None:
         return _checkpointer
-
-    _checkpointer = MemorySaver()
+    with _checkpointer_lock:
+        if _checkpointer is None:
+            _checkpointer = MemorySaver()
     return _checkpointer
 
 

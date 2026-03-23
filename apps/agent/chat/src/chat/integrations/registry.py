@@ -5,17 +5,17 @@ This module provides config-based tool indexing and filtering,
 enabling token-efficient LLM calls by binding only needed tools.
 """
 
+import asyncio
 import logging
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from langchain_core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 
-# Global singleton for registry (pre-warmed at startup)
-_global_registry: Optional["IntegrationRegistry"] = None
+_registry_lock = asyncio.Lock()
+_global_registry: "IntegrationRegistry | None" = None
 
 
 class IntegrationConfig:
@@ -43,7 +43,7 @@ class IntegrationRegistry:
     - Reverse lookup for incremental loading
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self._config_path = (
             config_path or Path(__file__).parent / "integration_config.yaml"
         )
@@ -207,7 +207,7 @@ class IntegrationRegistry:
             tools.extend(self._tools_by_integration.get(integration, []))
         return tools if tools else self._all_tools  # Fallback to all
 
-    def get_integration_for_tool(self, tool_name: str) -> Optional[str]:
+    def get_integration_for_tool(self, tool_name: str) -> str | None:
         """
         Reverse lookup: find which integration provides a tool.
 
@@ -219,11 +219,11 @@ class IntegrationRegistry:
         """
         return self._tool_to_integration.get(tool_name)
 
-    def get_ui_component_for_tool(self, tool_name: str) -> Optional[str]:
+    def get_ui_component_for_tool(self, tool_name: str) -> str | None:
         """Look up the UI component ID for a tool name (or None for generic card)."""
         return self._tool_name_to_ui_component.get(tool_name)
 
-    def get_integration_config(self, name: str) -> Optional[IntegrationConfig]:
+    def get_integration_config(self, name: str) -> IntegrationConfig | None:
         """Get configuration for an integration by name."""
         return self._integrations.get(name)
 
@@ -306,32 +306,30 @@ async def classify_integrations(
 
 
 async def get_registry(tokens: dict) -> IntegrationRegistry:
-    """
-    Get the global registry singleton, initializing if needed.
+    """Get the global registry singleton, initializing if needed (async-safe).
 
-    This function ensures the registry is only initialized once at startup,
-    avoiding the 5-15s tool loading overhead on every request.
-
-    Args:
-        tokens: Dict containing auth tokens (gmail_token, notion_token, etc.)
-
-    Returns:
-        Initialized IntegrationRegistry singleton
+    Ensures the registry is only initialized once at startup, avoiding the
+    5-15s tool loading overhead on every request.
     """
     global _global_registry
 
-    if _global_registry is None or not _global_registry.is_initialized:
-        logger.info("Initializing global registry singleton...")
-        _global_registry = IntegrationRegistry()
-        await _global_registry.load_all(tokens)
-        logger.info(
-            f"Registry initialized with {len(_global_registry.get_all_tools())} tools"
-        )
+    if _global_registry is not None and _global_registry.is_initialized:
+        return _global_registry
+
+    async with _registry_lock:
+        if _global_registry is None or not _global_registry.is_initialized:
+            logger.info("Initializing global registry singleton")
+            _global_registry = IntegrationRegistry()
+            await _global_registry.load_all(tokens)
+            logger.info(
+                "Registry initialized with %d tools",
+                len(_global_registry.get_all_tools()),
+            )
 
     return _global_registry
 
 
-def get_registry_sync() -> Optional[IntegrationRegistry]:
+def get_registry_sync() -> IntegrationRegistry | None:
     """
     Get the global registry synchronously (returns None if not initialized).
 
