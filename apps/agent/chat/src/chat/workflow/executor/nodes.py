@@ -225,14 +225,7 @@ async def start_step_execution(
     return response, executor_chat
 
 
-# Max chars per tool result fed to the executor LLM.
-# Full content stays in state["messages"] for step_complete extraction.
-_TOOL_RESULT_CHAR_LIMIT = 12_000
-
-# Max chars per tool-call argument blob kept in executor_chat history.
-# Large args (e.g. 17K of Notion page JSON) cause exponential token growth
-# when re-sent on every subsequent LLM call within the same step.
-_TOOL_CALL_ARGS_CHAR_LIMIT = 2_000
+from chat.workflow.constants import TOOL_CALL_ARGS_CHAR_LIMIT, TOOL_RESULT_CHAR_LIMIT
 
 
 def _truncate_tool_call_args(executor_chat: list) -> list:
@@ -244,25 +237,25 @@ def _truncate_tool_call_args(executor_chat: list) -> list:
     for msg in executor_chat:
         if hasattr(msg, "tool_calls") and msg.tool_calls:
             needs_truncation = any(
-                len(json.dumps(tc.get("args", {}))) > _TOOL_CALL_ARGS_CHAR_LIMIT
+                len(json.dumps(tc.get("args", {}))) > TOOL_CALL_ARGS_CHAR_LIMIT
                 for tc in msg.tool_calls
             )
             if needs_truncation:
                 truncated_calls = []
                 for tc in msg.tool_calls:
                     args_str = json.dumps(tc.get("args", {}))
-                    if len(args_str) > _TOOL_CALL_ARGS_CHAR_LIMIT:
+                    if len(args_str) > TOOL_CALL_ARGS_CHAR_LIMIT:
                         logger.info(
                             "[TRUNCATE] Tool call '%s' args: %d → %d chars",
                             tc.get("name", "?"),
                             len(args_str),
-                            _TOOL_CALL_ARGS_CHAR_LIMIT,
+                            TOOL_CALL_ARGS_CHAR_LIMIT,
                         )
                         truncated_calls.append(
                             {
                                 **tc,
                                 "args": {
-                                    "_summary": args_str[:_TOOL_CALL_ARGS_CHAR_LIMIT]
+                                    "_summary": args_str[:TOOL_CALL_ARGS_CHAR_LIMIT]
                                     + "... [truncated]"
                                 },
                             }
@@ -309,16 +302,16 @@ async def continue_after_tools(
     for msg in new_tool_msgs:
         content = msg.content
         content_str = str(content) if not isinstance(content, str) else content
-        if len(content_str) > _TOOL_RESULT_CHAR_LIMIT:
+        if len(content_str) > TOOL_RESULT_CHAR_LIMIT:
             pagination_info = extract_pagination_metadata(content_str)
-            truncated = content_str[:_TOOL_RESULT_CHAR_LIMIT] + (
+            truncated = content_str[:TOOL_RESULT_CHAR_LIMIT] + (
                 "\n\n[... truncated — full content available for processing]"
             )
             if pagination_info:
                 truncated += f"\n\nPagination info from response: {pagination_info}"
             logger.info(
                 f"[CONTINUE] Truncated tool result '{getattr(msg, 'name', '?')}' "
-                f"from {len(content_str)} to {_TOOL_RESULT_CHAR_LIMIT} chars"
+                f"from {len(content_str)} to {TOOL_RESULT_CHAR_LIMIT} chars"
                 f"{' (pagination preserved)' if pagination_info else ''}"
             )
             chat_tool_msgs.append(

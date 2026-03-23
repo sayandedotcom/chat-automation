@@ -8,10 +8,9 @@ import logging
 from typing import Literal
 
 from chat.schemas import WorkflowState
+from chat.workflow.constants import MAX_TOOL_CALLS_PER_STEP
 
 logger = logging.getLogger(__name__)
-
-MAX_TOOL_CALLS_PER_STEP = 10  # Prevent infinite tool-call loops within a single step
 
 
 def route_after_smart_router(state: WorkflowState) -> Literal["planner", "end"]:
