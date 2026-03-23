@@ -7,7 +7,7 @@ LLM system prompts by the planner and executor nodes.
 
 import logging
 import re
-from typing import Optional
+
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def build_conversation_summary(
     messages: list[BaseMessage],
     artifacts: list[dict] = None,
-) -> Optional[str]:
+) -> str | None:
     """
     Build a condensed summary of previous conversation turns.
 

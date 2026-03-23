@@ -37,11 +37,7 @@ async def run_smart_router(
 
     messages = state["messages"]
     user_request = next(
-        (
-            msg.content
-            for msg in reversed(messages)
-            if isinstance(msg, HumanMessage)
-        ),
+        (msg.content for msg in reversed(messages) if isinstance(msg, HumanMessage)),
         "",
     )
 
@@ -167,9 +163,8 @@ async def run_smart_router(
         executor_llm.bind_tools(new_tools) if new_tools else executor_llm
     )
     from langgraph.prebuilt import ToolNode
-    new_tool_node = (
-        ToolNode(new_tools, handle_tool_errors=True) if new_tools else None
-    )
+
+    new_tool_node = ToolNode(new_tools, handle_tool_errors=True) if new_tools else None
 
     logger.info(
         f"Smart router: bound {len(new_tools)} tools from {len(integrations)} integrations"
@@ -240,9 +235,7 @@ def inject_artifact_integrations(
 
         if referenced:
             integrations.append(name)
-            logger.info(
-                f"Smart router: auto-included '{name}' (referenced in request)"
-            )
+            logger.info(f"Smart router: auto-included '{name}' (referenced in request)")
         else:
             logger.debug(f"Smart router: skipped '{name}' (not referenced)")
 

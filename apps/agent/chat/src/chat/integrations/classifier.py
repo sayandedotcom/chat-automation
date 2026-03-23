@@ -6,7 +6,7 @@ Uses Gemini Flash to classify which integrations are needed for a given request.
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class IntegrationClassifier:
             confidence=0.1,
         )
 
-    async def _llm_classify(self, request: str) -> Optional[ClassificationResult]:
+    async def _llm_classify(self, request: str) -> ClassificationResult | None:
         """Gemini Flash classification with structured output."""
         try:
             if self._llm is None:
@@ -128,7 +128,7 @@ class IntegrationClassifier:
 # ──────────────────────────────────────────────
 # Module-level singleton
 # ──────────────────────────────────────────────
-_classifier: Optional[IntegrationClassifier] = None
+_classifier: IntegrationClassifier | None = None
 
 
 def get_classifier() -> IntegrationClassifier:

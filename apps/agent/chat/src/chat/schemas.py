@@ -5,7 +5,7 @@ State and models for dynamic AI workflow execution.
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, Annotated, TypedDict, Literal
+from typing import Annotated, TypedDict, Literal
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
@@ -25,20 +25,20 @@ class SearchResultItem(BaseModel):
     title: str = Field(..., description="Title of the search result")
     url: str = Field(..., description="URL of the search result")
     domain: str = Field(..., description="Domain name (e.g., 'github.com')")
-    favicon: Optional[str] = Field(default=None, description="Favicon URL")
-    date: Optional[str] = Field(default=None, description="Published date if available")
+    favicon: str | None = Field(default=None, description="Favicon URL")
+    date: str | None = Field(default=None, description="Published date if available")
 
 
 class EmailResultItem(BaseModel):
     """Structured email result from Gmail."""
 
     message_id: str
-    thread_id: Optional[str] = None
+    thread_id: str | None = None
     sender: str  # "John Doe <john@example.com>"
     subject: str
     snippet: str  # First ~200 chars of body
     date: str  # e.g. "Mar 14, 2026" or ISO string
-    is_unread: Optional[bool] = None
+    is_unread: bool | None = None
 
 
 class ClassifierOutput(BaseModel):
@@ -72,8 +72,8 @@ class Artifact(BaseModel):
         description="Artifact type: document, email, page, file, event, spreadsheet, presentation",
     )
     name: str = Field(..., description="Human-readable name (e.g., document title)")
-    url: Optional[str] = Field(default=None, description="Resource URL")
-    id: Optional[str] = Field(default=None, description="Resource identifier")
+    url: str | None = Field(default=None, description="Resource URL")
+    id: str | None = Field(default=None, description="Resource identifier")
     integration: str = Field(
         ..., description="Source integration (e.g., google_docs, gmail)"
     )
@@ -127,39 +127,35 @@ class WorkflowStep(BaseModel):
         default=False,
         description="Whether this step needs user approval (set by planner LLM)",
     )
-    approval_reason: Optional[str] = Field(
+    approval_reason: str | None = Field(
         default=None, description="LLM's explanation for why approval is/isn't needed"
     )
     status: Literal[
         "pending", "in_progress", "awaiting_approval", "completed", "skipped", "failed"
     ] = Field(default="pending", description="Current status of this step")
-    result: Optional[str] = Field(
-        default=None, description="Result/output of this step"
-    )
-    error: Optional[str] = Field(
-        default=None, description="Error message if step failed"
-    )
+    result: str | None = Field(default=None, description="Result/output of this step")
+    error: str | None = Field(default=None, description="Error message if step failed")
     tools_used: list[str] = Field(
         default_factory=list, description="Tools used in this step"
     )
     # Structured data for web search results
-    search_results: Optional[list[SearchResultItem]] = Field(
+    search_results: list[SearchResultItem] | None = Field(
         default=None, description="Structured search results from web search"
     )
     # Structured email results from Gmail
-    email_results: Optional[list[EmailResultItem]] = Field(
+    email_results: list[EmailResultItem] | None = Field(
         default=None, description="Structured email results from Gmail"
     )
     # Backend-resolved UI component ID for result rendering
-    ui_component: Optional[str] = Field(
+    ui_component: str | None = Field(
         default=None,
         description="Backend-resolved UI component ID for result rendering",
     )
     # Per-step thinking capture
-    thinking: Optional[str] = Field(
+    thinking: str | None = Field(
         default=None, description="Executor's reasoning for this step"
     )
-    thinking_duration_ms: Optional[int] = Field(
+    thinking_duration_ms: int | None = Field(
         default=None, description="Time spent thinking in milliseconds"
     )
     # Which integration(s) this step targets (set by planner, used for per-step tool scoping)
@@ -168,7 +164,7 @@ class WorkflowStep(BaseModel):
         description="Integration(s) needed for this step (e.g. ['notion', 'gmail'])",
     )
     # Rich context for cross-step passing (includes tool outputs — never sent to frontend)
-    executor_context: Optional[str] = Field(
+    executor_context: str | None = Field(
         default=None,
         description="Full step context (AI response + tool outputs) for subsequent steps",
     )
@@ -178,14 +174,14 @@ class WorkflowPlan(BaseModel):
     """The complete workflow plan."""
 
     original_request: str = Field(..., description="Original user request")
-    thinking: Optional[str] = Field(
+    thinking: str | None = Field(
         default=None, description="LLM's reasoning/thinking about the plan"
     )
     steps: list[WorkflowStep] = Field(
         default_factory=list, description="List of workflow steps"
     )
     is_complete: bool = Field(default=False, description="Whether workflow is complete")
-    final_summary: Optional[str] = Field(
+    final_summary: str | None = Field(
         default=None, description="Final summary after completion"
     )
 
@@ -194,34 +190,32 @@ class WorkflowState(TypedDict):
     """State for the dynamic workflow graph."""
 
     messages: Annotated[list[BaseMessage], add_messages]
-    plan: Optional[WorkflowPlan]
+    plan: WorkflowPlan | None
     current_step_index: int  # 0-indexed, -1 means planning phase
     # State-based HITL fields (instead of using interrupt())
     awaiting_approval: bool  # True when waiting for human approval
-    approval_step_info: Optional[dict]  # Info about step awaiting approval
-    approval_decision: Optional[dict]  # Decision from user (action: approve/edit/skip)
+    approval_step_info: dict | None  # Info about step awaiting approval
+    approval_decision: dict | None  # Decision from user (action: approve/edit/skip)
     # Integration tracking for smart routing
     loaded_integrations: list[IntegrationInfo]  # Integrations currently loaded
-    executor_bound_tools: Optional[list[str]]  # Tool names bound to executor
+    executor_bound_tools: list[str] | None  # Tool names bound to executor
     total_tool_count: int  # Total tools bound to executor
-    initial_integrations: Optional[list[str]]  # For tracking incremental loads
+    initial_integrations: list[str] | None  # For tracking incremental loads
     incremental_load_events: list[dict]  # Queue for incremental load notifications
     # Multi-turn conversation context
-    conversation_summary: Optional[
-        str
-    ]  # Summary of previous turns for planner/executor
+    conversation_summary: str | None  # Summary of previous turns for planner/executor
     # Structured artifacts from completed steps (dicts for checkpointer serialization)
     # Uses add_artifacts reducer so initial_state artifacts=[] doesn't overwrite previous turns
     artifacts: Annotated[list[dict], add_artifacts]
     # Pre-flight auth check: integrations needing user OAuth before workflow can proceed
-    auth_required_integrations: Optional[list[dict]]
+    auth_required_integrations: list[dict] | None
     # Per-request list of connected integration IDs (kebab-case, e.g. ["google-docs", "notion"])
-    connected_integrations: Optional[list[str]]
+    connected_integrations: list[str] | None
     # Executor tool-loop state (enables multi-hop tool calling within a step)
-    _executor_chat: Optional[list]  # Executor's scoped conversation for current step
+    _executor_chat: list | None  # Executor's scoped conversation for current step
     _step_tool_calls: int  # Tool call count for current step (prevents infinite loops)
     # Tool-specific UI: serialized AIMessage with tool_calls generated before approval
-    _pending_tool_calls_message: Optional[dict]
+    _pending_tool_calls_message: dict | None
 
 
 class GoogleCredentialsSyncSchema(BaseModel):
@@ -240,4 +234,4 @@ class GoogleCredentialsSyncSchema(BaseModel):
         default_factory=list,
         description="OAuth scopes granted by the authorization flow",
     )
-    expiry: Optional[str] = Field(default=None, description="Token expiry timestamp")
+    expiry: str | None = Field(default=None, description="Token expiry timestamp")

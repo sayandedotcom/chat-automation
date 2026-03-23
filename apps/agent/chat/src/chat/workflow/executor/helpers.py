@@ -9,7 +9,7 @@ for the caller to apply.
 import json
 import logging
 import re
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -111,7 +111,7 @@ def extract_pagination_metadata(content_str: str) -> str:
     return json.dumps(pagination)
 
 
-def extract_tool_name_from_error(error: str) -> Optional[str]:
+def extract_tool_name_from_error(error: str) -> str | None:
     """Extract a tool name from an error message about a missing tool."""
     for pattern in [
         r"tool\s+['\"]([^'\"]+)['\"]",
@@ -252,7 +252,8 @@ async def generate_spreadsheet_structure(
             if content.startswith("json"):
                 content = content[4:]
         return json.loads(content.strip())
-    except Exception:
+    except (json.JSONDecodeError, KeyError, ValueError, IndexError) as exc:
+        logger.warning("Failed to parse spreadsheet structure from LLM: %s", exc)
         return {
             "title": step.description,
             "sheets": [{"name": "Sheet1", "columns": []}],
