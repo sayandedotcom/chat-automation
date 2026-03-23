@@ -8,24 +8,28 @@ Supports Gmail, Vercel, Notion, and Tavily integrations.
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import BaseTool
 from pathlib import Path
-from typing import Optional
+
 import asyncio
 import logging
 import os
 import shutil
 
-from chat.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_MCP_CREDENTIALS_DIR
+from chat.config import (
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    GOOGLE_MCP_CREDENTIALS_DIR,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def create_mcp_client(
-    gmail_token: Optional[str] = None,
-    vercel_token: Optional[str] = None,
-    notion_token: Optional[str] = None,
-    tavily_api_key: Optional[str] = None,
-    google_client_id: Optional[str] = None,
-    google_client_secret: Optional[str] = None,
+    gmail_token: str | None = None,
+    vercel_token: str | None = None,
+    notion_token: str | None = None,
+    tavily_api_key: str | None = None,
+    google_client_id: str | None = None,
+    google_client_secret: str | None = None,
 ) -> MultiServerMCPClient:
     """
     Create MCP client with connected integrations.
@@ -62,7 +66,16 @@ def create_mcp_client(
         )
 
         # Use pre-installed binary if available, fall back to uv tool run for dev
-        ws_tools = ["--single-user", "--tools", "gmail", "drive", "calendar", "docs", "sheets", "slides"]
+        ws_tools = [
+            "--single-user",
+            "--tools",
+            "gmail",
+            "drive",
+            "calendar",
+            "docs",
+            "sheets",
+            "slides",
+        ]
         if shutil.which("workspace-mcp"):
             ws_cmd, ws_args = "workspace-mcp", ws_tools
         else:
@@ -77,8 +90,7 @@ def create_mcp_client(
             # relative to CWD, so set CWD to /tmp which is writable.
             "cwd": "/tmp",
         }
-        print("🔐 Google Workspace MCP configured (single-user mode, stdio)")
-
+        logger.info("Google Workspace MCP configured (single-user mode, stdio)")
 
     if vercel_token:
         servers["vercel"] = {
@@ -209,9 +221,9 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
             sanitized_schema = sanitize_tool_schema(schema)
             # The schema is read-only, so we just log if there were issues
             if schema != sanitized_schema:
-                print(f"⚠️ Sanitized schema for tool: {tool.name}")
+                logger.debug("Sanitized schema for tool: %s", tool.name)
     except Exception as e:
-        print(f"⚠️ Could not sanitize tool {tool.name}: {e}")
+        logger.warning("Could not sanitize tool %s: %s", tool.name, e)
 
     return tool
 
@@ -296,21 +308,66 @@ def _resolve_google_email() -> str | None:
 def _is_google_workspace_tool(name: str) -> bool:
     """Check if a tool belongs to Google Workspace MCP by prefix."""
     _PREFIXES = (
-        "search_gmail", "get_gmail", "send_gmail", "draft_gmail",
-        "list_gmail", "manage_gmail", "modify_gmail", "batch_modify_gmail",
-        "create_gmail", "delete_gmail",
-        "list_calendars", "get_events", "create_event", "modify_event",
-        "delete_event", "query_freebusy",
-        "search_drive", "get_drive", "list_drive", "create_drive",
-        "import_to_google", "set_drive", "check_drive", "update_drive",
-        "share_drive", "batch_share", "copy_drive", "transfer_drive",
-        "remove_drive", "get_drive_file",
-        "create_doc", "get_doc", "update_doc", "list_doc", "delete_doc", "append_to_doc",
-        "search_docs", "modify_doc", "find_and_replace", "insert_doc", "inspect_doc",
-        "batch_update_doc", "create_table", "debug_table", "export_doc", "update_paragraph",
-        "create_sheet", "get_sheet", "update_sheet", "list_sheet", "read_sheet",
-        "append_sheet", "clear_sheet", "delete_sheet", "create_spreadsheet",
-        "create_presentation", "get_slide", "update_slide", "add_slide", "list_slide",
+        "search_gmail",
+        "get_gmail",
+        "send_gmail",
+        "draft_gmail",
+        "list_gmail",
+        "manage_gmail",
+        "modify_gmail",
+        "batch_modify_gmail",
+        "create_gmail",
+        "delete_gmail",
+        "list_calendars",
+        "get_events",
+        "create_event",
+        "modify_event",
+        "delete_event",
+        "query_freebusy",
+        "search_drive",
+        "get_drive",
+        "list_drive",
+        "create_drive",
+        "import_to_google",
+        "set_drive",
+        "check_drive",
+        "update_drive",
+        "share_drive",
+        "batch_share",
+        "copy_drive",
+        "transfer_drive",
+        "remove_drive",
+        "get_drive_file",
+        "create_doc",
+        "get_doc",
+        "update_doc",
+        "list_doc",
+        "delete_doc",
+        "append_to_doc",
+        "search_docs",
+        "modify_doc",
+        "find_and_replace",
+        "insert_doc",
+        "inspect_doc",
+        "batch_update_doc",
+        "create_table",
+        "debug_table",
+        "export_doc",
+        "update_paragraph",
+        "create_sheet",
+        "get_sheet",
+        "update_sheet",
+        "list_sheet",
+        "read_sheet",
+        "append_sheet",
+        "clear_sheet",
+        "delete_sheet",
+        "create_spreadsheet",
+        "create_presentation",
+        "get_slide",
+        "update_slide",
+        "add_slide",
+        "list_slide",
         "delete_slide",
     )
     return any(name.startswith(p) for p in _PREFIXES)
@@ -402,7 +459,7 @@ async def load_mcp_tools(
     _BLOCKED_TOOLS = {"start_google_auth"}
 
     try:
-        print("Loading MCP tools...")
+        logger.info("Loading MCP tools")
 
         # MCP servers are spawned as child processes (uvx/npx) and may take a few
         # seconds to initialize. Retry with exponential backoff to handle transient
@@ -416,69 +473,68 @@ async def load_mcp_tools(
                 last_exc = exc
                 if attempt < retries - 1:
                     delay = base_delay * (2**attempt)
-                    print(
-                        f"⚠️ MCP connection attempt {attempt + 1}/{retries} failed: {exc}. Retrying in {delay:.1f}s..."
+                    logger.warning(
+                        "MCP connection attempt %d/%d failed: %s (retrying in %.1fs)",
+                        attempt + 1,
+                        retries,
+                        exc,
+                        delay,
                     )
                     await asyncio.sleep(delay)
         else:
-            # All retries exhausted — propagate to outer except for uniform handling
             raise last_exc  # type: ignore[misc]
 
-        # Process tools and sanitize schemas for Gemini compatibility
         safe_tools = []
         problematic_tools = []
 
         for tool in tools:
             if tool.name in _BLOCKED_TOOLS:
-                print(f"Filtered out internal tool: {tool.name}")
+                logger.debug("Filtered internal tool: %s", tool.name)
                 continue
             try:
-                # Get the schema (handle both dict and Pydantic model formats)
                 if hasattr(tool, "args_schema") and tool.args_schema:
                     if isinstance(tool.args_schema, dict):
                         original_schema = tool.args_schema
                     elif hasattr(tool.args_schema, "model_json_schema"):
                         original_schema = tool.args_schema.model_json_schema()
                     else:
-                        print(
-                            f"⚠️ Unknown args_schema type for {tool.name}: {type(tool.args_schema)}"
+                        logger.warning(
+                            "Unknown args_schema type for %s: %s",
+                            tool.name,
+                            type(tool.args_schema),
                         )
                         safe_tools.append(tool)
                         continue
 
-                    # Sanitize the schema
                     sanitized_schema = sanitize_tool_schema(original_schema)
 
-                    # Check if sanitization removed essential parts
                     if not sanitized_schema.get("properties"):
-                        # If no properties left, add a minimal schema
                         sanitized_schema = {
                             "type": "object",
                             "properties": {},
                             "required": [],
                         }
 
-                    # Ensure 'type' is set
                     if "type" not in sanitized_schema:
                         sanitized_schema["type"] = "object"
 
-                    # Create a new tool with the sanitized schema
-                    # We need to modify the args_schema directly since it's a dict
                     if isinstance(tool.args_schema, dict):
                         tool.args_schema = sanitized_schema
 
                     if original_schema != sanitized_schema:
-                        print(f"🔧 Sanitized schema for tool: {tool.name}")
+                        logger.debug("Sanitized schema for tool: %s", tool.name)
 
                 safe_tools.append(tool)
 
             except Exception as e:
-                print(f"⚠️ Skipping problematic tool {tool.name}: {e}")
+                logger.warning("Skipping problematic tool %s: %s", tool.name, e)
                 problematic_tools.append(tool.name)
 
         if problematic_tools:
-            print(
-                f"⚠️ Skipped {len(problematic_tools)} tools with incompatible schemas: {problematic_tools}"
+            logger.warning(
+                "Skipped %d tools with incompatible schemas: %s",
+                len(problematic_tools),
+                problematic_tools,
             )
 
         # Auto-fill user_google_email for Google Workspace tools so the LLM
@@ -488,11 +544,8 @@ async def load_mcp_tools(
                 _strip_email_param_from_schema(tool)
                 safe_tools[i] = _AutofillEmailTool(wrapped_tool=tool)
 
-        print(f"✅ Loaded {len(safe_tools)} MCP tools: {[t.name for t in safe_tools]}")
+        logger.info("Loaded %d MCP tools", len(safe_tools))
         return safe_tools
-    except Exception as e:
-        print(f"❌ Warning: Failed to load MCP tools: {e}")
-        import traceback
-
-        traceback.print_exc()
+    except Exception:
+        logger.exception("Failed to load MCP tools")
         return []

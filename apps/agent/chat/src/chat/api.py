@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 import logging
 
-# Configure logging so diagnostic messages from nodes.py appear in console
-logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 from fastapi import FastAPI
-# from fastapi.middleware.cors import CORSMiddleware
 
 from chat.config import (
     GMAIL_TOKEN,
@@ -19,16 +21,17 @@ from chat.integrations.registry import get_registry
 from chat.routers import chat as chat_router
 from chat.routers import credentials as credentials_router
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Pre-warm MCP connections and registry at startup.
+    """Pre-warm MCP connections and registry at startup.
 
-    This eliminates the 5-15s cold start delay on first request
-    by loading all integrations and tools during app initialization.
+    Eliminates the 5-15s cold start delay on first request by loading
+    all integrations and tools during app initialization.
     """
-    print("🔥 Pre-warming MCP connections and registry...")
+    logger.info("Pre-warming MCP connections and registry")
 
     tokens = {
         "gmail_token": GMAIL_TOKEN,
@@ -41,27 +44,17 @@ async def lifespan(app: FastAPI):
 
     try:
         registry = await get_registry(tokens)
-        print(f"✅ Registry pre-warmed with {len(registry.get_all_tools())} tools")
+        logger.info("Registry pre-warmed with %d tools", len(registry.get_all_tools()))
     except Exception as e:
-        print(f"⚠️ Failed to pre-warm registry: {e}")
-        import traceback
+        logger.exception("Failed to pre-warm registry: %s", e)
 
-        traceback.print_exc()
+    yield
 
-    yield  # App runs here
-
-    print("👋 Shutting down...")
+    logger.info("Shutting down")
 
 
 app = FastAPI(title="Chat Agent API", lifespan=lifespan)
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[origin for origin in [os.getenv("APP_URL")] if origin],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
 
 @app.get("/")
 async def root():

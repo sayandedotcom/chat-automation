@@ -508,9 +508,7 @@ class TestScopeMessagesToCurrentStep:
             ),
             AIMessage(content="Here are the search results."),
             # --- boundary: step transition ---
-            AIMessage(
-                content="✓ Step 1 complete. Moving to step 2: Read Notion page\n"
-            ),
+            AIMessage(content="Step 1 complete. Moving to step 2: Read Notion page\n"),
             # --- current step ---
             ToolMessage(
                 content="Page content: Introduction to Python...",
@@ -539,7 +537,7 @@ class TestScopeMessagesToCurrentStep:
                 name="tavily_search",
             ),
             AIMessage(content="Found search results."),
-            AIMessage(content="✓ Step 1 complete. Moving to step 2: Create document\n"),
+            AIMessage(content="Step 1 complete. Moving to step 2: Create document\n"),
             # --- current step (no search) ---
             ToolMessage(
                 content="Document created successfully with ID doc_123.",
@@ -589,7 +587,7 @@ class TestScopeMessagesToCurrentStep:
     def test_scope_with_list_content_ai_message(self):
         """AIMessage with list content (tool_use blocks) is NOT a boundary."""
         messages = [
-            AIMessage(content="✓ Step 1 complete. Moving to step 2: Do more\n"),
+            AIMessage(content="Step 1 complete. Moving to step 2: Do more\n"),
             # AIMessage with list content (e.g. tool_use blocks) — not a boundary
             AIMessage(
                 content=[
@@ -638,7 +636,7 @@ class TestRunStepCompleteScoping:
                 ),
                 AIMessage(content="Found results."),
                 AIMessage(
-                    content="✓ Step 1 complete. Moving to step 2: Read Notion page\n"
+                    content="Step 1 complete. Moving to step 2: Read Notion page\n"
                 ),
                 ToolMessage(
                     content="Notion page content: some long text here that is meaningful enough.",

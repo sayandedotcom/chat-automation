@@ -66,12 +66,9 @@ async def sync_google_credentials(data: GoogleCredentialsSyncSchema):
         with open(cred_file, "w") as f:
             json.dump(credentials, f, indent=2)
 
-        print(f"Google credentials synced to {cred_file}")
+        logger.info("Google credentials synced to %s", cred_file)
         return {"status": "success", "message": "Google credentials synced to MCP"}
 
     except Exception as e:
-        print(f"Error syncing Google credentials: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("Failed to sync Google credentials")
         raise HTTPException(status_code=500, detail=str(e))

@@ -4,6 +4,8 @@ Chat Agent Package
 A LangGraph-based chat agent with MCP tool integrations.
 """
 
+import logging
+
 from chat.service import ChatService
 from chat.schemas import WorkflowState, WorkflowPlan, GoogleCredentialsSyncSchema
 
@@ -14,10 +16,12 @@ __all__ = [
     "GoogleCredentialsSyncSchema",
 ]
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
     """Entry point for the chat package."""
-    print("Chat Agent - Use 'fastapi dev src/chat/api.py' to run the server")
+    logger.info("Chat Agent - Use 'fastapi dev src/chat/api.py' to run the server")
 
 
 def studio() -> None:
@@ -28,7 +32,7 @@ def studio() -> None:
 
     config_path = Path(__file__).parent.parent.parent / "langgraph.json"
     if not config_path.exists():
-        print(f"Error: langgraph.json not found at {config_path}")
+        logger.error("langgraph.json not found at %s", config_path)
         sys.exit(1)
 
     subprocess.run([sys.executable, "-m", "langgraph", "dev"], cwd=config_path.parent)

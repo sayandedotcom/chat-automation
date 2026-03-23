@@ -15,11 +15,18 @@ from chat.workflow.artifacts import (
     extract_email_results_from_messages,
     extract_search_results_from_messages,
 )
+from chat.workflow.constants import (
+    SUMMARIZE_INPUT_LIMIT,
+    SUMMARIZE_THRESHOLD,
+    TOOL_OUTPUT_CHAR_BUDGET,
+    TOOL_OUTPUT_MIN_LENGTH,
+    TOOL_OUTPUT_SNIPPET_LIMIT,
+)
 
 logger = logging.getLogger(__name__)
 
 # Boundary patterns emitted by our own code
-_STEP_TRANSITION_RE = re.compile(r"^✓ Step \d+ complete\.")
+_STEP_TRANSITION_RE = re.compile(r"^Step \d+ complete\.")
 _ALL_COMPLETE_RE = re.compile(r"^All \d+ steps completed\.\n?$")
 _PLAN_CREATED_PREFIX = "📋 **Workflow Plan Created**"
 
@@ -62,7 +69,7 @@ def _build_rich_result(
     # Collect tool output content from this step's messages
     # Walk backwards from the end to find tool results for this step
     tool_summaries = []
-    char_budget = 4000  # Max chars from tool outputs to include
+    char_budget = TOOL_OUTPUT_CHAR_BUDGET
     chars_used = 0
 
     for msg in messages:
@@ -75,11 +82,13 @@ def _build_rich_result(
             continue
 
         tool_name = getattr(msg, "name", "tool")
-        # Skip very short tool results (just confirmations like "OK" or IDs)
-        if len(content) < 50:
+        if len(content) < TOOL_OUTPUT_MIN_LENGTH:
             continue
-        # Truncate individual tool outputs
-        snippet = content[:1500] if len(content) > 1500 else content
+        snippet = (
+            content[:TOOL_OUTPUT_SNIPPET_LIMIT]
+            if len(content) > TOOL_OUTPUT_SNIPPET_LIMIT
+            else content
+        )
         remaining = char_budget - chars_used
         if remaining <= 0:
             break
@@ -105,9 +114,6 @@ def _build_rich_result(
 # Patterns for structured data that must NOT be summarized by LLM
 _URL_PATTERN = re.compile(r"https?://[^\s<>\"')\]},]+")
 _EMAIL_PATTERN = re.compile(r"[\w.+%-]+@[\w-]+\.[\w.]+")
-
-# Only summarize tool outputs exceeding this char threshold
-_SUMMARIZE_THRESHOLD = 3000
 
 
 def _extract_identifiers(text: str) -> tuple[list[str], str]:
@@ -151,7 +157,7 @@ async def _summarize_tool_outputs(messages: list, current_step, summarizer_llm) 
         if not isinstance(msg, ToolMessage) or not msg.content:
             continue
         content = str(msg.content) if not isinstance(msg.content, str) else msg.content
-        if len(content) < 50:
+        if len(content) < TOOL_OUTPUT_MIN_LENGTH:
             continue
 
         tool_name = getattr(msg, "name", "tool")
@@ -166,7 +172,7 @@ async def _summarize_tool_outputs(messages: list, current_step, summarizer_llm) 
     combined = "\n\n".join(tool_outputs)
 
     # Small outputs: return original content with URLs intact (no LLM needed)
-    if len(combined) < _SUMMARIZE_THRESHOLD:
+    if len(combined) < SUMMARIZE_THRESHOLD:
         return "\n".join(original_parts)
 
     # Large outputs: LLM summarization with identifier stripping
@@ -188,7 +194,7 @@ async def _summarize_tool_outputs(messages: list, current_step, summarizer_llm) 
                 content=(
                     f"Summarize tool outputs for step: "
                     f'"{current_step.description}"\n\n'
-                    f"{combined[:25000]}"
+                    f"{combined[:SUMMARIZE_INPUT_LIMIT]}"
                 )
             ),
         ]
@@ -266,21 +272,11 @@ async def run_step_complete(
     search_results = extract_search_results_from_messages(step_messages)
     if search_results:
         current_step.search_results = search_results
-        logger.info(
-            f"[SEARCH_RESULTS] step={current_step.step_number}: extracted {len(search_results)} results"
-        )
-    else:
-        logger.info(
-            f"[SEARCH_RESULTS] step={current_step.step_number}: no results extracted"
-        )
 
     # Extract email results from Gmail tool messages
     email_results = extract_email_results_from_messages(step_messages)
     if email_results:
         current_step.email_results = email_results
-        logger.info(
-            f"[EMAIL_RESULTS] step={current_step.step_number}: extracted {len(email_results)} emails"
-        )
 
     # Resolve step-level ui_component from the last tool that has a mapping
     if registry and tool_names:
@@ -288,29 +284,18 @@ async def run_step_complete(
             ui_comp = registry.get_ui_component_for_tool(tn)
             if ui_comp:
                 current_step.ui_component = ui_comp
-                logger.info(
-                    f"[UI_COMPONENT] step={current_step.step_number}: resolved '{ui_comp}' from tool '{tn}'"
-                )
                 break
 
     turn_number = sum(1 for m in messages if isinstance(m, HumanMessage))
-    msg_types = [
-        (
-            type(m).__name__,
-            (m.content[:100] if hasattr(m, "content") and m.content else ""),
-        )
-        for m in messages[-10:]
-    ]
-    logger.info(
-        f"[ARTIFACT_DIAG] step_complete step={current_step.step_number}, "
-        f"total_msgs={len(messages)}, last_10_types={msg_types}"
-    )
-    logger.info(f"[ARTIFACT_DIAG] existing artifacts: {state.get('artifacts', [])}")
 
     new_artifacts = extract_artifacts_from_step(
         messages, step_number=current_step.step_number, turn_number=turn_number
     )
-    logger.info(f"[ARTIFACT_DIAG] new_artifacts: {new_artifacts}")
+    logger.debug(
+        "Extracted %d artifacts for step %d",
+        len(new_artifacts),
+        current_step.step_number,
+    )
 
     next_index = current_index + 1
 
@@ -332,7 +317,7 @@ async def run_step_complete(
     return {
         "messages": [
             AIMessage(
-                content=f"✓ Step {current_index + 1} complete. Moving to step {next_index + 1}: {next_step.description}\n"
+                content=f"Step {current_index + 1} complete. Moving to step {next_index + 1}: {next_step.description}\n"
             )
         ],
         "plan": plan,
