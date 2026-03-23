@@ -96,13 +96,6 @@ const UI_COMPONENT_RENDERERS: Record<string, (ctx: EditorRenderContext) => React
   ),
 };
 
-// Thinking event from the backend
-export interface ThinkingEvent {
-  content: string;
-  duration: number;
-  timestamp?: number;
-}
-
 // Search result item (matches backend SearchResultItem)
 export interface SearchResultData {
   title: string;
@@ -154,7 +147,6 @@ export interface IntegrationInfo {
 interface WorkflowTimelineProps {
   steps: WorkflowStep[];
   currentStep: number;
-  thinkingEvents?: ThinkingEvent[];
   statusMessages?: Array<{
     text: string;
     icon?: string;
@@ -223,7 +215,6 @@ function shouldShowRichCard(step: WorkflowStep): boolean {
 export function WorkflowTimeline({
   steps,
   currentStep,
-  thinkingEvents,
   statusMessages,
   planThinking,
   loadedIntegrations,

@@ -6,7 +6,7 @@ Use this for multi-step, variable-length workflows.
 """
 
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
-from typing import Optional
+
 from collections.abc import AsyncGenerator
 import uuid
 import logging
@@ -33,13 +33,13 @@ class ChatService:
 
     def __init__(
         self,
-        gmail_token: Optional[str] = None,
-        vercel_token: Optional[str] = None,
-        notion_token: Optional[str] = None,
-        tavily_api_key: Optional[str] = None,
-        slack_token: Optional[str] = None,
-        google_client_id: Optional[str] = None,
-        google_client_secret: Optional[str] = None,
+        gmail_token: str | None = None,
+        vercel_token: str | None = None,
+        notion_token: str | None = None,
+        tavily_api_key: str | None = None,
+        slack_token: str | None = None,
+        google_client_id: str | None = None,
+        google_client_secret: str | None = None,
     ):
         """Initialize the workflow service with integration tokens."""
         self.gmail_token = gmail_token
@@ -104,8 +104,8 @@ class ChatService:
     async def execute(
         self,
         request: str,
-        thread_id: Optional[str] = None,
-        connected_integrations: Optional[list[str]] = None,
+        thread_id: str | None = None,
+        connected_integrations: list[str] | None = None,
     ) -> dict:
         """
         Execute a dynamic workflow based on user request.
@@ -203,6 +203,7 @@ class ChatService:
                 ],
                 "is_complete": plan.is_complete,
                 "final_summary": plan.final_summary,
+                "thinking": plan.thinking,
             }
             response["is_complete"] = plan.is_complete
             response["final_response"] = plan.final_summary or ""
@@ -218,8 +219,8 @@ class ChatService:
     async def execute_stream(
         self,
         request: str,
-        thread_id: Optional[str] = None,
-        connected_integrations: Optional[list[str]] = None,
+        thread_id: str | None = None,
+        connected_integrations: list[str] | None = None,
     ) -> AsyncGenerator[dict, None]:
         """
         Execute a workflow with streaming updates.
@@ -546,7 +547,7 @@ class ChatService:
         except Exception as e:
             logger.warning(f"Error checking interrupt state: {e}")
 
-    async def get_workflow_state(self, thread_id: str) -> Optional[dict]:
+    async def get_workflow_state(self, thread_id: str) -> dict | None:
         """Get the current state of a workflow."""
         if not self._initialized:
             await self.initialize()
@@ -564,7 +565,7 @@ class ChatService:
         self,
         thread_id: str,
         decision: dict = None,
-        connected_integrations: Optional[list[str]] = None,
+        connected_integrations: list[str] | None = None,
     ) -> dict:
         """
         Resume a paused workflow with a decision.
@@ -649,7 +650,7 @@ class ChatService:
         self,
         thread_id: str,
         step_number: int,
-        connected_integrations: Optional[list[str]] = None,
+        connected_integrations: list[str] | None = None,
     ) -> dict:
         """
         Retry a failed step and continue execution.

@@ -36,26 +36,13 @@ async def run_planner(
     )
 
     state_artifacts = state.get("artifacts", [])
-    logger.info(f"[PLANNER_DIAG] Turn start — artifacts: {state_artifacts}")
-    logger.info(
-        f"[PLANNER_DIAG] Messages: {len(messages)}, "
-        f"HumanMessages: {sum(1 for m in messages if isinstance(m, HumanMessage))}"
-    )
 
     conversation_summary = build_conversation_summary(
         messages, artifacts=state_artifacts
     )
-    logger.info(
-        f"[PLANNER_DIAG] conversation_summary: "
-        f"{conversation_summary[:500] if conversation_summary else 'None'}"
-    )
 
     initial_integrations = state.get("initial_integrations") or []
     artifacts_context = format_artifacts_context(state_artifacts)
-    logger.info(
-        f"[PLANNER_DIAG] artifacts_context: "
-        f"{artifacts_context[:500] if artifacts_context else 'EMPTY'}"
-    )
 
     integration_hints = (
         registry.get_hints(initial_integrations, "planner")

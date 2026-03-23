@@ -8,7 +8,7 @@ from LangChain message lists produced by workflow steps.
 import json
 import logging
 import re
-from typing import Optional
+
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
@@ -82,7 +82,7 @@ _INTEGRATION_EXTRACTORS = {
 # ---------------------------------------------------------------------------
 
 
-def _find_field_recursive(data: dict, field: str) -> Optional[str]:
+def _find_field_recursive(data: dict, field: str) -> str | None:
     """Recursively search a nested dict for a field; return its string value."""
     if field in data:
         val = data[field]
@@ -105,7 +105,7 @@ def _extract_name_from_data(data: dict) -> str:
     return "Untitled"
 
 
-def _classify_url_type(url: str) -> Optional[str]:
+def _classify_url_type(url: str) -> str | None:
     """Classify artifact type from URL domain."""
     for domain_prefix, artifact_type in _DOMAIN_TO_TYPE.items():
         if domain_prefix in url:
@@ -122,7 +122,7 @@ def _build_artifact_from_match(
     step_number: int,
     turn_number: int,
     seen_ids: set,
-) -> Optional[dict]:
+) -> dict | None:
     """Build an Artifact dict from a matched extractor and JSON data."""
     if artifact_id in seen_ids:
         return None
@@ -228,7 +228,7 @@ def _parse_tavily_text(text: str) -> list[SearchResultItem]:
 
 def extract_search_results_from_messages(
     messages: list[BaseMessage],
-) -> Optional[list[SearchResultItem]]:
+) -> list[SearchResultItem] | None:
     """
     Extract structured search results from tool messages.
 
@@ -354,7 +354,7 @@ def _extract_subject(data: dict) -> str:
     return "(No subject)"
 
 
-def _email_from_dict(data: dict) -> Optional[EmailResultItem]:
+def _email_from_dict(data: dict) -> EmailResultItem | None:
     """Build an EmailResultItem from a Gmail message dict."""
     msg_id = data.get("id", "")
     if not msg_id:
@@ -563,7 +563,7 @@ def _parse_gmail_text(text: str) -> list[EmailResultItem]:
 
 def extract_email_results_from_messages(
     messages: list[BaseMessage],
-) -> Optional[list[EmailResultItem]]:
+) -> list[EmailResultItem] | None:
     """
     Extract structured email results from Gmail tool messages.
 
@@ -646,7 +646,7 @@ def extract_artifacts_from_step(
     messages: list[BaseMessage],
     step_number: int,
     turn_number: int = 1,
-    integration_hint: Optional[str] = None,
+    integration_hint: str | None = None,
 ) -> list[dict]:
     """
     Extract structured artifacts from a step's messages (ToolMessage JSON + URL fallback).
@@ -673,11 +673,6 @@ def extract_artifacts_from_step(
         raw_text = _unwrap_mcp_text(content) or None
         # dict content not handled by _unwrap_mcp_text — checked below
 
-        logger.info(
-            f"[ARTIFACT_EXTRACT] ToolMessage content type={type(content).__name__}, "
-            f"raw_text preview={raw_text[:300] if raw_text else 'None'}"
-        )
-
         # Try to parse JSON
         data = None
         if raw_text:
@@ -696,10 +691,6 @@ def extract_artifacts_from_step(
 
         # Phase 1a: Structured JSON — run extractors
         if data and isinstance(data, dict):
-            logger.info(
-                f"[ARTIFACT_EXTRACT] Parsed JSON dict keys: {list(data.keys())[:10]}"
-            )
-
             # Pass 1: unique id fields (documentId, spreadsheetId, …)
             matched = False
             for ext_name, ext_config in _INTEGRATION_EXTRACTORS.items():
@@ -708,9 +699,6 @@ def extract_artifacts_from_step(
                         continue
                     artifact_id = _find_field_recursive(data, id_field)
                     if artifact_id:
-                        logger.info(
-                            f"[ARTIFACT_EXTRACT] Pass 1 MATCH: {ext_name}.{id_field}={artifact_id}"
-                        )
                         result = _build_artifact_from_match(
                             ext_name,
                             ext_config,
@@ -794,10 +782,6 @@ def extract_artifacts_from_step(
 
                     if artifact_id and artifact_id not in seen_ids:
                         seen_ids.add(artifact_id)
-                        logger.info(
-                            f"[ARTIFACT_EXTRACT] Phase 1b text MATCH: {ext_name}, "
-                            f"id={artifact_id}, url={artifact_url}, name={name}"
-                        )
                         artifacts.append(
                             Artifact(
                                 type=ext_config["type"],
@@ -841,9 +825,6 @@ def extract_artifacts_from_step(
 
     # --- Phase 2: URL regex on AIMessage content (last resort) ---
     if not artifacts:
-        logger.info(
-            "[ARTIFACT_EXTRACT] Phase 1 found nothing, falling back to URL regex on AIMessages"
-        )
         for msg in messages:
             if isinstance(msg, AIMessage) and msg.content:
                 content = (
