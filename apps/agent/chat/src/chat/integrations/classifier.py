@@ -98,8 +98,13 @@ class IntegrationClassifier:
                 "Classify which integrations are needed for this user request.\n\n"
                 f"Available integrations:\n{integration_list}\n\n"
                 f'User request: "{request}"\n\n'
-                'If the request is a general question, use ["web_search"].\n'
-                "Select the minimum set needed."
+                "Rules:\n"
+                '- If the request is a general question or needs only information retrieval, use ["web_search"].\n'
+                "- If the request requires up-to-date information, market data, pricing, "
+                "comparisons, or research AND also requires creating/modifying content in "
+                "another integration, include BOTH web_search and the target integration.\n"
+                "- Select the minimum set needed, but never omit web_search when current "
+                "information is required to produce accurate content.\n"
             )
 
             from langchain_core.messages import HumanMessage

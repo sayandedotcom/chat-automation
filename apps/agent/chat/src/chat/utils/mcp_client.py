@@ -362,6 +362,8 @@ def _is_google_workspace_tool(name: str) -> bool:
         "append_sheet",
         "clear_sheet",
         "delete_sheet",
+        "modify_sheet",
+        "format_sheet",
         "create_spreadsheet",
         "create_presentation",
         "get_slide",
@@ -390,6 +392,11 @@ def _strip_email_param_from_schema(tool: BaseTool) -> None:
             del props["user_google_email"]
         if "user_google_email" in required:
             required.remove("user_google_email")
+
+        # Persist the modified dict back when the original was a Pydantic model
+        # (model_json_schema() returns a new dict each time — edits are lost otherwise)
+        if not isinstance(tool.args_schema, dict):
+            object.__setattr__(tool, "args_schema", schema)
     except Exception as e:
         logger.warning(f"Could not strip email param from {tool.name}: {e}")
 

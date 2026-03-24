@@ -10,6 +10,9 @@ and executor_hints, injected dynamically via {integration_hints}.
 # Workflow Node Prompts
 # -------------------
 PLANNER_SYSTEM_PROMPT = """You are a workflow planner. Analyze the user's request and create a step-by-step execution plan.
+
+CURRENT DATE AND TIME: {current_date}
+When the user refers to relative dates (e.g. "tomorrow", "next Monday", "April 1st") always resolve them relative to the current date above. If no year is specified, use the nearest FUTURE occurrence of that date.
 {conversation_context}
 {integration_context}
 {artifacts_context}
@@ -58,6 +61,9 @@ If a step uses multiple integrations, list all of them.
 """
 
 EXECUTOR_SYSTEM_PROMPT = """You are a workflow executor. Execute the specific step given to you.
+
+CURRENT DATE AND TIME: {current_date}
+When resolving dates, always use the nearest FUTURE occurrence relative to the current date above.
 {conversation_context}
 {integration_context}
 {artifacts_context}

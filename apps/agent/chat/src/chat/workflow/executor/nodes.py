@@ -8,6 +8,7 @@ step-execution / tool-continuation / approval flows.
 import json
 import logging
 import time
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -191,6 +192,7 @@ async def start_step_execution(
     step_integrations = step.integrations if step.integrations else initial_integrations
 
     system_prompt = EXECUTOR_SYSTEM_PROMPT.format(
+        current_date=datetime.now(timezone.utc).strftime("%A, %B %d, %Y %H:%M UTC"),
         conversation_context=f"\nCONVERSATION HISTORY:\n{conversation_summary}\n"
         if conversation_summary
         else "",

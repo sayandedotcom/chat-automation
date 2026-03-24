@@ -13,6 +13,13 @@ integrations:
     mcp_server: "tavily"
     description: "Web search and research: finding information, answering questions, comparing options, discovering latest content online."
     identity_keywords: []
+    planner_hints: |
+      WEB SEARCH: When the plan involves BOTH web_search and a content-creation
+      integration (Google Sheets, Docs, Notion, etc.), ALWAYS create a dedicated
+      web_search research step BEFORE the content-creation step. The research step
+      should gather all the facts, data, and comparisons needed. The content-creation
+      step then uses results from the research step. Never combine research and
+      content creation into a single step.
     executor_hints: |
       WEB SEARCH RESPONSE FORMAT:
       - Write an explanatory, well-structured summary of the search findings using proper

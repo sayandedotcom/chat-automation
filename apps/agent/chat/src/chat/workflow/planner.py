@@ -5,6 +5,7 @@ Creates a step-by-step workflow plan with HITL flags using structured LLM output
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -51,6 +52,7 @@ async def run_planner(
     )
 
     system_prompt = PLANNER_SYSTEM_PROMPT.format(
+        current_date=datetime.now(timezone.utc).strftime("%A, %B %d, %Y %H:%M UTC"),
         conversation_context=f"\n{conversation_summary}\n"
         if conversation_summary
         else "",
