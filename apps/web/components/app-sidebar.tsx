@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Link as LinkIcon, MessageCircle, PanelLeftIcon, Settings } from "lucide-react";
+import { BookOpen, Link as LinkIcon, MessageCircle, PanelLeftIcon, Settings } from "lucide-react";
 
 import {
   Sidebar,
@@ -30,6 +30,11 @@ const navItems = [
     title: "New Chat",
     url: "/chat",
     icon: MessageCircle,
+  },
+  {
+    title: "Sample Prompts",
+    url: "/sample-prompts",
+    icon: BookOpen,
   },
   // {
   //   title: "Search",
