@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Image from "next/image";
 
-import { Loader2, RotateCcw, X } from "lucide-react";
+import { Globe, Loader2, Mail, RotateCcw, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
@@ -224,6 +224,7 @@ export function WorkflowTimeline({
   className,
 }: WorkflowTimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const [lineHeight, setLineHeight] = useState(0);
 
   // Filter steps to only show visible ones (not pending) - memoized to prevent infinite loops
   const visibleSteps = useMemo(() => {
@@ -237,6 +238,25 @@ export function WorkflowTimeline({
     return visible;
   }, [steps]);
 
+  // Measure line height: from first dot center to last dot center
+  useEffect(() => {
+    const container = timelineRef.current;
+    if (!container) return;
+    const dots = container.querySelectorAll<HTMLElement>("[data-timeline-dot]");
+    if (dots.length < 2) {
+      setLineHeight(0);
+      return;
+    }
+    const first = dots[0]!;
+    const last = dots[dots.length - 1]!;
+    const containerTop = container.getBoundingClientRect().top;
+    const firstCenter =
+      first.getBoundingClientRect().top + first.getBoundingClientRect().height / 2 - containerTop;
+    const lastCenter =
+      last.getBoundingClientRect().top + last.getBoundingClientRect().height / 2 - containerTop;
+    setLineHeight(lastCenter - firstCenter);
+  });
+
   if (steps.length === 0) {
     return null;
   }
@@ -245,14 +265,21 @@ export function WorkflowTimeline({
     <div className={cn("mx-auto w-full max-w-5xl py-4", className)}>
       {/* Timeline with vertical line */}
       <div className="relative" ref={timelineRef}>
-        {/* Vertical timeline line removed — clean minimal dots only */}
+        {/* Vertical timeline line — measured to stop exactly at last dot */}
+        {lineHeight > 0 && (
+          <div
+            className="absolute left-[9px] w-[2px] bg-white/10 transition-all duration-500 ease-out"
+            data-timeline-line
+            style={{ top: 10, height: lineHeight }}
+          />
+        )}
 
         {/* Timeline items: thinking blocks, status messages, and steps */}
         <div className="space-y-4">
           {/* Initial thinking from planner */}
           {planThinking && (
             <div className="flex items-start gap-4">
-              <div className="relative z-10 flex-shrink-0">
+              <div className="relative z-10 flex-shrink-0" data-timeline-dot>
                 <div className="flex h-5 w-5 items-center justify-center">
                   <div className="h-2 w-2 rounded-full bg-white/60" />
                 </div>
@@ -266,7 +293,7 @@ export function WorkflowTimeline({
           {/* Integration indicator (e.g., "Added 2 integrations successfully") */}
           {loadedIntegrations && loadedIntegrations.length > 0 && (
             <div className="flex items-start gap-4">
-              <div className="relative z-10 flex-shrink-0">
+              <div className="relative z-10 flex-shrink-0" data-timeline-dot>
                 <div className="flex h-5 w-5 items-center justify-center">
                   <div className="h-2 w-2 rounded-full bg-white/60" />
                 </div>
@@ -295,9 +322,9 @@ export function WorkflowTimeline({
           )}
 
           {/* Status messages (e.g., "Added 2 integrations successfully") */}
-          {statusMessages?.map((msg, idx) => (
+          {/* {statusMessages?.map((msg, idx) => (
             <div key={`status-${idx}`} className="flex items-start gap-4">
-              <div className="relative z-10 flex-shrink-0">
+              <div className="relative z-10 flex-shrink-0" data-timeline-dot>
                 <div className="flex h-5 w-5 items-center justify-center">
                   <div className="h-2 w-2 rounded-full bg-white/60" />
                 </div>
@@ -306,7 +333,7 @@ export function WorkflowTimeline({
                 <p className="text-sm text-white/50">{msg.text}</p>
               </div>
             </div>
-          ))}
+          ))} */}
 
           {/* Workflow steps */}
           {visibleSteps.map((step, index) => {
@@ -341,7 +368,7 @@ export function WorkflowTimeline({
                 {/* Step row with circle and content */}
                 <div className="flex items-start gap-4">
                   {/* Left side - timeline indicator: dot → spinner → icon */}
-                  <div className="relative z-10 flex-shrink-0">
+                  <div className="relative z-10 flex-shrink-0" data-timeline-dot>
                     {step.status === "in_progress" ? (
                       <div className="flex h-5 w-5 items-center justify-center">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
@@ -373,19 +400,29 @@ export function WorkflowTimeline({
                         <X className="h-3.5 w-3.5 text-red-400/70" />
                       </div>
                     ) : step.status === "completed" ? (
-                      <div className="flex h-5 w-5 items-center justify-center">
-                        {toolIcon ? (
-                          <Image
-                            src={toolIcon}
-                            alt={primaryTool}
-                            width={14}
-                            height={14}
-                            className="object-contain opacity-50 grayscale"
-                          />
-                        ) : (
-                          <div className="h-2 w-2 rounded-full bg-white/50" />
-                        )}
-                      </div>
+                      (() => {
+                        // Resolve icon: toolIconMap first, then integration from tool_calls
+                        const tcIntegration =
+                          step.tool_calls?.find((tc) => tc.ui_component)?.integration ||
+                          step.tool_calls?.[0]?.integration;
+                        const resolvedIcon =
+                          toolIcon || (tcIntegration ? `/integrations/${tcIntegration}.svg` : null);
+                        return (
+                          <div className="flex h-5 w-5 items-center justify-center">
+                            {resolvedIcon ? (
+                              <Image
+                                src={resolvedIcon}
+                                alt={primaryTool || tcIntegration || ""}
+                                width={14}
+                                height={14}
+                                className="object-contain opacity-50 grayscale"
+                              />
+                            ) : (
+                              <div className="h-2 w-2 rounded-full bg-white/50" />
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div className="flex h-5 w-5 items-center justify-center">
                         <div className="h-2 w-2 rounded-full bg-white/40" />
@@ -427,11 +464,18 @@ export function WorkflowTimeline({
                             onApprove: onApprove || (() => {}),
                           };
                           return (
-                            <div className="space-y-2">
+                            <div className="space-y-4">
                               {renderer(ctx)}
                               {isCompleted && step.result && (
-                                <div className="mt-2 text-sm text-gray-300">
-                                  <MarkdownRenderer content={step.result} />
+                                <div className="-ml-9 flex items-start gap-4">
+                                  <div className="relative z-10 flex-shrink-0" data-timeline-dot>
+                                    <div className="flex h-5 w-5 items-center justify-center">
+                                      <div className="h-2 w-2 rounded-full bg-white/40" />
+                                    </div>
+                                  </div>
+                                  <div className="min-w-0 flex-1 pt-0.5 text-sm text-gray-300">
+                                    <MarkdownRenderer content={step.result} />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -443,13 +487,20 @@ export function WorkflowTimeline({
                           `⚠️ [TOOL-CARD] Step ${step.step_number}: No renderer for ui_component="${uiComponent}", tool="${primaryToolCall?.tool_name}" — rendering fallback`
                         );
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-4">
                             <div className="flex items-center gap-3 py-0.5">
                               <span className="text-sm text-white/50">{step.description}</span>
                             </div>
                             {isCompleted && step.result && (
-                              <div className="mt-2 text-sm text-gray-300">
-                                <MarkdownRenderer content={step.result} />
+                              <div className="-ml-9 flex items-start gap-4">
+                                <div className="relative z-10 flex-shrink-0" data-timeline-dot>
+                                  <div className="flex h-5 w-5 items-center justify-center">
+                                    <div className="h-2 w-2 rounded-full bg-white/40" />
+                                  </div>
+                                </div>
+                                <div className="min-w-0 flex-1 pt-0.5 text-sm text-gray-300">
+                                  <MarkdownRenderer content={step.result} />
+                                </div>
                               </div>
                             )}
                           </div>
@@ -488,24 +539,50 @@ export function WorkflowTimeline({
                       </div>
                     ) : isRichCard && step.status === "completed" ? (
                       /* RICH RESULT CARD — result text first (streamed), then card below */
-                      <div className="space-y-2">
-                        {/* AI result text — rendered first so streamed content stays in place */}
+                      <div className="space-y-4">
+                        {/* AI result text with timeline dot */}
                         {step.result && (
-                          <div className="text-sm text-gray-300">
-                            <MarkdownRenderer content={step.result} />
+                          <div className="-ml-9 flex items-start gap-4">
+                            <div className="relative z-10 flex-shrink-0" data-timeline-dot>
+                              <div className="flex h-5 w-5 items-center justify-center">
+                                <div className="h-2 w-2 rounded-full bg-white/40" />
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1 pt-0.5 text-sm text-gray-300">
+                              <MarkdownRenderer content={step.result} />
+                            </div>
                           </div>
                         )}
+                        {/* Card with its own timeline icon */}
                         {(() => {
-                          // Try backend-driven renderer first — but skip editor components
-                          // that require real tool_calls data (they'd render empty with
-                          // synthetic placeholder arguments).
+                          const isWebSearch =
+                            step.ui_component === "web_search_card" ||
+                            (step.search_results && step.search_results.length > 0) ||
+                            step.tools_used?.some(
+                              (t) =>
+                                t === "web-search" || t === "web_search" || t === "tavily_search"
+                            );
+                          const isEmail =
+                            step.ui_component === "email_list_card" ||
+                            (step.email_results && step.email_results.length > 0);
+
+                          // Resolve the card icon
+                          const cardIcon = isWebSearch ? (
+                            <Globe className="h-3.5 w-3.5 text-white/40" />
+                          ) : isEmail ? (
+                            <Mail className="h-3.5 w-3.5 text-white/40" />
+                          ) : null;
+
+                          // Resolve the card content
                           const canUseRenderer =
                             step.ui_component && !EDITOR_COMPONENTS.has(step.ui_component);
                           const renderer = canUseRenderer
                             ? UI_COMPONENT_RENDERERS[step.ui_component!]
                             : undefined;
+
+                          let cardContent: React.ReactNode = null;
                           if (renderer) {
-                            return renderer({
+                            cardContent = renderer({
                               step,
                               primaryToolCall: {
                                 id: `result_${step.step_number}`,
@@ -516,11 +593,8 @@ export function WorkflowTimeline({
                               onApprove: onApprove || (() => {}),
                               isCompleted: true,
                             });
-                          }
-
-                          // Structured search results without ui_component
-                          if (step.search_results && step.search_results.length > 0) {
-                            return (
+                          } else if (step.search_results && step.search_results.length > 0) {
+                            cardContent = (
                               <WebSearchCard
                                 toolCall={{
                                   id: `search_${step.step_number}`,
@@ -534,11 +608,8 @@ export function WorkflowTimeline({
                                 searchResults={step.search_results}
                               />
                             );
-                          }
-
-                          // Structured email results without ui_component
-                          if (step.email_results && step.email_results.length > 0) {
-                            return (
+                          } else if (step.email_results && step.email_results.length > 0) {
+                            cardContent = (
                               <EmailListCard
                                 emails={step.email_results}
                                 stepNumber={step.step_number}
@@ -547,12 +618,22 @@ export function WorkflowTimeline({
                             );
                           }
 
-                          // Safety-net fallback — shouldShowRichCard should prevent reaching here
-                          return (
-                            <div className="space-y-2">
+                          if (!cardContent) {
+                            return (
                               <div className="flex items-center gap-3 py-0.5">
                                 <span className="text-sm text-white/50">{step.description}</span>
                               </div>
+                            );
+                          }
+
+                          return (
+                            <div className="-ml-9 flex items-start gap-4">
+                              <div className="relative z-10 flex-shrink-0" data-timeline-dot>
+                                <div className="flex h-5 w-5 items-center justify-center">
+                                  {cardIcon || <div className="h-2 w-2 rounded-full bg-white/40" />}
+                                </div>
+                              </div>
+                              <div className="min-w-0 flex-1 pt-0.5">{cardContent}</div>
                             </div>
                           );
                         })()}
