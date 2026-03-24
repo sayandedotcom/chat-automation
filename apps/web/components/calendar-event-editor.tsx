@@ -337,8 +337,8 @@ function computeInitialDates(
   args: Record<string, unknown>,
   userHint?: string
 ): { start: Date; end: Date } {
-  let start = parseDateTimeArg(args.start);
-  let end = parseDateTimeArg(args.end);
+  let start = parseDateTimeArg(args.start_time ?? args.start);
+  let end = parseDateTimeArg(args.end_time ?? args.end);
 
   if (!userHint) return { start, end };
 
@@ -431,6 +431,7 @@ export function CalendarEventEditor({
   const { start: initStart, end: initEnd } = computeInitialDates(args, userHint);
 
   const initMeet = (() => {
+    if (args.add_google_meet === true) return true;
     if (args.conferenceData !== undefined && args.conferenceData !== null) return true;
     if (userHint) {
       const hint = parseCalendarHint(userHint);
@@ -483,8 +484,8 @@ export function CalendarEventEditor({
   const isDirty = useCallback(() => {
     const origTitle = String(args.summary ?? args.title ?? "");
     const origAttendees = parseAttendees(args.attendees);
-    const origStart = roundTo15(parseDateTimeArg(args.start));
-    const origEnd = roundTo15(parseDateTimeArg(args.end));
+    const origStart = roundTo15(parseDateTimeArg(args.start_time ?? args.start));
+    const origEnd = roundTo15(parseDateTimeArg(args.end_time ?? args.end));
     const origDesc = String(args.description ?? "");
     if (title !== origTitle) return true;
     if (attendees.join(",") !== origAttendees.join(",")) return true;
@@ -525,16 +526,13 @@ export function CalendarEventEditor({
     if (isDirty()) {
       const editedArgs: Record<string, unknown> = {
         summary: title,
-        attendees: attendees.map((e) => ({ email: e })),
-        start: { dateTime: startDt.toISOString() },
-        end: { dateTime: endDt.toISOString() },
+        attendees: attendees.map((e) => e),
+        start_time: startDt.toISOString(),
+        end_time: endDt.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         description,
+        add_google_meet: createMeet,
       };
-      if (createMeet) {
-        editedArgs.conferenceData = {
-          createRequest: { requestId: crypto.randomUUID() },
-        };
-      }
       onApprove(stepNumber, "edit", {
         tool_calls: [{ id: toolCall.id, arguments: editedArgs }],
       });
