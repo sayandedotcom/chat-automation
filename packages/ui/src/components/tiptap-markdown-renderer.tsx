@@ -73,10 +73,36 @@ export function TipTapMarkdownRenderer({ content, className }: TipTapMarkdownRen
         .tiptap-renderer .tiptap ul[data-type="taskList"] { list-style: none; padding-left: 0; }
         .tiptap-renderer .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
         .tiptap-renderer .tiptap ul[data-type="taskList"] li input[type="checkbox"] { margin-top: 0.25rem; accent-color: #a855f7; }
-        .tiptap-renderer .tiptap table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+        .tiptap-renderer .tiptap table {
+          border-collapse: separate;
+          border-spacing: 0;
+          width: 100%;
+          margin: 1.5rem 0;
+          border-radius: 1rem;
+          background: #1a1a1a;
+          border: 1px solid rgba(255,255,255,0.15);
+          overflow: hidden;
+        }
         .tiptap-renderer .tiptap table th,
-        .tiptap-renderer .tiptap table td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 0.75rem; text-align: left; }
-        .tiptap-renderer .tiptap table th { background: rgba(255,255,255,0.05); font-weight: 600; }
+        .tiptap-renderer .tiptap table td {
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding: 0.375rem 0.75rem;
+          text-align: left;
+          vertical-align: top;
+        }
+        .tiptap-renderer .tiptap table tr:last-child td {
+          border-bottom: none;
+        }
+        .tiptap-renderer .tiptap table th {
+          background: transparent;
+          font-weight: 500;
+          font-size: 0.875rem;
+          color: rgba(255,255,255,0.9);
+        }
+        .tiptap-renderer .tiptap table td {
+          font-size: 0.875rem;
+          color: rgba(255,255,255,0.6);
+        }
         .tiptap-renderer .tiptap blockquote { border-left: 3px solid rgba(255,255,255,0.2); padding-left: 1rem; color: rgba(255,255,255,0.5); }
         .tiptap-renderer .tiptap hr { border-color: rgba(255,255,255,0.1); }
         .tiptap-renderer .hljs-keyword, .tiptap-renderer .hljs-selector-tag { color: #569cd6; }

@@ -120,10 +120,36 @@ export function TipTapMarkdownEditor({
         .tiptap-editor .tiptap ul[data-type="taskList"] { list-style: none; padding-left: 0; }
         .tiptap-editor .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
         .tiptap-editor .tiptap ul[data-type="taskList"] li input[type="checkbox"] { margin-top: 0.25rem; accent-color: #a855f7; }
-        .tiptap-editor .tiptap table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+        .tiptap-editor .tiptap table {
+          border-collapse: separate;
+          border-spacing: 0;
+          width: 100%;
+          margin: 1.5rem 0;
+          border-radius: 1rem;
+          background: #1a1a1a;
+          border: 1px solid rgba(255,255,255,0.15);
+          overflow: hidden;
+        }
         .tiptap-editor .tiptap table th,
-        .tiptap-editor .tiptap table td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 0.75rem; text-align: left; }
-        .tiptap-editor .tiptap table th { background: rgba(255,255,255,0.05); font-weight: 600; }
+        .tiptap-editor .tiptap table td {
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding: 0.375rem 0.75rem;
+          text-align: left;
+          vertical-align: top;
+        }
+        .tiptap-editor .tiptap table tr:last-child td {
+          border-bottom: none;
+        }
+        .tiptap-editor .tiptap table th {
+          background: transparent;
+          font-weight: 500;
+          font-size: 0.875rem;
+          color: rgba(255,255,255,0.9);
+        }
+        .tiptap-editor .tiptap table td {
+          font-size: 0.875rem;
+          color: rgba(255,255,255,0.6);
+        }
         .tiptap-editor .tiptap ul,
         .tiptap-editor .tiptap ol { padding-left: 1.5rem; margin: 0.5rem 0; }
         .tiptap-editor .tiptap ul { list-style-type: disc; }
