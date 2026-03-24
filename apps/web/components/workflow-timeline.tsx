@@ -466,8 +466,11 @@ export function WorkflowTimeline({
                     ) : step.status === "awaiting_approval" ? (
                       // Brief loading state — tool_calls SSE event arrives shortly with the proper card
                       <div className="flex items-center gap-3 py-0.5">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white/40" />
-                        <span className="text-sm text-white/50">{step.description}</span>
+                        <ShimmerText
+                          text={step.description}
+                          className="!text-sm !font-normal"
+                          wrapperClassName="p-0 justify-start"
+                        />
                       </div>
                     ) : step.status === "failed" ? (
                       /* FAILED STEP CARD */
