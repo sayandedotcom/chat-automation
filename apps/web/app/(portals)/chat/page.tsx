@@ -1026,6 +1026,7 @@ export default function ChatPage() {
               <div className="mx-auto max-w-5xl [&>div]:pb-0">
                 <ChatInputWithMentions
                   onSubmit={executeWorkflow}
+                  disabled={workflowStatus !== "complete"}
                   placeholder={
                     workflowStatus === "complete"
                       ? "Send a follow-up message..."
