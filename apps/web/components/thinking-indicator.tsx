@@ -49,9 +49,7 @@ export function ThinkingIndicator({
             transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden">
             <div className="mt-1.5">
-              <div className="border-l border-white/10 pl-4">
-                <p className="text-sm leading-relaxed text-white/40 italic">{content}</p>
-              </div>
+              <p className="text-sm leading-relaxed text-white/40 italic">{content}</p>
             </div>
           </motion.div>
         )}
