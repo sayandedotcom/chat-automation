@@ -60,9 +60,11 @@ function IntegrationIcon({ src, alt }: { src: string; alt: string }) {
 export function ChatInputWithMentions({
   onSubmit,
   placeholder = "",
+  disabled = false,
 }: {
   onSubmit?: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const [highlightedOutput, setHighlightedOutput] = useState<string>("");
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -146,8 +148,10 @@ export function ChatInputWithMentions({
 
           {/* Top: Text input */}
           <ChatInputEditor
-            placeholder="Type and press enter to start chatting..."
-            className="min-h-[32px] border-none bg-transparent px-5 pt-4 pb-1 font-sans text-[15px] tracking-tight text-[#c8ccd8] placeholder:text-[#555555] focus-visible:ring-0"
+            placeholder={
+              disabled ? "Workflow in progress..." : "Type and press enter to start chatting..."
+            }
+            className={`min-h-[32px] border-none bg-transparent px-5 pt-4 pb-1 font-sans text-[15px] tracking-tight text-[#c8ccd8] placeholder:text-[#555555] focus-visible:ring-0 ${disabled ? "pointer-events-none opacity-40" : ""}`}
           />
 
           {/* Bottom: Actions bar */}
@@ -218,9 +222,15 @@ export function ChatInputWithMentions({
                   className="ml-1 h-8 w-8 rounded-full text-[#999999] hover:bg-white/10 hover:text-white">
                   <Mic className="h-5 w-5 stroke-[2.5]" />
                 </Button>
-                <ChatInputSubmitButton
-                  className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full drop-shadow-sm transition-all [&>svg]:h-[24px] [&>svg]:w-[24px] [&>svg]:stroke-[3] ${hasText ? "bg-gradient-to-b from-white to-[#c0c0c8] text-black shadow hover:brightness-110" : "border border-[#404040] bg-gradient-to-b from-[#6a6a6a] to-[#454545] text-[#16161a] hover:brightness-110"}`}
-                />
+                {disabled ? (
+                  <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-[#404040] bg-gradient-to-b from-[#6a6a6a] to-[#454545]">
+                    <div className="h-[12px] w-[12px] rounded-[2px] bg-[#16161a]" />
+                  </div>
+                ) : (
+                  <ChatInputSubmitButton
+                    className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full drop-shadow-sm transition-all [&>svg]:h-[24px] [&>svg]:w-[24px] [&>svg]:stroke-[3] ${hasText ? "bg-gradient-to-b from-white to-[#c0c0c8] text-black shadow hover:brightness-110" : "border border-[#404040] bg-gradient-to-b from-[#6a6a6a] to-[#454545] text-[#16161a] hover:brightness-110"}`}
+                  />
+                )}
               </div>
             </div>
           </ChatInputGroupAddon>
