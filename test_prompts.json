@@ -1,0 +1,30 @@
+[
+  {
+    "prompt": "Catch me up on my latest emails please.",
+    "mcps": ["gmail"]
+  },
+  {
+    "prompt": "Research best SSO integration available and create a Notion document with details on them, including pricing, features, and other relevant information and send it to **[write an email]**",
+    "mcps": ["web-search", "notion", "gmail"]
+  },
+  {
+    "prompt": "Create a Google Sheet with up-to-date information about the best LLMs currently available on the market for PDF content extraction, including input and output token pricing.",
+    "mcps": ["web-search", "google-sheets"]
+  },
+  {
+    "prompt": "Research the best vegetarian-friendly restaurants in Dubai and create a spreadsheet with the details.",
+    "mcps": ["web-search", "google-sheets"]
+  },
+  {
+    "prompt": "Check my calendar availability for October 22nd between 8-10 pm GST",
+    "mcps": ["google-calendar"]
+  },
+  {
+    "prompt": "Research the best options for RAG-as-a-service YC companies we can partner with for our AI product capabilities and form a Google document with details on them, including pricing, features, and other relevant information.",
+    "mcps": ["web-search", "google-docs"]
+  },
+  {
+    "prompt": "Schedule a 45-minute interview with **[write an email]** for next Tuesday at 3 PM GST if I'm available and send them a calendar invite with Google Meet link.",
+    "mcps": ["google-calendar", "gmail"]
+  }
+]
