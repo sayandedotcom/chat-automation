@@ -4,7 +4,7 @@ import { useMemo, useRef } from "react";
 
 import Image from "next/image";
 
-import { Check, Loader2, Plus, RotateCcw, X } from "lucide-react";
+import { Loader2, RotateCcw, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
@@ -241,18 +241,11 @@ export function WorkflowTimeline({
     return null;
   }
 
-  // Calculate timeline line height based on visible steps
-  const lineHeight = visibleSteps.length > 0 ? `calc(100% - 12px)` : "0px";
-
   return (
     <div className={cn("mx-auto w-full max-w-5xl py-4", className)}>
       {/* Timeline with vertical line */}
       <div className="relative" ref={timelineRef}>
-        {/* Animated vertical timeline line */}
-        <div
-          className="absolute top-3 left-[9px] w-[2px] bg-white/10 transition-all duration-500 ease-out"
-          style={{ height: lineHeight }}
-        />
+        {/* Vertical timeline line removed — clean minimal dots only */}
 
         {/* Timeline items: thinking blocks, status messages, and steps */}
         <div className="space-y-4">
@@ -260,8 +253,8 @@ export function WorkflowTimeline({
           {planThinking && (
             <div className="flex items-start gap-4">
               <div className="relative z-10 flex-shrink-0">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
-                  <div className="h-1.5 w-1.5 rounded-full bg-white/60" />
+                <div className="flex h-5 w-5 items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-white/60" />
                 </div>
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
@@ -274,8 +267,8 @@ export function WorkflowTimeline({
           {loadedIntegrations && loadedIntegrations.length > 0 && (
             <div className="flex items-start gap-4">
               <div className="relative z-10 flex-shrink-0">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10">
-                  <Check className="h-3 w-3 text-white/80" />
+                <div className="flex h-5 w-5 items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-white/60" />
                 </div>
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
@@ -305,8 +298,8 @@ export function WorkflowTimeline({
           {statusMessages?.map((msg, idx) => (
             <div key={`status-${idx}`} className="flex items-start gap-4">
               <div className="relative z-10 flex-shrink-0">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
-                  <Plus className="h-3 w-3 text-white/50" />
+                <div className="flex h-5 w-5 items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-white/60" />
                 </div>
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
@@ -347,56 +340,55 @@ export function WorkflowTimeline({
               <div key={step.step_number} className="relative">
                 {/* Step row with circle and content */}
                 <div className="flex items-start gap-4">
-                  {/* Left side - circle indicator on the timeline */}
+                  {/* Left side - timeline indicator: dot → spinner → icon */}
                   <div className="relative z-10 flex-shrink-0">
                     {step.status === "in_progress" ? (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0a0a]">
-                        <Loader2 className="h-3 w-3 animate-spin text-white/60" />
+                      <div className="flex h-5 w-5 items-center justify-center">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
                       </div>
                     ) : step.status === "awaiting_approval" ? (
                       (() => {
-                        // Prefer the tool call with a ui_component (the primary action)
                         const primaryTc =
                           step.tool_calls?.find((tc) => tc.ui_component) || step.tool_calls?.[0];
                         const integration = primaryTc?.integration;
                         const iconPath = integration ? `/integrations/${integration}.svg` : null;
                         return (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/30 bg-[#0a0a0a]">
+                          <div className="flex h-5 w-5 items-center justify-center">
                             {iconPath ? (
                               <Image
                                 src={iconPath}
                                 alt={integration || ""}
-                                width={12}
-                                height={12}
-                                className="object-contain grayscale"
+                                width={14}
+                                height={14}
+                                className="object-contain opacity-60 grayscale"
                               />
                             ) : (
-                              <Loader2 className="h-3 w-3 animate-spin text-white/60" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
                             )}
                           </div>
                         );
                       })()
                     ) : step.status === "failed" ? (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-red-500/50 bg-[#0a0a0a]">
-                        <X className="h-3 w-3 text-red-400" />
+                      <div className="flex h-5 w-5 items-center justify-center">
+                        <X className="h-3.5 w-3.5 text-red-400/70" />
                       </div>
                     ) : step.status === "completed" ? (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
+                      <div className="flex h-5 w-5 items-center justify-center">
                         {toolIcon ? (
                           <Image
                             src={toolIcon}
                             alt={primaryTool}
-                            width={12}
-                            height={12}
-                            className="object-contain opacity-70 grayscale"
+                            width={14}
+                            height={14}
+                            className="object-contain opacity-50 grayscale"
                           />
                         ) : (
-                          <Check className="h-3 w-3 text-white/50" />
+                          <div className="h-2 w-2 rounded-full bg-white/50" />
                         )}
                       </div>
                     ) : (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/20 bg-[#0a0a0a]">
-                        <div className="h-1.5 w-1.5 rounded-full bg-white/40" />
+                      <div className="flex h-5 w-5 items-center justify-center">
+                        <div className="h-2 w-2 rounded-full bg-white/40" />
                       </div>
                     )}
                   </div>
