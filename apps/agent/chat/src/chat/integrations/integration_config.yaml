@@ -6,8 +6,6 @@ integrations:
       - "tavily_search"
       - "tavily_extract"
       - "tavily_crawl"
-      - "tavily_map"
-      - "tavily_research"
     display_name: "Web Search"
     icon: "web_search"
     mcp_server: "tavily"
@@ -76,8 +74,8 @@ integrations:
       If any Gmail tool fails with an auth error, tell the user to reconnect Gmail.
       READING EMAILS: When searching or listing emails, ALWAYS follow up search_gmail_messages
       with get_gmail_messages_content_batch using the returned message IDs to fetch full content.
-      Never report raw message IDs to the user. Your final response should summary of all mails getched under their's specific category like social, promotions, updates, forums, primary etc and below then the mail info in brief.
-      Do NOT list out individual emails in your response text; the UI will render a rich email card from the tool results automatically.
+      Never report raw message IDs to the user. Your final response should be a single brief sentence confirming how many emails were fetched (e.g. "Here are your latest 10 emails.").
+      Do NOT summarize, categorize, or list individual email subjects/senders/snippets in your response — the UI renders a rich email card automatically.
 
   google_docs:
     ui_components:

@@ -19,6 +19,7 @@ from chat.workflow.executor.helpers import (
     deep_parse_stringified_json,
     extract_pagination_metadata,
     fix_notion_workspace_parent,
+    split_notion_children,
 )
 from chat.workflow.prompts import EXECUTOR_SYSTEM_PROMPT
 
@@ -511,10 +512,14 @@ async def request_approval(
                 )
 
                 sanitized_tc = []
+                overflow_map = {}
                 for tc in response.tool_calls:
                     args = deep_parse_stringified_json(tc.get("args", {}))
                     if tc.get("name") == "API-post-page":
                         args = fix_notion_workspace_parent(args)
+                        args, overflow_batches = split_notion_children(args)
+                        if overflow_batches:
+                            overflow_map[tc.get("id", "")] = overflow_batches
                     sanitized_tc.append({**tc, "args": args})
                 exec_msg = AIMessage(
                     content=response.content,
@@ -523,6 +528,52 @@ async def request_approval(
                 )
 
                 tool_result = await tool_node.ainvoke({"messages": [exec_msg]})
+
+                # Append overflow children if page creation had >100 blocks
+                if overflow_map:
+                    import uuid as _uuid
+
+                    for tmsg in tool_result.get("messages", []):
+                        if not isinstance(tmsg, ToolMessage):
+                            continue
+                        if tmsg.tool_call_id not in overflow_map:
+                            continue
+                        try:
+                            _data = (
+                                json.loads(tmsg.content)
+                                if isinstance(tmsg.content, str)
+                                else tmsg.content
+                            )
+                            _page_id = (
+                                _data.get("id") if isinstance(_data, dict) else None
+                            )
+                        except (json.JSONDecodeError, ValueError):
+                            _page_id = None
+                        if not _page_id:
+                            continue
+                        for _batch in overflow_map[tmsg.tool_call_id]:
+                            _tc_id = str(_uuid.uuid4())
+                            _append_msg = AIMessage(
+                                content="",
+                                tool_calls=[
+                                    {
+                                        "id": _tc_id,
+                                        "name": "API-patch-block-children",
+                                        "args": {
+                                            "block_id": _page_id,
+                                            "children": _batch,
+                                        },
+                                    }
+                                ],
+                            )
+                            try:
+                                await tool_node.ainvoke({"messages": [_append_msg]})
+                            except Exception as _e:
+                                logger.error(
+                                    "Failed to append overflow batch to page %s: %s",
+                                    _page_id,
+                                    _e,
+                                )
                 tool_msgs = [
                     m for m in tool_result["messages"] if isinstance(m, ToolMessage)
                 ]

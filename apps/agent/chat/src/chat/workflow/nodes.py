@@ -31,6 +31,7 @@ from chat.schemas import WorkflowPlan, WorkflowState, WorkflowStep
 from chat.workflow.executor.helpers import (
     deep_parse_stringified_json,
     fix_notion_workspace_parent,
+    split_notion_children,
 )
 from chat.workflow.llm import (
     get_executor_llm,
@@ -53,18 +54,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _sanitize_tool_call_args(state: WorkflowState) -> WorkflowState:
+def _sanitize_tool_call_args(state: WorkflowState) -> tuple[WorkflowState, dict]:
     """Fix double-serialized JSON in tool call arguments before MCP dispatch.
 
-    Returns a shallow-copied state with sanitized messages if any fix was needed.
+    Returns (state, overflow_map) where overflow_map maps tool_call_id to
+    overflow children batches for Notion API-post-page calls exceeding 100 blocks.
     """
     messages = state.get("messages", [])
+    overflow_map: dict[str, list[list]] = {}
     if not messages:
-        return state
+        return state, overflow_map
 
     last_msg = messages[-1]
     if not (isinstance(last_msg, AIMessage) and getattr(last_msg, "tool_calls", None)):
-        return state
+        return state, overflow_map
 
     fixed_any = False
     new_tool_calls = []
@@ -74,6 +77,10 @@ def _sanitize_tool_call_args(state: WorkflowState) -> WorkflowState:
         # Fix Notion workspace parent format
         if tc.get("name") == "API-post-page":
             sanitized = fix_notion_workspace_parent(sanitized)
+            # Split children exceeding the 100-block limit
+            sanitized, overflow_batches = split_notion_children(sanitized)
+            if overflow_batches:
+                overflow_map[tc.get("id", "")] = overflow_batches
         if sanitized != args:
             fixed_any = True
             logger.warning(
@@ -81,14 +88,14 @@ def _sanitize_tool_call_args(state: WorkflowState) -> WorkflowState:
             )
         new_tool_calls.append({**tc, "args": sanitized})
 
-    if not fixed_any:
-        return state
+    if not fixed_any and not overflow_map:
+        return state, overflow_map
 
     new_msg = AIMessage(
         content=last_msg.content, tool_calls=new_tool_calls, id=last_msg.id
     )
     new_messages = list(messages[:-1]) + [new_msg]
-    return {**state, "messages": new_messages}
+    return {**state, "messages": new_messages}, overflow_map
 
 
 class WorkflowNodes:
@@ -328,9 +335,91 @@ class WorkflowNodes:
         The smart router may replace self.tool_node after graph compilation.
         Using this method as the graph node ensures the graph always calls
         the up-to-date tool node.
+
+        Handles Notion API-post-page overflow: if children exceeded 100 blocks,
+        the first 100 are sent with the page creation, then remaining batches
+        are appended via API-patch-block-children.
         """
-        state = _sanitize_tool_call_args(state)
-        return await self.tool_node.ainvoke(state, config=config)
+        state, overflow_map = _sanitize_tool_call_args(state)
+        result = await self.tool_node.ainvoke(state, config=config)
+
+        if not overflow_map:
+            return result
+
+        # Append overflow children to the created page(s)
+        await self._append_notion_overflow(result, overflow_map)
+        return result
+
+    async def _append_notion_overflow(
+        self, result: dict, overflow_map: dict[str, list[list]]
+    ) -> None:
+        """Append overflow children batches via API-patch-block-children."""
+        import json
+        import uuid
+
+        from langchain_core.messages import ToolMessage
+
+        tool_messages = [
+            m for m in result.get("messages", []) if isinstance(m, ToolMessage)
+        ]
+
+        for msg in tool_messages:
+            if msg.tool_call_id not in overflow_map:
+                continue
+
+            # Extract the page ID from the API-post-page result
+            try:
+                content = msg.content
+                if isinstance(content, str):
+                    data = json.loads(content)
+                elif isinstance(content, dict):
+                    data = content
+                else:
+                    continue
+                page_id = data.get("id")
+                if not page_id:
+                    continue
+            except (json.JSONDecodeError, ValueError):
+                logger.warning("Could not parse page ID from API-post-page result")
+                continue
+
+            batches = overflow_map[msg.tool_call_id]
+            logger.info(
+                "Appending %d overflow batch(es) to Notion page %s",
+                len(batches),
+                page_id,
+            )
+
+            for batch_idx, batch in enumerate(batches):
+                tc_id = str(uuid.uuid4())
+                append_msg = AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "id": tc_id,
+                            "name": "API-patch-block-children",
+                            "args": {
+                                "block_id": page_id,
+                                "children": batch,
+                            },
+                        }
+                    ],
+                )
+                try:
+                    await self.tool_node.ainvoke({"messages": [append_msg]})
+                    logger.info(
+                        "Overflow batch %d/%d appended successfully (%d blocks)",
+                        batch_idx + 1,
+                        len(batches),
+                        len(batch),
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to append overflow batch %d to page %s: %s",
+                        batch_idx + 1,
+                        page_id,
+                        e,
+                    )
 
     # ------------------------------------------------------------------
     # Private helpers (delegated to executor_helpers / executor modules)

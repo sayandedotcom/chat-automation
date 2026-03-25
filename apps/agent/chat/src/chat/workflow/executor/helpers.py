@@ -49,6 +49,35 @@ def deep_parse_stringified_json(value):
     return value
 
 
+_NOTION_CHILDREN_LIMIT = 100
+
+
+def split_notion_children(args: dict) -> tuple[dict, list[list]]:
+    """Split children exceeding the Notion API 100-block limit.
+
+    Returns (modified_args_with_first_batch, list_of_overflow_batches).
+    Each overflow batch is a list of block objects (max 100 each).
+    """
+    children = args.get("children")
+    if not isinstance(children, list) or len(children) <= _NOTION_CHILDREN_LIMIT:
+        return args, []
+
+    logger.info(
+        "Splitting Notion children: %d blocks → %d + overflow",
+        len(children),
+        _NOTION_CHILDREN_LIMIT,
+    )
+    first_batch = children[:_NOTION_CHILDREN_LIMIT]
+    remaining = children[_NOTION_CHILDREN_LIMIT:]
+
+    overflow_batches = [
+        remaining[i : i + _NOTION_CHILDREN_LIMIT]
+        for i in range(0, len(remaining), _NOTION_CHILDREN_LIMIT)
+    ]
+
+    return {**args, "children": first_batch}, overflow_batches
+
+
 def fix_notion_workspace_parent(args: dict) -> dict:
     """Fix common LLM mistakes with Notion workspace parent format.
 
