@@ -74,8 +74,11 @@ integrations:
       If any Gmail tool fails with an auth error, tell the user to reconnect Gmail.
       READING EMAILS: When searching or listing emails, ALWAYS follow up search_gmail_messages
       with get_gmail_messages_content_batch using the returned message IDs to fetch full content.
-      Never report raw message IDs to the user. Your final response should be a single brief sentence confirming how many emails were fetched (e.g. "Here are your latest 10 emails.").
-      Do NOT summarize, categorize, or list individual email subjects/senders/snippets in your response — the UI renders a rich email card automatically.
+      Never report raw message IDs to the user.
+      RESPONSE FORMAT FOR EMAIL LISTING: Group emails by category using emoji headers (e.g. 📬 Dev & Product Updates, 💼 Jobs & Hackathons, 🔗 LinkedIn & Social, 📚 Learning & Promos, etc.).
+      Under each category, write ONE concise line per email: "Sender — Key takeaway or subject in natural language." Do NOT use raw field labels like "Subject:", "From:", "Date:", "Snippet:".
+      Distill each email into what matters — the gist, not metadata. After the list, add a brief actionable note (e.g. time-sensitive items, suggestions) and offer to open or act on any of them.
+      Keep it conversational and scannable — think newsletter digest, not database dump.
 
   google_docs:
     ui_components:
