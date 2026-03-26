@@ -172,10 +172,10 @@ export function ChatInputWithMentions({
                       className="bubble h-8 cursor-pointer gap-2 rounded-xl border border-white/[0.08] px-3.5 text-[#9a9a9a] select-none hover:text-[#c0c0c0] data-[state=on]:text-[#c0bcc8]"
                       style={{
                         background: isAutoMode
-                          ? "linear-gradient(to bottom, #2d2440, #1e1b30)"
+                          ? "linear-gradient(135deg, #2a1f3d 0%, #1a1825 40%, #141418 100%)"
                           : "#141414",
                         boxShadow: isAutoMode
-                          ? "0px 4px 0px 0px #151220, 0px 0px 6px rgba(55, 45, 80, 0.25)"
+                          ? "0px 4px 0px 0px #110f1a, 0px 0px 8px rgba(45, 35, 70, 0.2)"
                           : "0px 0px 0px 0px #0a0a0a",
                         transform: isAutoMode ? "translateY(0px)" : "translateY(3px)",
                         transition: "all 0.2s ease",
