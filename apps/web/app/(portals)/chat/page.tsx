@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 import { useMutation } from "@tanstack/react-query";
+import { RotateCcw } from "lucide-react";
 
 import ShimmerText from "@workspace/ui/components/kokonutui/shimmer-text";
 import { MarkdownRenderer } from "@workspace/ui/components/tiptap-markdown-renderer";
@@ -834,6 +835,71 @@ export default function ChatPage() {
     threadIdRef.current = null;
   }, []);
 
+  const isConnectionError = (err: string | null): boolean => {
+    if (!err) return false;
+    const lower = err.toLowerCase();
+    return (
+      lower.includes("failed to fetch") ||
+      lower.includes("network error") ||
+      lower.includes("connection") ||
+      lower.includes("timeout") ||
+      lower.includes("failed to start workflow") ||
+      lower.includes("no response body")
+    );
+  };
+
+  const handleReconnect = useCallback(async () => {
+    if (!threadIdRef.current) return;
+    setError(null);
+    setWorkflowStatus("executing");
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL as string;
+      const response = await fetch(`${apiUrl}/chat/status/${threadIdRef.current}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Status check failed");
+
+      const data = await response.json();
+      const plan = data.state?.plan;
+
+      if (!plan) {
+        setError("Could not retrieve workflow state. The session may have expired.");
+        setWorkflowStatus("error");
+        return;
+      }
+
+      if (plan.steps) {
+        setSteps(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          plan.steps.map((s: any) => ({
+            step_number: s.step_number,
+            description: s.description,
+            status: s.status as WorkflowStep["status"],
+            result: s.result,
+            tools_used: s.tools_used,
+            search_results: s.search_results,
+            email_results: s.email_results,
+            ui_component: s.ui_component,
+            thinking: s.thinking,
+            thinking_duration_ms: s.thinking_duration_ms,
+          }))
+        );
+      }
+
+      if (plan.is_complete) {
+        setWorkflowStatus("complete");
+      } else {
+        setError("Workflow is still running in the background. Refresh to check progress.");
+        setWorkflowStatus("error");
+      }
+    } catch (err) {
+      console.error("Reconnect error:", err);
+      setError("Could not reconnect to workflow.");
+      setWorkflowStatus("error");
+    }
+  }, []);
+
   // === DEBUG: Log state changes ===
   useEffect(() => {
     console.log(
@@ -1009,10 +1075,18 @@ export default function ChatPage() {
                     {error && !authRequired && (
                       <div className="flex items-start gap-4">
                         <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-red-400" />
-                        <div className="rounded-2xl border border-red-500/30 bg-[#1a1a1a] px-4 py-3">
+                        <div className="space-y-2 rounded-2xl border border-red-500/30 bg-[#1a1a1a] px-4 py-3">
                           <p className="text-sm text-red-400">
                             <strong>Error:</strong> {error}
                           </p>
+                          {isConnectionError(error) && threadIdRef.current && steps.length > 0 && (
+                            <button
+                              onClick={handleReconnect}
+                              className="flex items-center gap-1.5 text-xs text-zinc-500 transition-colors hover:text-zinc-300">
+                              <RotateCcw className="h-3 w-3" />
+                              Reconnect
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
