@@ -119,8 +119,14 @@ class WorkflowNodes:
             if self.tools
             else self.executor_llm
         )
+        from chat.workflow.tool_retry import retry_tool_call
+
         self.tool_node = (
-            ToolNode(self.tools, handle_tool_errors=True) if self.tools else None
+            ToolNode(
+                self.tools, handle_tool_errors=True, awrap_tool_call=retry_tool_call
+            )
+            if self.tools
+            else None
         )
 
     # ------------------------------------------------------------------

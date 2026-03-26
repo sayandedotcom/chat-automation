@@ -23,3 +23,9 @@ TOOL_CALL_ARGS_CHAR_LIMIT = 2_000
 # Routing safety limits
 # ---------------------------------------------------------------------------
 MAX_TOOL_CALLS_PER_STEP = 10
+
+# ---------------------------------------------------------------------------
+# Tool call retry configuration
+# ---------------------------------------------------------------------------
+TOOL_RETRY_MAX_ATTEMPTS = 2  # Number of retries (not counting initial attempt)
+TOOL_RETRY_BASE_DELAY = 1.0  # Base delay in seconds for exponential backoff

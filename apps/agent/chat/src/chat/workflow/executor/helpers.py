@@ -339,7 +339,11 @@ async def try_incremental_load(
     new_tools_for_integration = registry.get_toolset([missing_integration])
     updated_tools = list(tools) + list(new_tools_for_integration)
     new_executor_with_tools = executor_llm.bind_tools(updated_tools)
-    new_tool_node = ToolNode(updated_tools, handle_tool_errors=True)
+    from chat.workflow.tool_retry import retry_tool_call
+
+    new_tool_node = ToolNode(
+        updated_tools, handle_tool_errors=True, awrap_tool_call=retry_tool_call
+    )
 
     cfg = registry.get_integration_config(missing_integration)
     incremental_load_events = list(incremental_load_events)

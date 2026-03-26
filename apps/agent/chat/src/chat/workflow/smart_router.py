@@ -163,8 +163,13 @@ async def run_smart_router(
         executor_llm.bind_tools(new_tools) if new_tools else executor_llm
     )
     from langgraph.prebuilt import ToolNode
+    from chat.workflow.tool_retry import retry_tool_call
 
-    new_tool_node = ToolNode(new_tools, handle_tool_errors=True) if new_tools else None
+    new_tool_node = (
+        ToolNode(new_tools, handle_tool_errors=True, awrap_tool_call=retry_tool_call)
+        if new_tools
+        else None
+    )
 
     logger.info(
         f"Smart router: bound {len(new_tools)} tools from {len(integrations)} integrations"
