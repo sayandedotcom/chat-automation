@@ -4,7 +4,7 @@ Coding agent guidelines for the chat-automation monorepo.
 
 ## Project Overview
 
-AI-powered chat automation platform with:
+AI-powered chat automation platform:
 
 - **Web**: Next.js 16 + React 19 + TailwindCSS (port 3000)
 - **API**: Express 5 + tRPC + Passport.js + Prisma (port 8000)
@@ -28,25 +28,22 @@ pnpm test           # Run all tests
 ### Single App/Package Commands
 
 ```bash
-pnpm --filter api test                    # Run tests for api
-pnpm --filter web test                    # Run tests for web
-pnpm --filter api vitest run src/__tests__/session.service.test.ts  # Single test
-pnpm --filter api vitest run -t "pattern" # Run tests matching pattern
-pnpm --filter @workspace/database typecheck  # Type-check package
+pnpm --filter api test                                             # Run tests for api
+pnpm --filter api vitest run src/__tests__/session.service.test.ts # Single test file
+pnpm --filter api vitest run -t "should create a session"          # Run tests matching pattern
+pnpm --filter @workspace/database typecheck                        # Type-check package
 ```
 
 ### Python Agent Commands
 
 ```bash
 cd apps/agent
-uv sync                                    # Install dependencies
 uv run pytest tests/ -v                    # Run all tests
-uv run pytest tests/test_file.py -v        # Single test file
+uv run pytest tests/test_executor.py -v    # Single test file
 uv run pytest -k "test_name" -v            # Run tests matching pattern
 uv run ruff check                          # Lint
 uv run ruff check --fix                    # Auto-fix lint issues
 uv run ruff format                         # Format
-uv run fastapi dev chat/src/chat/api.py --host 0.0.0.0 --port 8001
 ```
 
 ### Database Commands
@@ -55,28 +52,21 @@ uv run fastapi dev chat/src/chat/api.py --host 0.0.0.0 --port 8001
 pnpm --filter @workspace/database db:generate    # Generate Prisma client
 pnpm --filter @workspace/database db:push        # Push schema changes
 pnpm --filter @workspace/database db:migrate     # Create migration
-pnpm --filter @workspace/database db:studio      # Open Prisma Studio
 ```
 
 ## Code Style Guidelines
+
+### General Rules
+
+- **NO COMMENTS** in code unless explicitly requested by the user
+- **NO emojis** in code unless explicitly requested
+- Keep responses concise - prefer 1-3 sentences
 
 ### TypeScript/JavaScript
 
 **Formatting (Prettier):** Double quotes, semicolons, 2-space indent, 100 char line width, trailing commas (ES5), LF.
 
 **Imports:** Auto-sorted. Order: `react` → `next/*` → third-party → `@workspace/*` → `@/actions/*`, `@/components/*`, `@/lib/*`, `@/config/*`, `@/utils`, `@/store/*`, `@/hooks/*`, `@/types/*` → relative. Use `.js` extension for ES modules. Use `import type` for type-only imports.
-
-```typescript
-import type { Request, Response } from "express";
-
-import { z } from "zod";
-
-import { TRPCError } from "@trpc/server";
-import { prisma } from "@workspace/database";
-
-import type { SessionUser } from "../@types/index.js";
-import { config } from "./config/index.js";
-```
 
 **Naming:** Files `kebab-case.ts`, directories `kebab-case`, classes/types `PascalCase`, functions/variables `camelCase`, constants `SCREAMING_SNAKE_CASE`, React components `PascalCase.tsx`
 
@@ -91,66 +81,48 @@ import { config } from "./config/index.js";
 ```typescript
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { middleware, publicProcedure, router } from "../server/trpc.js";
 
-import { publicProcedure, router } from "../server/trpc.js";
+const customProcedure = publicProcedure.use(
+  middleware(({ ctx, next }) => next({ ctx })),
+);
 
 export const exampleRouter = router({
-  example: publicProcedure
+  example: customProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      // Implementation
+      if (!input.name)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Name required" });
+      return { success: true };
     }),
 });
 ```
-
-- Use Zod for input validation
-- Throw `TRPCError` for all API errors
 
 ### React/Next.js
 
 - Use `"use client"` directive for client components
 - Functional components: `export default function Component() {}`
 - Hooks at top of component
-- Use `useCallback` for functions passed to children
+- Use `useCallback` for functions passed to children or used in dependencies
 
 ### Python
 
-**Formatting (Ruff):** 88 char line width, 4-space indent, double quotes, space indent.
-
-**Imports:** Standard library → third-party → local imports.
-
-**Naming:** Files `snake_case.py`, functions `snake_case`, classes `PascalCase`, constants `SCREAMING_SNAKE_CASE`, private methods prefix `_`.
-
-**Docstrings:** Triple-double quotes with description.
-
-```python
-class ChatService:
-    """
-    Service for executing dynamic multi-step workflows.
-    Usage: service = ChatService(); await service.initialize()
-    """
-```
-
-**Logging:** `logger = logging.getLogger(__name__)`
-
-**Testing:** `@pytest.mark.asyncio` for async tests, `asyncio_mode = "auto"`.
+**Formatting (Ruff):** 88 char line width, 4-space indent, double quotes, space indent. **Imports:** Standard library → third-party → local. **Naming:** Files `snake_case.py`, functions `snake_case`, classes `PascalCase`, constants `SCREAMING_SNAKE_CASE`. **Docstrings:** Triple-double quotes for classes/modules only. **Logging:** `logger = logging.getLogger(__name__)`. **Testing:** Use `@pytest.mark.asyncio` for async tests.
 
 ### Testing (Vitest)
 
 ```typescript
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { prisma } from "@workspace/database";
 
 vi.mock("@workspace/database", () => ({
   prisma: { session: { create: vi.fn() } },
 }));
+const mockPrisma = vi.mocked(prisma);
 
 describe("Session Service", () => {
   beforeEach(() => vi.clearAllMocks());
-
   it("should create a session", async () => {
-    const mockPrisma = vi.mocked(prisma);
     mockPrisma.session.create.mockResolvedValue({ id: "1" });
   });
 });
@@ -162,9 +134,7 @@ describe("Session Service", () => {
 
 ## Commit Conventions
 
-Conventional Commits: `type(scope): subject`
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+Conventional Commits: `type(scope): subject`. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`.
 
 Examples: `feat(web): add dark mode toggle`, `fix(api): resolve session cookie issue`
 
@@ -178,4 +148,4 @@ Examples: `feat(web): add dark mode toggle`, `fix(api): resolve session cookie i
 
 ## Environment Variables
 
-Required in `.env`: `DATABASE_URL`, `SESSION_SECRET` (32+ chars), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_API_KEY`, `TAVILY_API_KEY`
+Copy `.env.example` to `.env`. Required: `DATABASE_URL`, `SESSION_SECRET` (32+ chars), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_API_KEY`, `TAVILY_API_KEY`
