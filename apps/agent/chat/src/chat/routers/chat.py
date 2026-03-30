@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from chat.config import TAVILY_API_KEY
+from chat.schemas import GoogleCredentialsSchema
 from chat.service import ChatService
 from chat.validation import (
     validate_request,
@@ -33,6 +34,7 @@ _HEARTBEAT_INTERVAL = 15
 
 # Bounded service cache: max 64 entries, 1-hour TTL to prevent memory leaks
 _services: TTLCache = TTLCache(maxsize=64, ttl=3600)
+_services_lock = asyncio.Lock()
 
 
 _HEARTBEAT_SENTINEL = object()
@@ -87,8 +89,10 @@ class WorkflowRequestSchema(BaseModel):
     thread_id: str | None = Field(
         default=None, description="Thread ID for workflow continuity"
     )
+    user_id: str | None = Field(default=None)
     # Optional OAuth tokens
     gmail_token: str | None = Field(default=None)
+    google_credentials: GoogleCredentialsSchema | None = Field(default=None)
     notion_token: str | None = Field(default=None)
     vercel_token: str | None = Field(default=None)
     slack_token: str | None = Field(default=None)
@@ -104,8 +108,10 @@ class WorkflowResumeSchema(BaseModel):
     content: dict | None = Field(
         default=None, description="Edited content (if action is 'edit')"
     )
+    user_id: str | None = Field(default=None)
     # Optional OAuth tokens
     gmail_token: str | None = Field(default=None)
+    google_credentials: GoogleCredentialsSchema | None = Field(default=None)
     notion_token: str | None = Field(default=None)
     vercel_token: str | None = Field(default=None)
     slack_token: str | None = Field(default=None)
@@ -118,8 +124,10 @@ class WorkflowRetrySchema(BaseModel):
 
     thread_id: str = Field(..., description="Thread ID of the workflow to retry")
     step_number: int = Field(..., description="Step number to retry from (1-indexed)")
+    user_id: str | None = Field(default=None)
     # Optional OAuth tokens
     gmail_token: str | None = Field(default=None)
+    google_credentials: GoogleCredentialsSchema | None = Field(default=None)
     notion_token: str | None = Field(default=None)
     vercel_token: str | None = Field(default=None)
     slack_token: str | None = Field(default=None)
@@ -150,18 +158,45 @@ def _sanitize_resume_content(content: dict) -> dict:
 
 
 async def get_or_create_service(
+    user_id: str | None = None,
     gmail_token: str | None = None,
+    google_credentials: GoogleCredentialsSchema | None = None,
     notion_token: str | None = None,
     vercel_token: str | None = None,
     slack_token: str | None = None,
 ) -> ChatService:
     """Get or create a workflow service for the given token combination."""
-    raw = f"{gmail_token or ''}:{notion_token or ''}:{vercel_token or ''}:{slack_token or ''}"
+    google_cache_key = ""
+    if google_credentials is not None:
+        google_cache_key = ":".join(
+            [
+                user_id or "",
+                google_credentials.account_email or "",
+                google_credentials.refresh_token or "",
+                google_credentials.access_token
+                if not google_credentials.refresh_token
+                else "",
+            ]
+        )
+    raw = (
+        f"{user_id or ''}:{gmail_token or ''}:{google_cache_key}:"
+        f"{notion_token or ''}:{vercel_token or ''}:{slack_token or ''}"
+    )
     cache_key = hashlib.sha256(raw.encode()).hexdigest()[:16]
 
-    if cache_key not in _services:
+    service = _services.get(cache_key)
+    if service is not None:
+        return service
+
+    async with _services_lock:
+        service = _services.get(cache_key)
+        if service is not None:
+            return service
+
         service = ChatService(
+            user_id=user_id,
             gmail_token=gmail_token,
+            google_credentials=google_credentials,
             notion_token=notion_token,
             vercel_token=vercel_token,
             slack_token=slack_token,
@@ -169,8 +204,7 @@ async def get_or_create_service(
         )
         await service.initialize()
         _services[cache_key] = service
-
-    return _services[cache_key]
+        return service
 
 
 @router.post("/chat")
@@ -197,7 +231,9 @@ async def execute_workflow(data: WorkflowRequestSchema):
 
     try:
         service = await get_or_create_service(
+            user_id=data.user_id,
             gmail_token=data.gmail_token,
+            google_credentials=data.google_credentials,
             notion_token=data.notion_token,
             vercel_token=data.vercel_token,
             slack_token=data.slack_token,
@@ -236,7 +272,9 @@ async def execute_workflow_stream(data: WorkflowRequestSchema):
 
         try:
             service = await get_or_create_service(
+                user_id=data.user_id,
                 gmail_token=data.gmail_token,
+                google_credentials=data.google_credentials,
                 notion_token=data.notion_token,
                 vercel_token=data.vercel_token,
                 slack_token=data.slack_token,
@@ -361,7 +399,9 @@ async def retry_workflow_step(data: WorkflowRetrySchema):
 
     try:
         service = await get_or_create_service(
+            user_id=data.user_id,
             gmail_token=data.gmail_token,
+            google_credentials=data.google_credentials,
             notion_token=data.notion_token,
             vercel_token=data.vercel_token,
             slack_token=data.slack_token,
@@ -407,7 +447,9 @@ async def resume_workflow_with_decision(data: WorkflowResumeSchema):
 
     try:
         service = await get_or_create_service(
+            user_id=data.user_id,
             gmail_token=data.gmail_token,
+            google_credentials=data.google_credentials,
             notion_token=data.notion_token,
             vercel_token=data.vercel_token,
             slack_token=data.slack_token,

@@ -21,8 +21,7 @@ googleDriveRouter.get("/callback", async (req, res) => {
     process.env.GOOGLE_DRIVE_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-drive/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-drive",
-    accessCookieName: "google_drive_access_token",
-    refreshCookieName: "google_drive_refresh_token",
+    service: "google-drive",
     redirectUri,
   });
 });

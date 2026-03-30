@@ -7,13 +7,12 @@ A LangGraph-based chat agent with MCP tool integrations.
 import logging
 
 from chat.service import ChatService
-from chat.schemas import WorkflowState, WorkflowPlan, GoogleCredentialsSyncSchema
+from chat.schemas import WorkflowState, WorkflowPlan
 
 __all__ = [
     "ChatService",
     "WorkflowState",
     "WorkflowPlan",
-    "GoogleCredentialsSyncSchema",
 ]
 
 logger = logging.getLogger(__name__)

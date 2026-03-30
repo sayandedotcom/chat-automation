@@ -11,8 +11,10 @@ from collections.abc import AsyncGenerator
 import uuid
 import logging
 
+from chat.integrations.registry import IntegrationRegistry, get_registry_sync
+from chat.schemas import GoogleCredentialsSchema
+from chat.utils.mcp_client import create_mcp_client, load_mcp_tools
 from chat.workflow.graph import DynamicWorkflow
-from chat.integrations.registry import get_registry, get_registry_sync
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,9 @@ class ChatService:
 
     def __init__(
         self,
+        user_id: str | None = None,
         gmail_token: str | None = None,
+        google_credentials: GoogleCredentialsSchema | None = None,
         vercel_token: str | None = None,
         notion_token: str | None = None,
         tavily_api_key: str | None = None,
@@ -42,7 +46,9 @@ class ChatService:
         google_client_secret: str | None = None,
     ):
         """Initialize the workflow service with integration tokens."""
+        self.user_id = user_id
         self.gmail_token = gmail_token
+        self.google_credentials = google_credentials
         self.vercel_token = vercel_token
         self.notion_token = notion_token
         self.tavily_api_key = tavily_api_key
@@ -61,14 +67,11 @@ class ChatService:
         if self._initialized:
             return
 
-        # Try to use global registry (pre-warmed at startup) for speed
-        # Falls back to creating new registry if not available
         global_registry = get_registry_sync()
 
         if global_registry and global_registry.is_initialized:
             logger.info("Using pre-warmed global registry (fast path)")
-            self._registry = global_registry
-            # Load any MCP servers for OAuth tokens that weren't available at startup
+            self._registry = global_registry.clone()
             await self._registry.load_missing_servers(
                 {
                     "notion_token": self.notion_token,
@@ -76,23 +79,32 @@ class ChatService:
                 }
             )
         else:
-            # Fallback: Create new registry (slow path - 5-15s)
             logger.info("Global registry not available, creating new one (slow path)")
-            self._registry = await get_registry(
+            self._registry = IntegrationRegistry()
+            await self._registry.load_all(
                 {
-                    "gmail_token": self.gmail_token,
                     "vercel_token": self.vercel_token,
                     "notion_token": self.notion_token,
                     "tavily_api_key": self.tavily_api_key,
-                    "google_client_id": self.google_client_id,
-                    "google_client_secret": self.google_client_secret,
                 }
             )
 
-        # Get all tools (for fallback)
+        if self.user_id and self.google_credentials:
+            google_client = create_mcp_client(
+                user_id=self.user_id,
+                gmail_token=self.gmail_token,
+                google_credentials=self.google_credentials,
+                google_client_id=self.google_client_id,
+                google_client_secret=self.google_client_secret,
+            )
+            google_tools = await load_mcp_tools(
+                google_client,
+                google_account_email=self.google_credentials.account_email,
+            )
+            self._registry.add_tools(google_tools)
+
         self._tools = self._registry.get_all_tools()
 
-        # Build dynamic workflow with registry for smart routing
         self._workflow = DynamicWorkflow(
             tools=self._tools,
             registry=self._registry,

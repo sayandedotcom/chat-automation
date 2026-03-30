@@ -1,6 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import {
+  disconnectGoogleService,
+  getConnectedGoogleServices,
+  isGoogleService,
+} from "../lib/google-integration-utils.js";
 import type { ExpressContext } from "../server/context.js";
 import { middleware, publicProcedure, router } from "../server/trpc.js";
 
@@ -15,6 +20,11 @@ const requiresExpressContext = middleware(({ ctx, next }) => {
 });
 
 const expressProcedure = publicProcedure.use(requiresExpressContext);
+type ExpressUserRequest = ExpressContext["req"] & {
+  user?: {
+    id: string;
+  };
+};
 
 const ACCESS_COOKIES: Record<string, string> = {
   gmail: "gmail_access_token",
@@ -37,23 +47,45 @@ const REFRESH_COOKIES: Record<string, string> = {
 };
 
 export const integrationsRouter = router({
-  status: expressProcedure.query(({ ctx }) => {
+  status: expressProcedure.query(async ({ ctx }) => {
+    const req = ctx.req as ExpressUserRequest;
     const status: Record<string, boolean> = {};
+    const googleConnections = req.user?.id
+      ? new Set(await getConnectedGoogleServices(req.user.id))
+      : new Set<string>();
+
     for (const [provider, cookieName] of Object.entries(ACCESS_COOKIES)) {
-      status[provider] = !!ctx.req.cookies[cookieName];
+      if (isGoogleService(provider)) {
+        status[provider] = googleConnections.has(provider);
+        continue;
+      }
+      status[provider] = !!req.cookies[cookieName];
     }
     return status;
   }),
 
   disconnect: expressProcedure
     .input(z.object({ provider: z.string() }))
-    .mutation(({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
+      const req = ctx.req as ExpressUserRequest;
       const cookieName = ACCESS_COOKIES[input.provider];
       if (!cookieName) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid provider",
         });
+      }
+
+      if (isGoogleService(input.provider)) {
+        if (!req.user?.id) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          });
+        }
+
+        await disconnectGoogleService(req.user.id, input.provider);
+        return { success: true };
       }
 
       const cookieOpts = {

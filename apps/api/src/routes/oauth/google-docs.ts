@@ -22,8 +22,7 @@ googleDocsRouter.get("/callback", async (req, res) => {
     process.env.GOOGLE_DOCS_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-docs/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-docs",
-    accessCookieName: "google_docs_access_token",
-    refreshCookieName: "google_docs_refresh_token",
+    service: "google-docs",
     redirectUri,
   });
 });

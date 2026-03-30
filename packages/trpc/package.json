@@ -29,6 +29,10 @@
     "./lib/token-utils": {
       "import": "./src/lib/token-utils.ts",
       "types": "./src/lib/token-utils.ts"
+    },
+    "./lib/google-integration-utils": {
+      "import": "./src/lib/google-integration-utils.ts",
+      "types": "./src/lib/google-integration-utils.ts"
     }
   },
   "scripts": {
@@ -48,6 +52,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@workspace/database": "workspace:*",
     "@tanstack/react-query": "^5.80.7",
     "@trpc/client": "^11.8.1",
     "@trpc/server": "^11.8.1",

@@ -1,11 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import {
-  getConnectedIntegrations,
-  getRefreshedTokens,
-  getTokensFromCookies,
-} from "../lib/token-utils.js";
+import { getConnectedIntegrations, getRefreshedTokens } from "../lib/token-utils.js";
 import type { ExpressContext } from "../server/context.js";
 import { middleware, publicProcedure, router } from "../server/trpc.js";
 
@@ -20,6 +16,15 @@ const requiresExpressContext = middleware(({ ctx, next }) => {
 });
 
 const expressProcedure = publicProcedure.use(requiresExpressContext);
+type ExpressUserRequest = ExpressContext["req"] & {
+  user?: {
+    id: string;
+  };
+};
+
+function formatGoogleExpiry(date: Date | null): string | null {
+  return date ? date.toISOString().replace(/Z$/, "+00:00") : null;
+}
 
 export const chatRouter = router({
   execute: expressProcedure
@@ -30,11 +35,10 @@ export const chatRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(
-        ctx.req,
-        ctx.res
-      );
-      const connectedIntegrations = getConnectedIntegrations(ctx.req);
+      const req = ctx.req as ExpressUserRequest;
+      const { gmailToken, googleCredentials, notionToken, vercelToken, slackToken } =
+        await getRefreshedTokens(req, ctx.res);
+      const connectedIntegrations = await getConnectedIntegrations(req);
 
       const response = await fetch(`${process.env.AGENT_API_URL}/chat`, {
         method: "POST",
@@ -42,7 +46,17 @@ export const chatRouter = router({
         body: JSON.stringify({
           request: input.request,
           thread_id: input.thread_id ?? null,
+          user_id: req.user?.id ?? null,
           gmail_token: gmailToken,
+          google_credentials: googleCredentials
+            ? {
+                access_token: googleCredentials.accessToken,
+                refresh_token: googleCredentials.refreshToken,
+                scopes: googleCredentials.scopes,
+                expiry: formatGoogleExpiry(googleCredentials.expiresAt),
+                account_email: googleCredentials.accountEmail,
+              }
+            : null,
           notion_token: notionToken,
           vercel_token: vercelToken,
           slack_token: slackToken,
@@ -71,8 +85,10 @@ export const chatRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
-      const connectedIntegrations = getConnectedIntegrations(ctx.req);
+      const req = ctx.req as ExpressUserRequest;
+      const { gmailToken, googleCredentials, notionToken, vercelToken, slackToken } =
+        await getRefreshedTokens(req, ctx.res);
+      const connectedIntegrations = await getConnectedIntegrations(req);
 
       const response = await fetch(`${process.env.AGENT_API_URL}/chat/resume`, {
         method: "POST",
@@ -81,7 +97,17 @@ export const chatRouter = router({
           thread_id: input.thread_id,
           action: input.action,
           content: input.content ?? null,
+          user_id: req.user?.id ?? null,
           gmail_token: gmailToken,
+          google_credentials: googleCredentials
+            ? {
+                access_token: googleCredentials.accessToken,
+                refresh_token: googleCredentials.refreshToken,
+                scopes: googleCredentials.scopes,
+                expiry: formatGoogleExpiry(googleCredentials.expiresAt),
+                account_email: googleCredentials.accountEmail,
+              }
+            : null,
           notion_token: notionToken,
           vercel_token: vercelToken,
           slack_token: slackToken,
@@ -109,8 +135,10 @@ export const chatRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { gmailToken, notionToken, vercelToken, slackToken } = getTokensFromCookies(ctx.req);
-      const connectedIntegrations = getConnectedIntegrations(ctx.req);
+      const req = ctx.req as ExpressUserRequest;
+      const { gmailToken, googleCredentials, notionToken, vercelToken, slackToken } =
+        await getRefreshedTokens(req, ctx.res);
+      const connectedIntegrations = await getConnectedIntegrations(req);
 
       const response = await fetch(`${process.env.AGENT_API_URL}/chat/retry`, {
         method: "POST",
@@ -118,7 +146,17 @@ export const chatRouter = router({
         body: JSON.stringify({
           thread_id: input.thread_id,
           step_number: input.step_number,
+          user_id: req.user?.id ?? null,
           gmail_token: gmailToken,
+          google_credentials: googleCredentials
+            ? {
+                access_token: googleCredentials.accessToken,
+                refresh_token: googleCredentials.refreshToken,
+                scopes: googleCredentials.scopes,
+                expiry: formatGoogleExpiry(googleCredentials.expiresAt),
+                account_email: googleCredentials.accountEmail,
+              }
+            : null,
           notion_token: notionToken,
           vercel_token: vercelToken,
           slack_token: slackToken,

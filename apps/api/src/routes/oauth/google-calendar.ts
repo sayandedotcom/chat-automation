@@ -21,8 +21,7 @@ googleCalendarRouter.get("/callback", async (req, res) => {
     process.env.GOOGLE_CALENDAR_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-calendar/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-calendar",
-    accessCookieName: "google_calendar_access_token",
-    refreshCookieName: "google_calendar_refresh_token",
+    service: "google-calendar",
     redirectUri,
   });
 });

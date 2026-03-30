@@ -10,21 +10,77 @@ from langchain_core.tools import BaseTool
 from pathlib import Path
 
 import asyncio
+import hashlib
+import json
 import logging
 import os
 import shutil
+import time
 
 from chat.config import (
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
-    GOOGLE_MCP_CREDENTIALS_DIR,
 )
+from chat.schemas import GoogleCredentialsSchema
 
 logger = logging.getLogger(__name__)
 
+_GOOGLE_CREDENTIALS_ROOT = Path("/tmp/google-mcp")
+_GOOGLE_CREDENTIALS_TTL_SECONDS = 60 * 60
+
+
+def _cleanup_stale_google_credentials(current_user_id: str) -> None:
+    if not _GOOGLE_CREDENTIALS_ROOT.exists():
+        return
+
+    current_hash = hashlib.sha256(current_user_id.encode()).hexdigest()[:16]
+    cutoff = time.time() - _GOOGLE_CREDENTIALS_TTL_SECONDS
+
+    for user_dir in _GOOGLE_CREDENTIALS_ROOT.iterdir():
+        if not user_dir.is_dir():
+            continue
+        if user_dir.name == current_hash:
+            continue
+        try:
+            if user_dir.stat().st_mtime < cutoff:
+                shutil.rmtree(user_dir, ignore_errors=True)
+        except OSError:
+            logger.warning("Failed to inspect Google credential dir %s", user_dir)
+
+
+def _build_google_credentials_dir(user_id: str) -> Path:
+    user_hash = hashlib.sha256(user_id.encode()).hexdigest()[:16]
+    return _GOOGLE_CREDENTIALS_ROOT / user_hash / "credentials"
+
+
+def _write_google_credentials(
+    user_id: str,
+    credentials: GoogleCredentialsSchema,
+    client_id: str,
+    client_secret: str,
+) -> str:
+    _cleanup_stale_google_credentials(user_id)
+    credentials_dir = _build_google_credentials_dir(user_id)
+    credentials_dir.mkdir(parents=True, exist_ok=True)
+    credential_file = credentials_dir / "user_frontend_oauth.json"
+    payload: dict[str, object] = {
+        "token": credentials.access_token,
+        "refresh_token": credentials.refresh_token or "",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "scopes": credentials.scopes,
+    }
+    if credentials.expiry:
+        payload["expiry"] = credentials.expiry
+    credential_file.write_text(json.dumps(payload, indent=2))
+    return str(credentials_dir)
+
 
 def create_mcp_client(
+    user_id: str | None = None,
     gmail_token: str | None = None,
+    google_credentials: GoogleCredentialsSchema | None = None,
     vercel_token: str | None = None,
     notion_token: str | None = None,
     tavily_api_key: str | None = None,
@@ -36,7 +92,9 @@ def create_mcp_client(
     Only includes servers for which we have tokens.
 
     Args:
+        user_id: App user ID for request-scoped Google credential isolation
         gmail_token: Google OAuth access token for Gmail/Workspace (used as user identifier)
+        google_credentials: Google OAuth credentials for request-scoped workspace-mcp
         vercel_token: Vercel access token
         notion_token: Notion OAuth access token
         tavily_api_key: Tavily API key for web search
@@ -48,14 +106,16 @@ def create_mcp_client(
     """
     servers = {}
 
-    # Google Workspace MCP Server (https://github.com/taylorwilsdon/google_workspace_mcp)
-    # Uses single-user mode with credentials synced from frontend OAuth to ~/.google_workspace_mcp/credentials/
-    # The sync happens when user connects Gmail on frontend, tokens are written to MCP credentials dir
     client_id = google_client_id or GOOGLE_CLIENT_ID
     client_secret = google_client_secret or GOOGLE_CLIENT_SECRET
 
-    if client_id and client_secret:
-        mcp_creds_dir = str(GOOGLE_MCP_CREDENTIALS_DIR)
+    if user_id and google_credentials and client_id and client_secret:
+        mcp_creds_dir = _write_google_credentials(
+            user_id=user_id,
+            credentials=google_credentials,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
         workspace_env = os.environ.copy()
         workspace_env.update(
             {
@@ -86,11 +146,9 @@ def create_mcp_client(
             "command": ws_cmd,
             "args": ws_args,
             "env": workspace_env,
-            # Lambda CWD is /var/task (read-only). workspace-mcp creates tmp/attachments
-            # relative to CWD, so set CWD to /tmp which is writable.
             "cwd": "/tmp",
         }
-        logger.info("Google Workspace MCP configured (single-user mode, stdio)")
+        logger.info("Google Workspace MCP configured for user %s", user_id)
 
     if vercel_token:
         servers["vercel"] = {
@@ -228,83 +286,6 @@ def sanitize_tool(tool: BaseTool) -> BaseTool:
     return tool
 
 
-# ---------------------------------------------------------------------------
-# Google Workspace tool auto-fill: resolve user email from stored credentials
-# and inject it (+ userId="me") so the LLM doesn't need to ask for them.
-# ---------------------------------------------------------------------------
-
-_cached_google_email: str | None = None
-
-
-def _resolve_google_email() -> str | None:
-    """Resolve the Google user email from stored MCP credentials.
-
-    Refreshes the access token if expired, then fetches the email from
-    the Gmail profile API. Result is cached module-wide.
-    """
-    global _cached_google_email
-    if _cached_google_email is not None:
-        return _cached_google_email
-
-    import json
-    import httpx
-
-    cred_dirs = [
-        GOOGLE_MCP_CREDENTIALS_DIR,
-        Path.home() / ".google_workspace_mcp" / "credentials",
-    ]
-
-    for cred_dir in cred_dirs:
-        cred_file = cred_dir / "user_frontend_oauth.json"
-        if not cred_file.exists():
-            continue
-        try:
-            creds = json.loads(cred_file.read_text())
-            token = creds.get("token")
-            refresh_token = creds.get("refresh_token")
-            client_id = creds.get("client_id")
-            client_secret = creds.get("client_secret")
-            if not token:
-                continue
-
-            def _fetch_email(access_token: str) -> str | None:
-                resp = httpx.get(
-                    "https://www.googleapis.com/gmail/v1/users/me/profile",
-                    headers={"Authorization": f"Bearer {access_token}"},
-                    timeout=5,
-                )
-                if resp.status_code == 200:
-                    return resp.json().get("emailAddress")
-                return None
-
-            email = _fetch_email(token)
-
-            if not email and refresh_token and client_id and client_secret:
-                refresh_resp = httpx.post(
-                    "https://oauth2.googleapis.com/token",
-                    data={
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "refresh_token": refresh_token,
-                        "grant_type": "refresh_token",
-                    },
-                    timeout=10,
-                )
-                if refresh_resp.status_code == 200:
-                    new_token = refresh_resp.json().get("access_token")
-                    if new_token:
-                        email = _fetch_email(new_token)
-
-            if email:
-                _cached_google_email = email
-                logger.info(f"Resolved Google user email: {email}")
-                return email
-        except Exception as e:
-            logger.warning(f"Failed to resolve Google email from {cred_file}: {e}")
-
-    return None
-
-
 def _is_google_workspace_tool(name: str) -> bool:
     """Check if a tool belongs to Google Workspace MCP by prefix."""
     _PREFIXES = (
@@ -402,18 +383,18 @@ def _strip_email_param_from_schema(tool: BaseTool) -> None:
 
 
 class _AutofillEmailTool(BaseTool):
-    """Wraps a Google Workspace tool to auto-inject user_google_email at call time."""
-
     wrapped_tool: BaseTool
+    account_email: str | None = None
     name: str = ""
     description: str = ""
 
     class Config:
         arbitrary_types_allowed = True
 
-    def __init__(self, wrapped_tool: BaseTool):
+    def __init__(self, wrapped_tool: BaseTool, account_email: str | None):
         super().__init__(
             wrapped_tool=wrapped_tool,
+            account_email=account_email,
             name=wrapped_tool.name,
             description=wrapped_tool.description,
         )
@@ -421,24 +402,22 @@ class _AutofillEmailTool(BaseTool):
             object.__setattr__(self, "args_schema", wrapped_tool.args_schema)
 
     def _inject(self, input):
-        if isinstance(input, dict) and "user_google_email" not in input:
-            email = _resolve_google_email()
-            if email:
-                input["user_google_email"] = email
+        if (
+            isinstance(input, dict)
+            and "user_google_email" not in input
+            and self.account_email
+        ):
+            input["user_google_email"] = self.account_email
         return input
 
     def _run(self, *args, config=None, **kwargs):
-        if "user_google_email" not in kwargs:
-            email = _resolve_google_email()
-            if email:
-                kwargs["user_google_email"] = email
+        if "user_google_email" not in kwargs and self.account_email:
+            kwargs["user_google_email"] = self.account_email
         return self.wrapped_tool._run(*args, config=config, **kwargs)
 
     async def _arun(self, *args, config=None, **kwargs):
-        if "user_google_email" not in kwargs:
-            email = _resolve_google_email()
-            if email:
-                kwargs["user_google_email"] = email
+        if "user_google_email" not in kwargs and self.account_email:
+            kwargs["user_google_email"] = self.account_email
         return await self.wrapped_tool._arun(*args, config=config, **kwargs)
 
     def invoke(self, input, config=None, **kwargs):
@@ -449,7 +428,10 @@ class _AutofillEmailTool(BaseTool):
 
 
 async def load_mcp_tools(
-    client: MultiServerMCPClient, retries: int = 3, base_delay: float = 1.0
+    client: MultiServerMCPClient,
+    retries: int = 3,
+    base_delay: float = 1.0,
+    google_account_email: str | None = None,
 ) -> list[BaseTool]:
     """
     Load tools from the MCP client and sanitize their schemas.
@@ -549,7 +531,9 @@ async def load_mcp_tools(
         for i, tool in enumerate(safe_tools):
             if _is_google_workspace_tool(tool.name):
                 _strip_email_param_from_schema(tool)
-                safe_tools[i] = _AutofillEmailTool(wrapped_tool=tool)
+                safe_tools[i] = _AutofillEmailTool(
+                    wrapped_tool=tool, account_email=google_account_email
+                )
 
         logger.info("Loaded %d MCP tools", len(safe_tools))
         return safe_tools

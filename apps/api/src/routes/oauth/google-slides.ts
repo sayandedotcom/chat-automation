@@ -22,8 +22,7 @@ googleSlidesRouter.get("/callback", async (req, res) => {
     process.env.GOOGLE_SLIDES_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-slides/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-slides",
-    accessCookieName: "google_slides_access_token",
-    refreshCookieName: "google_slides_refresh_token",
+    service: "google-slides",
     redirectUri,
   });
 });

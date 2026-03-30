@@ -7,6 +7,10 @@ const AGENT_API_URL = process.env.AGENT_API_URL as string;
 
 export const chatExpressRouter: IRouter = Router();
 
+function formatGoogleExpiry(date: Date | null): string | null {
+  return date ? date.toISOString().replace(/Z$/, "+00:00") : null;
+}
+
 /**
  * POST /chat/stream
  * Proxy SSE streaming from the agent service.
@@ -23,8 +27,9 @@ chatExpressRouter.post("/stream", async (req, res) => {
     return;
   }
 
-  const { gmailToken, notionToken, vercelToken, slackToken } = await getRefreshedTokens(req, res);
-  const connectedIntegrations = getConnectedIntegrations(req);
+  const { gmailToken, googleCredentials, notionToken, vercelToken, slackToken } =
+    await getRefreshedTokens(req, res);
+  const connectedIntegrations = await getConnectedIntegrations(req);
 
   let agentResponse: Response;
   try {
@@ -34,7 +39,17 @@ chatExpressRouter.post("/stream", async (req, res) => {
       body: JSON.stringify({
         request,
         thread_id: thread_id ?? null,
+        user_id: req.user?.id ?? null,
         gmail_token: gmailToken,
+        google_credentials: googleCredentials
+          ? {
+              access_token: googleCredentials.accessToken,
+              refresh_token: googleCredentials.refreshToken,
+              scopes: googleCredentials.scopes,
+              expiry: formatGoogleExpiry(googleCredentials.expiresAt),
+              account_email: googleCredentials.accountEmail,
+            }
+          : null,
         notion_token: notionToken,
         vercel_token: vercelToken,
         slack_token: slackToken,

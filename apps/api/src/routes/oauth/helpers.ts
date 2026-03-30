@@ -1,9 +1,16 @@
 import type { Request, Response } from "express";
 
+import { upsertGoogleIntegration } from "@workspace/trpc/lib/google-integration-utils";
+
 export const APP_URL = process.env.APP_URL as string;
 export const AGENT_API_URL = process.env.AGENT_API_URL as string;
 export const API_BASE_URL = process.env.API_BASE_URL as string;
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+const GOOGLE_IDENTITY_SCOPES = [
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
+];
 
 export interface GoogleTokenResponse {
   access_token: string;
@@ -52,7 +59,10 @@ export function googleAuthInit(
   authUrl.searchParams.set("client_id", clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", scopes);
+  authUrl.searchParams.set(
+    "scope",
+    Array.from(new Set([...scopes.split(" "), ...GOOGLE_IDENTITY_SCOPES])).join(" ")
+  );
   authUrl.searchParams.set("access_type", "offline");
   authUrl.searchParams.set("prompt", "consent");
   authUrl.searchParams.set("include_granted_scopes", "true");
@@ -67,9 +77,32 @@ export function googleAuthInit(
 
 export interface GoogleCallbackOptions {
   provider: string;
-  accessCookieName: string;
-  refreshCookieName: string;
+  service:
+    | "gmail"
+    | "google-docs"
+    | "google-sheets"
+    | "google-slides"
+    | "google-drive"
+    | "google-calendar";
   redirectUri: string;
+}
+
+interface GoogleUserInfoResponse {
+  email?: string;
+}
+
+async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfoResponse | null> {
+  const response = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
 }
 
 /**
@@ -81,16 +114,23 @@ export async function googleAuthCallback(
   res: Response,
   opts: GoogleCallbackOptions
 ): Promise<void> {
+  const appUrl = process.env.APP_URL ?? APP_URL;
+
+  if (!req.user?.id || !req.user.email) {
+    res.redirect(`${appUrl}/integrations/callback?error=unauthorized`);
+    return;
+  }
+
   const code = req.query["code"] as string | undefined;
   const error = req.query["error"] as string | undefined;
 
   if (error) {
-    res.redirect(`${APP_URL}/integrations/callback?error=${encodeURIComponent(error)}`);
+    res.redirect(`${appUrl}/integrations/callback?error=${encodeURIComponent(error)}`);
     return;
   }
 
   if (!code) {
-    res.redirect(`${APP_URL}/integrations/callback?error=no_code`);
+    res.redirect(`${appUrl}/integrations/callback?error=no_code`);
     return;
   }
 
@@ -98,7 +138,7 @@ export async function googleAuthCallback(
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    res.redirect(`${APP_URL}/integrations/callback?error=missing_credentials`);
+    res.redirect(`${appUrl}/integrations/callback?error=missing_credentials`);
     return;
   }
 
@@ -118,62 +158,33 @@ export async function googleAuthCallback(
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error(`${opts.provider} token exchange failed:`, errorData);
-      res.redirect(`${APP_URL}/integrations/callback?error=token_exchange_failed`);
+      res.redirect(`${appUrl}/integrations/callback?error=token_exchange_failed`);
       return;
     }
 
     const tokens: GoogleTokenResponse = await tokenResponse.json();
 
-    const domain = getCookieDomain(APP_URL);
+    const userInfo = await getGoogleUserInfo(tokens.access_token);
+    const connectedEmail = userInfo?.email?.trim().toLowerCase();
+    const sessionEmail = req.user.email.trim().toLowerCase();
 
-    // Express res.cookie maxAge is in milliseconds
-    res.cookie(opts.accessCookieName, tokens.access_token, {
-      httpOnly: true,
-      secure: IS_PRODUCTION,
-      sameSite: IS_PRODUCTION ? "none" : "lax",
-      maxAge: tokens.expires_in ? tokens.expires_in * 1000 : 3600000,
-      domain,
+    if (!connectedEmail || connectedEmail !== sessionEmail) {
+      res.redirect(`${appUrl}/integrations/callback?error=account_mismatch`);
+      return;
+    }
+
+    await upsertGoogleIntegration({
+      userId: req.user.id,
+      service: opts.service,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      scopes: tokens.scope.split(" "),
+      accountEmail: connectedEmail,
+      expiresInSeconds: tokens.expires_in,
     });
 
-    if (tokens.refresh_token) {
-      res.cookie(opts.refreshCookieName, tokens.refresh_token, {
-        httpOnly: true,
-        secure: IS_PRODUCTION,
-        sameSite: IS_PRODUCTION ? "none" : "lax",
-        maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
-        domain,
-      });
-    }
-
-    // Sync to MCP credential store
-    try {
-      const syncResponse = await fetch(`${AGENT_API_URL}/sync-google-credentials`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token ?? "",
-          client_id: clientId,
-          client_secret: clientSecret,
-          scopes: tokens.scope.split(" "),
-        }),
-      });
-
-      if (syncResponse.ok) {
-        console.log(`✅ ${opts.provider} credentials synced to MCP`);
-      } else {
-        console.error(
-          `⚠️ Failed to sync ${opts.provider} credentials to MCP:`,
-          await syncResponse.text()
-        );
-      }
-    } catch (syncError) {
-      console.error(`⚠️ Error syncing ${opts.provider} credentials to MCP:`, syncError);
-      // Don't fail the OAuth flow if sync fails
-    }
-
     const returnTo = req.query["state"] as string | undefined;
-    const callbackUrl = new URL(`${APP_URL}/integrations/callback`);
+    const callbackUrl = new URL(`${appUrl}/integrations/callback`);
     callbackUrl.searchParams.set("provider", opts.provider);
     if (returnTo) {
       callbackUrl.searchParams.set("returnTo", returnTo);
@@ -181,6 +192,6 @@ export async function googleAuthCallback(
     res.redirect(callbackUrl.toString());
   } catch (err) {
     console.error(`${opts.provider} OAuth error:`, err);
-    res.redirect(`${APP_URL}/integrations/callback?error=oauth_failed`);
+    res.redirect(`${appUrl}/integrations/callback?error=oauth_failed`);
   }
 }

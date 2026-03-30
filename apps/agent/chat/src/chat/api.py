@@ -19,7 +19,6 @@ from chat.config import (
 )
 from chat.integrations.registry import get_registry
 from chat.routers import chat as chat_router
-from chat.routers import credentials as credentials_router
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,6 @@ async def root():
     return {"status": "ok"}
 
 
-app.include_router(credentials_router.router)
 app.include_router(chat_router.router)
 
 

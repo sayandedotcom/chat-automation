@@ -1,5 +1,17 @@
 import type { Request, Response } from "express";
 
+import {
+  type StoredGoogleCredentials,
+  getConnectedGoogleServices,
+  refreshGoogleCredentialsIfNeeded,
+} from "./google-integration-utils.js";
+
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+  };
+};
+
 /**
  * Refresh a Gmail access token using the stored refresh token.
  * Sets the new access_token cookie on the Express response.
@@ -92,9 +104,16 @@ const ACCESS_COOKIES: Record<string, string> = {
  * Return the list of integration IDs whose access-token cookie is present.
  * Used by the agent's pre-flight auth check to decide per-integration auth.
  */
-export function getConnectedIntegrations(req: Request): string[] {
+export async function getConnectedIntegrations(req: Request): Promise<string[]> {
   const connected: string[] = [];
+  const authReq = req as AuthenticatedRequest;
+  if (authReq.user?.id) {
+    connected.push(...(await getConnectedGoogleServices(authReq.user.id)));
+  }
   for (const [id, cookieName] of Object.entries(ACCESS_COOKIES)) {
+    if (id.startsWith("google-")) {
+      continue;
+    }
     if (req.cookies[cookieName]) connected.push(id);
   }
   return connected;
@@ -102,27 +121,29 @@ export function getConnectedIntegrations(req: Request): string[] {
 
 export async function getRefreshedTokens(
   req: Request,
-  res: Response
+  _res: Response
 ): Promise<{
   gmailToken: string | null;
+  googleCredentials: StoredGoogleCredentials | null;
   notionToken: string | null;
   vercelToken: string | null;
   slackToken: string | null;
 }> {
-  let gmailToken = getAnyGoogleToken(req);
-  const gmailRefreshToken = (req.cookies["gmail_refresh_token"] as string) ?? null;
+  let googleCredentials: StoredGoogleCredentials | null = null;
+  const authReq = req as AuthenticatedRequest;
+  if (authReq.user?.id) {
+    googleCredentials = await refreshGoogleCredentialsIfNeeded(authReq.user.id);
+  }
+
+  let gmailToken = googleCredentials?.accessToken ?? null;
   const notionToken = (req.cookies["notion_access_token"] as string) ?? null;
   const vercelToken = (req.cookies["vercel_access_token"] as string) ?? null;
   const slackToken = (req.cookies["slack_access_token"] as string) ?? null;
-
-  if (gmailRefreshToken) {
-    const freshToken = await refreshGmailToken(gmailRefreshToken, res);
-    if (freshToken) {
-      gmailToken = freshToken;
-    }
+  if (!gmailToken) {
+    gmailToken = getAnyGoogleToken(req);
   }
 
-  return { gmailToken, notionToken, vercelToken, slackToken };
+  return { gmailToken, googleCredentials, notionToken, vercelToken, slackToken };
 }
 
 /**
@@ -132,12 +153,14 @@ export async function getRefreshedTokens(
  */
 export function getTokensFromCookies(req: Request): {
   gmailToken: string | null;
+  googleCredentials: null;
   notionToken: string | null;
   vercelToken: string | null;
   slackToken: string | null;
 } {
   return {
     gmailToken: getAnyGoogleToken(req),
+    googleCredentials: null,
     notionToken: (req.cookies["notion_access_token"] as string) ?? null,
     vercelToken: (req.cookies["vercel_access_token"] as string) ?? null,
     slackToken: (req.cookies["slack_access_token"] as string) ?? null,

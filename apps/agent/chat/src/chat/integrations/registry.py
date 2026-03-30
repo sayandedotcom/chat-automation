@@ -86,6 +86,38 @@ class IntegrationRegistry:
         classifier = get_classifier()
         classifier.build_index(integrations_config)
 
+    def clone(self) -> "IntegrationRegistry":
+        cloned = IntegrationRegistry(config_path=self._config_path)
+        cloned._integrations = dict(self._integrations)
+        cloned._tools_by_integration = {
+            name: list(tools) for name, tools in self._tools_by_integration.items()
+        }
+        cloned._all_tools = list(self._all_tools)
+        cloned._tool_to_integration = dict(self._tool_to_integration)
+        cloned._tool_name_to_integration = dict(self._tool_name_to_integration)
+        cloned._tool_name_to_ui_component = dict(self._tool_name_to_ui_component)
+        cloned._initialized = self._initialized
+        return cloned
+
+    def add_tools(self, tools: list[BaseTool]) -> None:
+        existing_tool_names = {tool.name for tool in self._all_tools}
+
+        for tool in tools:
+            if tool.name in existing_tool_names:
+                continue
+
+            integration_name = self._tool_name_to_integration.get(tool.name)
+            if integration_name:
+                self._tools_by_integration.setdefault(integration_name, []).append(tool)
+                self._tool_to_integration[tool.name] = integration_name
+            else:
+                logger.warning(
+                    f"Tool '{tool.name}' not listed in any integration config"
+                )
+
+            self._all_tools.append(tool)
+            existing_tool_names.add(tool.name)
+
     async def load_all(self, tokens: dict):
         """
         Load all MCP integrations and index tools by explicit tool_names from config.

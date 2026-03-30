@@ -22,8 +22,7 @@ googleSheetsRouter.get("/callback", async (req, res) => {
     process.env.GOOGLE_SHEETS_REDIRECT_URI ?? `${API_BASE_URL}/oauth/google-sheets/callback`;
   await googleAuthCallback(req, res, {
     provider: "google-sheets",
-    accessCookieName: "google_sheets_access_token",
-    refreshCookieName: "google_sheets_refresh_token",
+    service: "google-sheets",
     redirectUri,
   });
 });

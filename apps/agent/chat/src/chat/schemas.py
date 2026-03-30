@@ -218,20 +218,15 @@ class WorkflowState(TypedDict):
     _pending_tool_calls_message: dict | None
 
 
-class GoogleCredentialsSyncSchema(BaseModel):
-    """Schema for syncing Google OAuth credentials to MCP."""
-
+class GoogleCredentialsSchema(BaseModel):
     access_token: str = Field(..., description="Google OAuth access token")
-    refresh_token: str = Field(
-        default="", description="Google OAuth refresh token (empty preserves existing)"
+    refresh_token: str | None = Field(
+        default=None, description="Google OAuth refresh token"
     )
-    token_uri: str = Field(
-        default="https://oauth2.googleapis.com/token", description="OAuth token URI"
-    )
-    client_id: str = Field(..., description="Google OAuth client ID")
-    client_secret: str = Field(..., description="Google OAuth client secret")
     scopes: list[str] = Field(
-        default_factory=list,
-        description="OAuth scopes granted by the authorization flow",
+        default_factory=list, description="Granted Google OAuth scopes"
     )
     expiry: str | None = Field(default=None, description="Token expiry timestamp")
+    account_email: str | None = Field(
+        default=None, description="Google account email for tool auto-fill"
+    )
