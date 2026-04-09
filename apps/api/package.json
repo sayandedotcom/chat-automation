@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@t3-oss/env-core": "^0.13.10",
-    "@types/aws-lambda": "8.10.160",
+    "@types/aws-lambda": "8.10.161",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/prettier-config": "workspace:*",
     "eslint": "^9.32.0",
